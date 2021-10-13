@@ -1,0 +1,2 @@
+# Criticool
+cool critics logger
