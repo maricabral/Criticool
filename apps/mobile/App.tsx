@@ -29,7 +29,7 @@ import {
 } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
-import { api, FriendRequest, FriendSummary, loadTokens, ReviewDetail, saveTokens } from './src/api';
+import { api, FriendRequest, FriendSummary, loadTokens, ReviewComment, ReviewDetail, saveTokens } from './src/api';
 import { colors } from './src/theme';
 
 type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
@@ -862,6 +862,7 @@ function CreateScreen({
       >
         <Text style={styles.spoilerText}>{containsSpoilers ? 'Contains spoilers' : 'Spoiler-free'}</Text>
       </Pressable>
+      <PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} />
     </ScrollView>
   );
 }
@@ -877,10 +878,60 @@ function ReviewDetailScreen({
 }) {
   const [review, setReview] = useState<ReviewDetail | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [commentBody, setCommentBody] = useState('');
+  const [replyTo, setReplyTo] = useState<ReviewComment | null>(null);
+  const [postingComment, setPostingComment] = useState(false);
+  const [votingCommentId, setVotingCommentId] = useState<string | null>(null);
+
+  const loadReview = useCallback(async () => {
+    try {
+      setReview(await api.review(tokens, reviewId));
+    } catch {
+      onBack();
+    }
+  }, [tokens, reviewId, onBack]);
 
   useEffect(() => {
-    void api.review(tokens, reviewId).then(setReview).catch(() => onBack());
-  }, [tokens, reviewId]);
+    void loadReview();
+  }, [loadReview]);
+
+  const postComment = async () => {
+    const body = commentBody.trim();
+    if (!body || !review) {
+      return;
+    }
+
+    setPostingComment(true);
+    try {
+      await api.createComment(tokens, review.id, {
+        body,
+        parentCommentId: replyTo?.id ?? null,
+      });
+      setCommentBody('');
+      setReplyTo(null);
+      await loadReview();
+    } catch (err) {
+      Alert.alert('Could not comment', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const voteComment = async (comment: ReviewComment, value: -1 | 1) => {
+    if (!review || votingCommentId) {
+      return;
+    }
+
+    setVotingCommentId(comment.id);
+    try {
+      await api.voteComment(tokens, review.id, comment.id, value);
+      await loadReview();
+    } catch (err) {
+      Alert.alert('Could not vote', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setVotingCommentId(null);
+    }
+  };
 
   if (!review) {
     return (
@@ -913,10 +964,102 @@ function ReviewDetailScreen({
         )}
       </View>
       <View style={styles.notice}>
-        <Text style={styles.emptyTitle}>Comments</Text>
-        <Text style={styles.mutedText}>Threaded discussion is scaffolded for the next Phase 1 slice.</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.emptyTitle}>Comments</Text>
+          <Text style={styles.bubble}>{review.commentCount} chats</Text>
+        </View>
+        <View style={styles.commentComposer}>
+          {replyTo ? (
+            <View style={styles.replyBanner}>
+              <Text style={styles.replyBannerText}>Replying to @{replyTo.author.username}</Text>
+              <Pressable onPress={() => setReplyTo(null)}>
+                <Text style={styles.replyCancel}>Cancel</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          <TextInput
+            value={commentBody}
+            onChangeText={setCommentBody}
+            placeholder={replyTo ? 'Write a reply' : 'Join the discussion'}
+            placeholderTextColor={colors.muted}
+            multiline
+            style={[styles.commentInput, webNoOutline]}
+          />
+          <PrimaryButton label={replyTo ? 'Post reply' : 'Post comment'} onPress={postComment} disabled={postingComment || !commentBody.trim()} compact />
+        </View>
+        {review.comments.length ? (
+          <View style={styles.commentList}>
+            {review.comments.map((comment) => (
+              <CommentNode
+                key={comment.id}
+                comment={comment}
+                onReply={setReplyTo}
+                onVote={voteComment}
+                votingCommentId={votingCommentId}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.mutedText}>No comments yet. Start the thread.</Text>
+        )}
       </View>
     </ScrollView>
+  );
+}
+
+function CommentNode({
+  comment,
+  onReply,
+  onVote,
+  votingCommentId,
+}: {
+  comment: ReviewComment;
+  onReply: (comment: ReviewComment) => void;
+  onVote: (comment: ReviewComment, value: -1 | 1) => void;
+  votingCommentId: string | null;
+}) {
+  const voteDisabled = votingCommentId === comment.id;
+  const canReply = comment.depth < 3;
+
+  return (
+    <View style={[styles.commentThread, { marginLeft: Math.min(comment.depth, 3) * 18 }]}>
+      <View style={[styles.commentCard, comment.depth > 0 && styles.commentReplyCard]}>
+        <View style={styles.voteColumn}>
+          <Pressable disabled={voteDisabled} onPress={() => onVote(comment, 1)} hitSlop={8}>
+            <Text style={[styles.voteButton, comment.viewerVote === 1 && styles.voteButtonActive]}>^</Text>
+          </Pressable>
+          <Text style={styles.voteScore}>{comment.score}</Text>
+          <Pressable disabled={voteDisabled} onPress={() => onVote(comment, -1)} hitSlop={8}>
+            <Text style={[styles.voteButton, comment.viewerVote === -1 && styles.voteButtonActive]}>v</Text>
+          </Pressable>
+        </View>
+        <View style={styles.commentCopy}>
+          <View style={styles.commentAuthorRow}>
+            <Avatar label={comment.author.displayName || comment.author.username} mini />
+            <View style={styles.reviewCopy}>
+              <Text style={styles.author}>@{comment.author.username}</Text>
+              <Text style={styles.commentMeta}>{new Date(comment.createdAt).toLocaleDateString()}</Text>
+            </View>
+          </View>
+          <Text style={styles.bodyText}>{comment.body}</Text>
+          {canReply ? (
+            <Pressable style={styles.commentReplyButton} onPress={() => onReply(comment)}>
+              <Send size={14} color={colors.ink} />
+              <Text style={styles.commentReplyText}>Reply</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+      {comment.replies.map((reply) => (
+        <CommentNode
+          key={reply.id}
+          comment={reply}
+          onReply={onReply}
+          onVote={onVote}
+          votingCommentId={votingCommentId}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -1798,6 +1941,118 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: colors.surface,
     gap: 6,
+  },
+  commentComposer: {
+    gap: 8,
+  },
+  replyBanner: {
+    minHeight: 34,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  replyBannerText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  replyCancel: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    textDecorationLine: 'underline',
+  },
+  commentInput: {
+    minHeight: 86,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    padding: 12,
+    textAlignVertical: 'top',
+    fontWeight: '700',
+  },
+  commentList: {
+    gap: 10,
+  },
+  commentThread: {
+    gap: 8,
+  },
+  commentCard: {
+    flexDirection: 'row',
+    gap: 10,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    padding: 10,
+  },
+  commentReplyCard: {
+    backgroundColor: colors.cream,
+  },
+  voteColumn: {
+    width: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 12,
+    backgroundColor: colors.yellow,
+    paddingVertical: 4,
+  },
+  voteButton: {
+    color: colors.ink,
+    fontSize: 17,
+    lineHeight: 18,
+    fontWeight: '900',
+  },
+  voteButtonActive: {
+    color: colors.pink,
+  },
+  voteScore: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  commentCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
+  },
+  commentAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentMeta: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  commentReplyButton: {
+    alignSelf: 'flex-start',
+    minHeight: 28,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  commentReplyText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
   },
   label: {
     color: colors.ink,

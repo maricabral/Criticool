@@ -2,7 +2,14 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { AuthGuard } from '../common/auth.guard';
 import { RequestUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
-import { CreateReviewDto, ReviewIdParamDto, UpdateReviewDto } from './dto';
+import {
+  CommentIdParamDto,
+  CreateCommentDto,
+  CreateReviewDto,
+  ReviewIdParamDto,
+  UpdateReviewDto,
+  VoteCommentDto,
+} from './dto';
 import { ReviewsService } from './reviews.service';
 
 @Controller('reviews')
@@ -18,6 +25,24 @@ export class ReviewsController {
   @Get(':id')
   get(@CurrentUser() user: RequestUser, @Param() params: ReviewIdParamDto) {
     return this.reviews.get(user.id, params.id);
+  }
+
+  @Post(':id/comments')
+  comment(
+    @CurrentUser() user: RequestUser,
+    @Param() params: ReviewIdParamDto,
+    @Body() dto: CreateCommentDto,
+  ) {
+    return this.reviews.createComment(user.id, params.id, dto);
+  }
+
+  @Post(':id/comments/:commentId/votes')
+  voteComment(
+    @CurrentUser() user: RequestUser,
+    @Param() params: CommentIdParamDto,
+    @Body() dto: VoteCommentDto,
+  ) {
+    return this.reviews.voteComment(user.id, params.id, params.commentId, dto.value);
   }
 
   @Patch(':id')

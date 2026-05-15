@@ -48,3 +48,43 @@ export type FeedResponse = {
   items: FeedItem[];
   nextCursor: string | null;
 };
+
+export type ReviewComment = {
+  id: string;
+  reviewId: string;
+  parentCommentId: string | null;
+  body: string;
+  depth: number;
+  score: number;
+  viewerVote: -1 | 0 | 1;
+  createdAt: string;
+  updatedAt: string;
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  replies: ReviewComment[];
+};
+
+export type ReviewDetail = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  rating: number;
+  quickTake: string | null;
+  body: string | null;
+  tags: string[];
+  containsSpoilers: boolean;
+  visibility: 'private' | 'friends';
+  commentCount: number;
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  movie: MovieSummary;
+  comments: ReviewComment[];
+};

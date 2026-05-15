@@ -1,21 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AuthResponse, AuthTokens, AuthUser, FeedResponse, MovieSummary } from '@criticool/shared';
+import type {
+  AuthResponse,
+  AuthTokens,
+  AuthUser,
+  FeedResponse,
+  MovieSummary,
+  ReviewComment,
+  ReviewDetail,
+} from '@criticool/shared';
+
+export type { ReviewComment, ReviewDetail };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 const TOKENS_KEY = 'criticool.tokens';
-
-export type ReviewDetail = {
-  id: string;
-  createdAt: string;
-  rating: number;
-  quickTake: string | null;
-  body: string | null;
-  tags: string[];
-  containsSpoilers: boolean;
-  commentCount: number;
-  author: { id: string; username: string; displayName: string; avatarUrl: string | null };
-  movie: MovieSummary;
-};
 
 export type FriendRequest = {
   id: string;
@@ -97,6 +94,22 @@ export const api = {
     },
   ) => apiRequest<ReviewDetail>('/reviews', { method: 'POST', tokens, body: JSON.stringify(body) }),
   review: (tokens: AuthTokens, id: string) => apiRequest<ReviewDetail>(`/reviews/${id}`, { tokens }),
+  createComment: (
+    tokens: AuthTokens,
+    reviewId: string,
+    body: { body: string; parentCommentId?: string | null },
+  ) =>
+    apiRequest<ReviewComment>(`/reviews/${reviewId}/comments`, {
+      method: 'POST',
+      tokens,
+      body: JSON.stringify(body),
+    }),
+  voteComment: (tokens: AuthTokens, reviewId: string, commentId: string, value: -1 | 1) =>
+    apiRequest<ReviewComment>(`/reviews/${reviewId}/comments/${commentId}/votes`, {
+      method: 'POST',
+      tokens,
+      body: JSON.stringify({ value }),
+    }),
   searchUsers: (tokens: AuthTokens, query: string) =>
     apiRequest<
       Array<{

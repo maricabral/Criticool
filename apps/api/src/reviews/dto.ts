@@ -2,8 +2,8 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
-  IsBoolean,
   IsIn,
+  IsBoolean,
   IsArray,
   IsNumber,
   IsOptional,
@@ -16,6 +16,11 @@ import {
 export class ReviewIdParamDto {
   @IsString()
   id: string;
+}
+
+export class CommentIdParamDto extends ReviewIdParamDto {
+  @IsString()
+  commentId: string;
 }
 
 export class CreateReviewDto {
@@ -88,4 +93,19 @@ export class UpdateReviewDto {
   @IsOptional()
   @IsIn(['private', 'friends'])
   visibility?: 'private' | 'friends';
+}
+
+export class CreateCommentDto {
+  @IsString()
+  @Length(1, 2000)
+  body: string;
+
+  @IsOptional()
+  @IsString()
+  parentCommentId?: string;
+}
+
+export class VoteCommentDto {
+  @IsIn([-1, 1])
+  value: -1 | 1;
 }
