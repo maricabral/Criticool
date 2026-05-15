@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "CritiCool",
+    "slug": "criticool",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "criticool",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#fff0d2"
+      }
+    }
+  }
+}

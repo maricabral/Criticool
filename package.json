@@ -1,0 +1,27 @@
+{
+  "name": "criticool",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev -w @criticool/api",
+    "dev:mobile": "npm run start -w @criticool/mobile",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate -w @criticool/api",
+    "prisma:migrate": "npm run prisma:migrate -w @criticool/api"
+  },
+  "overrides": {
+    "react": "19.2.0",
+    "react-native-svg": "15.15.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
+  }
+}

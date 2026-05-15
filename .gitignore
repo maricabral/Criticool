@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.expo/
+.env
+.env.local
+coverage/
+.logs/
+resources/logs/
+resources/screenshots/
+*.log
+apps/api/generated/
+.vs/
+TestResults/
+**/bin/
+**/obj/
+*.lscache

@@ -1,0 +1,34 @@
+version: '3.4'
+
+services:
+  criticool.api:
+    image: ${DOCKER_REGISTRY-}criticoolapi
+    build:
+      context: ..
+      dockerfile: CritiCool.Api/CritiCool/Dockerfile
+    depends_on:
+      - criti.cool.db
+
+  criti.cool.db:
+    mem_limit: 1G
+    image: mysql:5-debian
+    restart: always
+    environment:
+      MYSQL_USER: guba
+      MYSQL_PASSWORD: Kazooie2021
+      MYSQL_ROOT_PASSWORD: Kazooie2021
+      MYSQL_DATABASE: criti_cool
+
+    ports:
+      - 4692:3306
+    volumes:
+      - coolvolume:/var/lib/mysql
+
+  adminer:
+    mem_limit: 128M
+    image: adminer
+    restart: always
+    ports:
+        - 8090:8090
+volumes:
+  coolvolume:

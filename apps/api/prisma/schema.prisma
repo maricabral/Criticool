@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+  declined
+}
+
+enum ReviewVisibility {
+  private
+  friends
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  username     String        @unique
+  displayName  String        @map("display_name")
+  email        String        @unique
+  avatarUrl    String?       @map("avatar_url")
+  bio          String?
+  locale       String        @default("en-US")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  accounts     AuthAccount[]
+  sessions     Session[]
+  reviews      Review[]
+  comments     Comment[]
+  commentVotes CommentVote[]
+
+  requestedFriendships Friendship[] @relation("requester")
+  receivedFriendships  Friendship[] @relation("addressee")
+  blocksMade           Block[]      @relation("blocker")
+  blocksReceived       Block[]      @relation("blocked")
+
+  @@map("users")
+}
+
+model AuthAccount {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  provider       String
+  providerUserId String   @map("provider_user_id")
+  passwordHash   String?  @map("password_hash")
+  createdAt      DateTime @default(now()) @map("created_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@map("auth_accounts")
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  deviceName       String?   @map("device_name")
+  ipAddress        String?   @map("ip_address")
+  userAgent        String?   @map("user_agent")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Friendship {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @map("requester_id") @db.Uuid
+  addresseeId String           @map("addressee_id") @db.Uuid
+  status      FriendshipStatus @default(pending)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  respondedAt DateTime?        @map("responded_at")
+  requester   User             @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+  @@map("friendships")
+}
+
+model Block {
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  blocker   User     @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@map("blocks")
+}
+
+model Movie {
+  id               String           @id @default(uuid()) @db.Uuid
+  tmdbId           Int              @unique @map("tmdb_id")
+  imdbId           String?          @map("imdb_id")
+  title            String
+  originalTitle    String?          @map("original_title")
+  overview         String?
+  releaseDate      DateTime?        @map("release_date") @db.Date
+  runtimeMinutes   Int?             @map("runtime_minutes")
+  originalLanguage String?          @map("original_language")
+  posterPath       String?          @map("poster_path")
+  backdropPath     String?          @map("backdrop_path")
+  tmdbVoteAverage  Decimal?         @map("tmdb_vote_average") @db.Decimal(3, 1)
+  tmdbVoteCount    Int?             @map("tmdb_vote_count")
+  popularity       Decimal?         @db.Decimal(10, 3)
+  status           String?
+  adult            Boolean          @default(false)
+  lastSyncedAt     DateTime?        @map("last_synced_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  genres           MovieGenreLink[]
+  reviews          Review[]
+
+  @@index([title])
+  @@index([releaseDate])
+  @@map("movies")
+}
+
+model MovieGenre {
+  tmdbId Int              @id @map("tmdb_id")
+  name   String
+  movies MovieGenreLink[]
+
+  @@map("movie_genres")
+}
+
+model MovieGenreLink {
+  movieId     String     @map("movie_id") @db.Uuid
+  genreTmdbId Int        @map("genre_tmdb_id")
+  movie       Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre       MovieGenre @relation(fields: [genreTmdbId], references: [tmdbId])
+
+  @@id([movieId, genreTmdbId])
+  @@map("movie_genre_links")
+}
+
+model Review {
+  id               String           @id @default(uuid()) @db.Uuid
+  userId           String           @map("user_id") @db.Uuid
+  movieId          String           @map("movie_id") @db.Uuid
+  rating           Decimal          @db.Decimal(2, 1)
+  quickTake        String?          @map("quick_take")
+  body             String?
+  tags             String[]         @default([])
+  containsSpoilers Boolean          @default(false) @map("contains_spoilers")
+  visibility       ReviewVisibility @default(friends)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  deletedAt        DateTime?        @map("deleted_at")
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie            Movie            @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  comments         Comment[]
+  revisions        ReviewRevision[]
+
+  @@unique([userId, movieId])
+  @@index([userId, createdAt])
+  @@index([movieId, createdAt])
+  @@map("reviews")
+}
+
+model ReviewRevision {
+  id               String   @id @default(uuid()) @db.Uuid
+  reviewId         String   @map("review_id") @db.Uuid
+  rating           Decimal  @db.Decimal(2, 1)
+  quickTake        String?  @map("quick_take")
+  body             String?
+  tags             String[] @default([])
+  containsSpoilers Boolean @map("contains_spoilers")
+  createdAt        DateTime @default(now()) @map("created_at")
+  review           Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@map("review_revisions")
+}
+
+model Comment {
+  id              String        @id @default(uuid()) @db.Uuid
+  reviewId        String        @map("review_id") @db.Uuid
+  parentCommentId String?       @map("parent_comment_id") @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  body            String
+  depth           Int           @default(0)
+  score           Int           @default(0)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
+  review          Review        @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent          Comment?      @relation("commentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         Comment[]     @relation("commentReplies")
+  votes           CommentVote[]
+
+  @@index([reviewId, parentCommentId, score, createdAt])
+  @@map("comments")
+}
+
+model CommentVote {
+  commentId String   @map("comment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  value     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@map("comment_votes")
+}

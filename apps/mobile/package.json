@@ -1,0 +1,27 @@
+{
+  "name": "@criticool/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo/AppEntry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@criticool/shared": "0.1.0",
+    "@expo/metro-runtime": "~55.0.11",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@types/react": "^19.2.0",
+    "expo": "55.0.24",
+    "expo-status-bar": "~55.0.6",
+    "lucide-react-native": "^0.511.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.6",
+    "react-native-svg": "15.15.3",
+    "react-native-web": "^0.21.0"
+  }
+}
