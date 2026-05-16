@@ -1,8 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import {
-  Bell,
   Home,
   LogOut,
+  MessageCircle,
   Mic,
   Plus,
   Popcorn,
@@ -10,6 +10,7 @@ import {
   Send,
   User,
   UserPlus,
+  Users,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -27,7 +28,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
 import { api, FriendRequest, FriendSummary, loadTokens, ReviewComment, ReviewDetail, saveTokens } from './src/api';
 import { colors } from './src/theme';
@@ -35,7 +36,14 @@ import { colors } from './src/theme';
 type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
-  Platform.OS === 'web' ? ({ outlineWidth: 0, outlineColor: 'transparent' } as const) : null;
+  Platform.OS === 'web'
+    ? ({
+        outlineWidth: 0,
+        outlineColor: 'transparent',
+        outlineStyle: 'none',
+        boxShadow: 'none',
+      } as unknown as TextStyle)
+    : null;
 const REVIEW_TAG_CATEGORIES = [
   {
     title: 'Company',
@@ -267,20 +275,25 @@ function LoadingScreen() {
 }
 
 function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('register');
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isWelcome = mode === 'welcome';
+  const isRegister = mode === 'register';
 
   const submit = async () => {
+    if (isWelcome) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const response =
-        mode === 'register'
+        isRegister
           ? await api.register({ email, password, username, displayName })
           : await api.login({ email, password });
       await onAuth(response);
@@ -291,59 +304,80 @@ function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: A
     }
   };
 
+  const chooseMode = (nextMode: 'login' | 'register') => {
+    setMode(nextMode);
+    setError(null);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.auth}>
-        <Image source={welcomeLogo} style={styles.welcomeLogo} resizeMode="contain" />
-        <View>
-          <Text style={styles.logo}>CritiCool</Text>
-          <Text style={styles.tagline}>Movie takes from your friends. Cute, quick, and private first.</Text>
-        </View>
-        <View style={styles.segment}>
-          <Pressable
-            style={[styles.segmentButton, mode === 'register' && styles.segmentButtonActive]}
-            onPress={() => setMode('register')}
-          >
-            <Text style={[styles.segmentText, mode === 'register' && styles.segmentTextActive]}>Create account</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segmentButton, mode === 'login' && styles.segmentButtonActive]}
-            onPress={() => setMode('login')}
-          >
-            <Text style={[styles.segmentText, mode === 'login' && styles.segmentTextActive]}>Log in</Text>
-          </Pressable>
-        </View>
-        <View style={styles.form}>
-          <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
-          <Field
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            secureTextEntry
-          />
-          {mode === 'register' ? (
-            <>
+      <ScrollView contentContainerStyle={[styles.auth, isWelcome ? styles.authWelcome : styles.authFormScreen]}>
+        {isWelcome ? (
+          <View style={styles.authWelcomeContent}>
+            <View style={styles.authBrand}>
+              <View style={styles.logoBacking}>
+                <Image source={welcomeLogo} style={styles.welcomeLogo} resizeMode="contain" />
+              </View>
+              <Text style={styles.logo}>CritiCool</Text>
+              <Text style={styles.tagline}>Movie takes from your friends.{'\n'}Cute, quick, and private first.</Text>
+            </View>
+            <View style={styles.authActions}>
+              <PrimaryButton label="Create account" onPress={() => chooseMode('register')} />
+              <Pressable style={styles.authSecondaryButton} onPress={() => chooseMode('login')}>
+                <Text style={styles.authSecondaryButtonText}>Log in</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.authPanel}>
+            <View style={styles.authFormHeader}>
+              <View style={styles.smallLogoBacking}>
+                <Image source={welcomeLogo} style={styles.smallWelcomeLogo} resizeMode="contain" />
+              </View>
+              <Text style={styles.authTitle}>{isRegister ? 'Create account' : 'Log in'}</Text>
+            </View>
+            <View style={styles.form}>
+              <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
               <Field
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Username"
-                autoCapitalize="none"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                secureTextEntry
               />
-              <Field
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="Display name"
+              {isRegister ? (
+                <>
+                  <Field
+                    value={username}
+                    onChangeText={setUsername}
+                    placeholder="Username"
+                    autoCapitalize="none"
+                  />
+                  <Field
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="Display name"
+                  />
+                </>
+              ) : null}
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <PrimaryButton
+                label={isRegister ? 'Create account' : 'Log in'}
+                onPress={submit}
+                disabled={busy}
               />
-            </>
-          ) : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            label={mode === 'register' ? 'Create account' : 'Log in'}
-            onPress={submit}
-            disabled={busy}
-          />
-        </View>
+              <Pressable
+                style={styles.authLinkRow}
+                onPress={() => chooseMode(isRegister ? 'login' : 'register')}
+              >
+                <Text style={styles.authLinkMuted}>
+                  {isRegister ? 'Already have an account? ' : 'Need an account? '}
+                  <Text style={styles.authLinkText}>{isRegister ? 'Log in' : 'Create account'}</Text>
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -518,7 +552,7 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
       <FramePerfRow style={styles.framePerfBottom} />
       <Poster movie={item.movie} compact />
       <View style={styles.reviewCopy}>
-        <Text numberOfLines={1} style={styles.movieTitle}>{item.movie.title}</Text>
+        <Text numberOfLines={2} style={styles.movieTitle}>{item.movie.title}</Text>
         <Text numberOfLines={2} style={styles.quickTake}>
           {item.containsSpoilers ? 'Spoiler review' : item.quickTake || 'No quick take'}
         </Text>
@@ -526,11 +560,11 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
           <Rating value={item.rating} />
           <Text style={styles.bubble}>{item.commentCount} chats</Text>
         </View>
-        {item.tags?.length ? <TagPills tags={item.tags.slice(0, 2)} /> : null}
         <View style={styles.miniAvatars}>
           <Avatar label={item.author.displayName || item.author.username} mini />
           <Text style={styles.frameAuthor}>@{item.author.username}</Text>
         </View>
+        {item.tags?.length ? <TagPills tags={item.tags.slice(0, 2)} /> : null}
       </View>
     </Pressable>
   );
@@ -781,7 +815,7 @@ function CreateScreen({
               onPress={() => setRating(value)}
               hitSlop={8}
             >
-              <Popcorn size={32} color={active ? colors.pink : colors.ink} strokeWidth={active ? 3.4 : 2.6} />
+              <Popcorn size={28} color={active ? colors.pink : colors.ink} strokeWidth={active ? 3.4 : 2.6} />
             </Pressable>
           );
         })}
@@ -961,17 +995,26 @@ function ReviewDetailScreen({
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
       <Header title="Review" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
-      <View style={styles.detailInline}>
-        <View style={styles.authorRow}>
-          <Avatar label={review.author.displayName} />
-          <View>
-            <Text style={styles.author}>@{review.author.username}</Text>
-            <Text style={styles.mutedText}>{review.movie.title}</Text>
+      <View style={styles.detailTape}>
+        <FramePerfRow style={styles.detailTapePerfTop} />
+        <View style={styles.detailHeaderCard}>
+          <Poster movie={review.movie} compact />
+          <View style={styles.reviewCopy}>
+            <View style={styles.authorRow}>
+              <Avatar label={review.author.displayName || review.author.username} mini />
+              <Text style={styles.author}>@{review.author.username}</Text>
+            </View>
+            <Text numberOfLines={2} style={styles.detailMovieTitle}>{review.movie.title}</Text>
+            <View style={styles.takeRow}>
+              <Rating value={review.rating} size={22} />
+              <Text style={styles.bubble}>{review.containsSpoilers ? 'spoilers' : 'spoiler-free'}</Text>
+            </View>
           </View>
         </View>
-        <Rating value={review.rating} />
+      </View>
+      <View style={styles.detailInline}>
         {review.quickTake ? <Text style={styles.detailTitle}>{review.quickTake}</Text> : null}
-        {review.tags?.length ? <TagPills tags={review.tags} /> : null}
+        {review.tags?.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
         {showBody ? (
           <Text style={styles.bodyText}>{review.body || 'No full review.'}</Text>
         ) : (
@@ -1026,7 +1069,10 @@ function ReviewDetailScreen({
             ))}
           </View>
         ) : (
-          <Text style={styles.mutedText}>No comments yet. Start the thread.</Text>
+          <View style={styles.emptyComments}>
+            <MessageCircle size={24} color={colors.ink} />
+            <Text style={styles.mutedText}>No comments yet. Start the thread.</Text>
+          </View>
         )}
       </View>
     </ScrollView>
@@ -1187,8 +1233,12 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
             {users.map((item) => (
               <View key={item.id} style={styles.simplePersonRow}>
                 <Avatar label={item.displayName} />
-                <Text style={styles.author}>@{item.username}</Text>
-                <Pressable disabled={item.friendshipStatus !== null} onPress={() => void add(item.id)}>
+                <Text numberOfLines={1} style={styles.friendSearchName}>@{item.username}</Text>
+                <Pressable
+                  disabled={item.friendshipStatus !== null}
+                  onPress={() => void add(item.id)}
+                  style={styles.friendAddAction}
+                >
                   <Text style={styles.pill}>{item.friendshipStatus ?? 'Add'}</Text>
                 </Pressable>
               </View>
@@ -1205,7 +1255,9 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
               <View style={styles.friendGrid}>
                 {friends.map((friend) => (
                   <View key={friend.id} style={styles.friendBubble}>
-                    <Avatar label={friend.displayName || friend.username} large />
+                    <View style={styles.friendAvatarRing}>
+                      <Avatar label={friend.displayName || friend.username} large />
+                    </View>
                     <Text numberOfLines={1} style={styles.friendHandle}>@{friend.username}</Text>
                   </View>
                 ))}
@@ -1361,9 +1413,9 @@ function PrimaryButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.primaryButton, compact && styles.compactButton, disabled && styles.disabled]}
+      style={[styles.primaryButton, compact && styles.compactButton, disabled && styles.primaryButtonDisabled]}
     >
-      <Text style={styles.primaryButtonText}>{label}</Text>
+      <Text style={[styles.primaryButtonText, disabled && styles.primaryButtonTextDisabled]}>{label}</Text>
     </Pressable>
   );
 }
@@ -1382,7 +1434,7 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
       { id: 'feed' as const, label: 'Feed', icon: Home },
       { id: 'search' as const, label: 'Search', icon: Search },
       { id: 'create' as const, label: 'Post', icon: Plus },
-      { id: 'friends' as const, label: 'Friends', icon: Bell },
+      { id: 'friends' as const, label: 'Friends', icon: Users },
       { id: 'profile' as const, label: 'Me', icon: User },
     ],
     [],
@@ -1394,7 +1446,7 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
         const active = current === tab.id;
         return (
           <Pressable key={tab.id} style={styles.tab} onPress={() => onChange(tab.id)}>
-            <View style={[styles.tabIcon, active && styles.tabIconActive]}>
+            <View style={[styles.tabIcon, active && styles.tabIconActive, active && tab.id === 'create' && styles.tabIconCreateActive]}>
               <Icon size={16} color={active ? colors.surface : colors.muted} />
             </View>
             <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
@@ -1407,7 +1459,7 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
 
 function Poster({ movie, compact }: { movie: MovieSummary; compact?: boolean }) {
   if (movie.posterUrl) {
-    return <Image source={{ uri: movie.posterUrl }} style={[styles.poster, compact && styles.posterCompact]} />;
+    return <Image source={{ uri: movie.posterUrl }} style={[styles.poster, compact && styles.posterCompact]} resizeMode="cover" />;
   }
   return (
     <View style={[styles.poster, compact && styles.posterCompact, styles.posterFallback]}>
@@ -1424,10 +1476,10 @@ function Avatar({ label, large, mini }: { label: string; large?: boolean; mini?:
   );
 }
 
-function Rating({ value }: { value: number }) {
+function Rating({ value, size = 18 }: { value: number; size?: number }) {
   return (
     <View style={styles.rating}>
-      <Popcorn size={18} color={colors.ink} />
+      <Popcorn size={size} color={colors.ink} />
       <Text style={styles.ratingText}>{value.toFixed(1)}</Text>
     </View>
   );
@@ -1468,16 +1520,91 @@ const styles = StyleSheet.create({
   },
   auth: {
     flexGrow: 1,
-    justifyContent: 'center',
-    gap: 18,
-    padding: 22,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
     backgroundColor: colors.surface,
   },
+  authWelcome: {
+    justifyContent: 'center',
+  },
+  authFormScreen: {
+    justifyContent: 'flex-start',
+  },
+  authWelcomeContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: 48,
+  },
+  authBrand: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoBacking: {
+    width: 206,
+    height: 206,
+    borderRadius: 103,
+    backgroundColor: '#ffe4ee',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 0,
+    shadowOffset: { width: 5, height: 6 },
+  },
   welcomeLogo: {
+    width: 184,
+    height: 184,
+    borderRadius: 48,
+  },
+  authActions: {
     alignSelf: 'center',
-    width: 236,
-    height: 236,
-    borderRadius: 54,
+    width: '100%',
+    maxWidth: 360,
+    gap: 12,
+  },
+  authSecondaryButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authSecondaryButtonText: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  authPanel: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 380,
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: 20,
+  },
+  authFormHeader: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  smallLogoBacking: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: '#ffe4ee',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.ink,
+    shadowOpacity: 0.1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 4 },
+  },
+  smallWelcomeLogo: {
+    width: 70,
+    height: 70,
+    borderRadius: 20,
+  },
+  authTitle: {
+    color: colors.ink,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: '900',
   },
   reel: {
     alignSelf: 'center',
@@ -1586,36 +1713,31 @@ const styles = StyleSheet.create({
     lineHeight: 48,
     fontWeight: '900',
     color: colors.ink,
+    textAlign: 'center',
   },
   tagline: {
     fontSize: 17,
+    lineHeight: 23,
     color: colors.muted,
     marginTop: 4,
-  },
-  segment: {
-    gap: 10,
-  },
-  segmentButton: {
-    minHeight: 46,
-    borderWidth: 3,
-    borderColor: colors.ink,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  segmentButtonActive: {
-    backgroundColor: colors.pink,
-  },
-  segmentText: {
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  segmentTextActive: {
-    color: colors.surface,
+    textAlign: 'center',
   },
   form: {
-    gap: 10,
+    gap: 9,
+  },
+  authLinkRow: {
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authLinkMuted: {
+    color: colors.muted,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  authLinkText: {
+    color: colors.ink,
+    fontWeight: '900',
   },
   app: {
     flex: 1,
@@ -1631,6 +1753,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 2,
   },
   headerTitle: {
     fontSize: 27,
@@ -1656,6 +1779,7 @@ const styles = StyleSheet.create({
   },
   fieldWrap: {
     minHeight: 46,
+    maxHeight: 46,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 999,
@@ -1664,9 +1788,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
+    overflow: 'hidden',
   },
   field: {
     flex: 1,
+    minWidth: 0,
     minHeight: 42,
     backgroundColor: 'transparent',
     borderWidth: 0,
@@ -1687,6 +1813,10 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     shadowOffset: { width: 3, height: 4 },
   },
+  primaryButtonDisabled: {
+    backgroundColor: '#d8c7aa',
+    shadowOpacity: 0,
+  },
   compactButton: {
     minHeight: 38,
   },
@@ -1694,8 +1824,8 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontWeight: '900',
   },
-  disabled: {
-    opacity: 0.45,
+  primaryButtonTextDisabled: {
+    color: '#6d6358',
   },
   error: {
     color: colors.danger,
@@ -1707,15 +1837,15 @@ const styles = StyleSheet.create({
   },
   feedTape: {
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: 2,
     marginTop: 4,
-    marginBottom: 10,
+    marginBottom: 14,
     borderWidth: 4,
     borderColor: colors.ink,
-    borderRadius: 32,
+    borderRadius: 28,
     backgroundColor: '#211d23',
-    paddingHorizontal: 34,
-    paddingVertical: 20,
+    paddingHorizontal: 30,
+    paddingVertical: 18,
     shadowColor: colors.ink,
     shadowOpacity: 0.12,
     shadowRadius: 0,
@@ -1727,7 +1857,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    width: 24,
+    width: 18,
     backgroundColor: '#2b262c',
   },
   feedEdgeRight: {
@@ -1735,32 +1865,33 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     right: 0,
-    width: 24,
+    width: 18,
     backgroundColor: '#2b262c',
   },
   filmPerfColumn: {
     position: 'absolute',
     top: 18,
     bottom: 18,
-    width: 13,
+    width: 9,
     justifyContent: 'space-between',
     zIndex: 1,
+    opacity: 0.78,
   },
   feedPerfLeft: {
-    left: 9,
+    left: 7,
   },
   feedPerfRight: {
-    right: 9,
+    right: 7,
   },
   filmPerfHole: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
+    width: 9,
+    height: 12,
+    borderRadius: 5,
     backgroundColor: colors.cream,
   },
   feedFrames: {
-    gap: 18,
-    paddingBottom: 20,
+    gap: 16,
+    paddingBottom: 24,
     zIndex: 2,
   },
   emptyList: {
@@ -1813,14 +1944,14 @@ const styles = StyleSheet.create({
   reviewFrame: {
     position: 'relative',
     flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    minHeight: 150,
-    borderWidth: 4,
+    gap: 14,
+    alignItems: 'flex-start',
+    minHeight: 132,
+    borderWidth: 2,
     borderColor: '#0f0d10',
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: colors.cream,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     shadowColor: colors.surface,
     shadowOpacity: 0.35,
@@ -1829,21 +1960,22 @@ const styles = StyleSheet.create({
   },
   framePerfRow: {
     position: 'absolute',
-    left: -2,
-    right: -2,
-    height: 5,
+    left: 4,
+    right: 4,
+    height: 4,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    opacity: 0.7,
   },
   framePerfTop: {
-    top: -13,
+    top: -10,
   },
   framePerfBottom: {
-    bottom: -13,
+    bottom: -10,
   },
   framePerfHole: {
-    width: 11,
-    height: 5,
+    width: 10,
+    height: 4,
     backgroundColor: colors.cream,
   },
   authorRow: {
@@ -1894,14 +2026,15 @@ const styles = StyleSheet.create({
   poster: {
     width: 76,
     height: 112,
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 3,
     borderColor: colors.ink,
     backgroundColor: colors.yellow,
+    overflow: 'hidden',
   },
   posterCompact: {
-    width: 58,
-    height: 86,
+    width: 62,
+    height: 92,
   },
   posterFallback: {
     alignItems: 'center',
@@ -1914,8 +2047,8 @@ const styles = StyleSheet.create({
   },
   movieTitle: {
     color: colors.ink,
-    fontSize: 20,
-    lineHeight: 22,
+    fontSize: 19,
+    lineHeight: 21,
     fontWeight: '900',
   },
   rating: {
@@ -1925,11 +2058,13 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     color: colors.ink,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   quickTake: {
     color: colors.ink,
-    fontWeight: '800',
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '700',
   },
   takeRow: {
     flexDirection: 'row',
@@ -1945,7 +2080,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     color: colors.ink,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
     backgroundColor: colors.surface,
     overflow: 'hidden',
   },
@@ -1957,7 +2092,7 @@ const styles = StyleSheet.create({
   frameAuthor: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   sectionBlock: {
     gap: 10,
@@ -2015,15 +2150,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tagPill: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.ink,
     borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
     color: colors.ink,
-    fontSize: 12,
-    fontWeight: '900',
-    backgroundColor: colors.cyan,
+    fontSize: 11,
+    fontWeight: '800',
+    backgroundColor: '#9bddea',
     overflow: 'hidden',
   },
   stack: {
@@ -2063,7 +2198,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   commentComposer: {
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 22,
+    backgroundColor: colors.cream,
     gap: 8,
+    padding: 8,
   },
   commentsInline: {
     gap: 12,
@@ -2094,9 +2234,9 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     minHeight: 86,
-    borderWidth: 3,
+    borderWidth: 0,
     borderColor: colors.ink,
-    borderRadius: 22,
+    borderRadius: 16,
     backgroundColor: colors.surface,
     color: colors.ink,
     padding: 12,
@@ -2116,9 +2256,22 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
+    borderWidth: 2,
+    borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.yellow,
+  },
+  emptyComments: {
+    minHeight: 88,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 18,
+    backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
   },
   commentList: {
     gap: 10,
@@ -2325,6 +2478,35 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 4,
   },
+  detailTape: {
+    position: 'relative',
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 22,
+    backgroundColor: '#211d23',
+    padding: 10,
+    paddingTop: 16,
+    overflow: 'hidden',
+  },
+  detailTapePerfTop: {
+    top: 6,
+  },
+  detailHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    padding: 12,
+  },
+  detailMovieTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    lineHeight: 23,
+    fontWeight: '900',
+  },
   detailTitle: {
     fontSize: 20,
     lineHeight: 24,
@@ -2377,6 +2559,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  friendSearchName: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  friendAddAction: {
+    marginLeft: 'auto',
+  },
   friendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2388,6 +2579,12 @@ const styles = StyleSheet.create({
     minWidth: 84,
     alignItems: 'center',
     gap: 6,
+  },
+  friendAvatarRing: {
+    borderRadius: 48,
+    borderWidth: 3,
+    borderColor: colors.cyan,
+    padding: 2,
   },
   friendHandle: {
     maxWidth: '100%',
@@ -2434,6 +2631,10 @@ const styles = StyleSheet.create({
   },
   tabIconActive: {
     borderColor: colors.pink,
+    backgroundColor: colors.pink,
+  },
+  tabIconCreateActive: {
+    borderColor: colors.ink,
     backgroundColor: colors.pink,
   },
   tabText: {
