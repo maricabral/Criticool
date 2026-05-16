@@ -567,6 +567,7 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const quickTake = item.containsSpoilers ? 'Spoiler review' : item.quickTake?.trim();
+  const primaryTag = item.tags?.[0];
 
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
@@ -574,26 +575,34 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
       <FramePerfRow style={styles.framePerfBottom} />
       <Poster movie={item.movie} compact />
       <View style={styles.reviewCopy}>
-        <Text numberOfLines={2} style={styles.movieTitle}>
+        <Text numberOfLines={1} style={styles.movieTitle}>
           {item.movie.title}
         </Text>
         {quickTake ? (
-          <Text numberOfLines={2} style={styles.quickTake}>
+          <Text numberOfLines={1} style={styles.quickTake}>
             {quickTake}
           </Text>
         ) : null}
-        <View style={styles.takeRow}>
+        <View style={styles.reviewMetaRow}>
           <PopcornRating value={item.rating} />
           <View style={styles.commentBubble}>
             <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
             <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
           </View>
         </View>
-        <View style={styles.miniAvatars}>
-          <Avatar label={item.author.displayName || item.author.username} mini />
-          <Text style={styles.frameAuthor}>@{item.author.username}</Text>
+        <View style={styles.reviewFooter}>
+          <View style={styles.miniAvatars}>
+            <Avatar label={item.author.displayName || item.author.username} mini />
+            <Text numberOfLines={1} style={styles.frameAuthor}>
+              @{item.author.username}
+            </Text>
+          </View>
+          {primaryTag ? (
+            <Text numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
+              {primaryTag}
+            </Text>
+          ) : null}
         </View>
-        {item.tags?.length ? <TagPills tags={item.tags.slice(0, 2)} /> : null}
       </View>
     </Pressable>
   );
@@ -2144,15 +2153,15 @@ const styles = StyleSheet.create({
   reviewFrame: {
     position: 'relative',
     flexDirection: 'row',
-    gap: 14,
+    gap: 12,
     alignItems: 'flex-start',
-    minHeight: 132,
+    minHeight: 120,
     borderWidth: 2,
     borderColor: '#0f0d10',
     borderRadius: 16,
     backgroundColor: colors.cream,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     shadowColor: colors.surface,
     shadowOpacity: 0.35,
     shadowRadius: 0,
@@ -2243,7 +2252,7 @@ const styles = StyleSheet.create({
   reviewCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 4,
+    gap: 5,
   },
   movieTitle: {
     color: colors.ink,
@@ -2269,8 +2278,15 @@ const styles = StyleSheet.create({
   quickTake: {
     color: colors.ink,
     fontSize: 13,
-    lineHeight: 17,
+    lineHeight: 16,
     fontWeight: '700',
+  },
+  reviewMetaRow: {
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   takeRow: {
     flexDirection: 'row',
@@ -2308,12 +2324,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+  reviewFooter: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   miniAvatars: {
+    flexShrink: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   frameAuthor: {
+    flexShrink: 1,
     color: colors.muted,
     fontSize: 12,
     fontWeight: '800',
@@ -2384,6 +2410,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     backgroundColor: '#9bddea',
     overflow: 'hidden',
+  },
+  cardTagPill: {
+    maxWidth: 130,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
   },
   stack: {
     gap: 12,
