@@ -33,6 +33,7 @@ import { api, FriendRequest, FriendSummary, loadTokens, ReviewComment, ReviewDet
 import { colors } from './src/theme';
 
 type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
+const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
   Platform.OS === 'web' ? ({ outlineWidth: 0, outlineColor: 'transparent' } as const) : null;
 const REVIEW_TAG_CATEGORIES = [
@@ -148,6 +149,69 @@ const FEATURED_REVIEW_TAGS = [
   'brain off bliss',
 ];
 
+type SpeechRecognitionInstance = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
+function appendTranscript(
+  setter: React.Dispatch<React.SetStateAction<string>>,
+  transcript: string,
+) {
+  setter((current) => {
+    const trimmed = current.trim();
+    return trimmed ? `${trimmed}\n\n${transcript}` : transcript;
+  });
+}
+
+function startDictation({
+  onTranscript,
+  onEnd,
+  unavailableMessage,
+}: {
+  onTranscript: (transcript: string) => void;
+  onEnd: (active: boolean) => void;
+  unavailableMessage: string;
+}) {
+  if (Platform.OS !== 'web') {
+    Alert.alert('Voice dictation', unavailableMessage);
+    return;
+  }
+
+  const speechGlobal = globalThis as typeof globalThis & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  const Recognition = speechGlobal.SpeechRecognition ?? speechGlobal.webkitSpeechRecognition;
+  if (!Recognition) {
+    Alert.alert('Voice dictation unavailable', 'This browser does not expose speech recognition.');
+    return;
+  }
+
+  onEnd(true);
+  const recognition = new Recognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onresult = (event) => {
+    const transcript = event.results[0]?.[0]?.transcript.trim();
+    if (transcript) {
+      onTranscript(transcript);
+    }
+  };
+  recognition.onerror = (event) => {
+    Alert.alert('Dictation stopped', event.error ?? 'Please try again.');
+  };
+  recognition.onend = () => onEnd(false);
+  recognition.start();
+}
+
 export default function App() {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -230,25 +294,7 @@ function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: A
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.auth}>
-        <View style={styles.reel}>
-          <View style={styles.tapeTail}>
-            <View style={styles.tapeStripe} />
-            <View style={styles.tapeStripe} />
-            <View style={styles.tapeStripe} />
-            <View style={styles.tapeStripe} />
-            <View style={styles.tapeStripe} />
-          </View>
-          <View style={styles.reelHole} />
-          <View style={[styles.reelHole, styles.reelHoleTwo]} />
-          <View style={[styles.reelHole, styles.reelHoleThree]} />
-          <View style={styles.reelGlasses}>
-            <View style={styles.reelLens} />
-            <View style={styles.reelLens} />
-            <View style={[styles.reelGlare, styles.reelGlareLeft]} />
-            <View style={[styles.reelGlare, styles.reelGlareRight]} />
-          </View>
-          <View style={styles.reelMouth} />
-        </View>
+        <Image source={welcomeLogo} style={styles.welcomeLogo} resizeMode="contain" />
         <View>
           <Text style={styles.logo}>CritiCool</Text>
           <Text style={styles.tagline}>Movie takes from your friends. Cute, quick, and private first.</Text>
@@ -355,7 +401,12 @@ function AppShell({
           selectedReviewId ? (
             <ReviewDetailScreen tokens={tokens} reviewId={selectedReviewId} onBack={() => setSelectedReviewId(null)} />
           ) : (
-            <ProfileScreen user={user} onSignOut={onSignOut} />
+            <ProfileScreen
+              tokens={tokens}
+              user={user}
+              onOpenReview={setSelectedReviewId}
+              onSignOut={onSignOut}
+            />
           )
         ) : null}
       </View>
@@ -648,61 +699,12 @@ function CreateScreen({
 
   const startReviewDictation = () => {
     bodyInputRef.current?.focus();
-
-    if (Platform.OS !== 'web') {
-      Alert.alert(
-        'Voice dictation',
+    startDictation({
+      onTranscript: (transcript) => appendTranscript(setBody, transcript),
+      onEnd: setTranscribing,
+      unavailableMessage:
         'Tap the microphone on your keyboard to dictate the full review. Native in-app transcription needs a custom development build.',
-      );
-      return;
-    }
-
-    const speechWindow = window as typeof window & {
-      SpeechRecognition?: new () => {
-        lang: string;
-        interimResults: boolean;
-        maxAlternatives: number;
-        onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
-        onerror: ((event: { error?: string }) => void) | null;
-        onend: (() => void) | null;
-        start: () => void;
-      };
-      webkitSpeechRecognition?: new () => {
-        lang: string;
-        interimResults: boolean;
-        maxAlternatives: number;
-        onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
-        onerror: ((event: { error?: string }) => void) | null;
-        onend: (() => void) | null;
-        start: () => void;
-      };
-    };
-    const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      Alert.alert('Voice dictation unavailable', 'This browser does not expose speech recognition.');
-      return;
-    }
-
-    setTranscribing(true);
-    const recognition = new Recognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript.trim();
-      if (!transcript) {
-        return;
-      }
-      setBody((current) => {
-        const trimmed = current.trim();
-        return trimmed ? `${trimmed}\n\n${transcript}` : transcript;
-      });
-    };
-    recognition.onerror = (event) => {
-      Alert.alert('Dictation stopped', event.error ?? 'Please try again.');
-    };
-    recognition.onend = () => setTranscribing(false);
-    recognition.start();
+    });
   };
 
   const post = async () => {
@@ -881,7 +883,9 @@ function ReviewDetailScreen({
   const [commentBody, setCommentBody] = useState('');
   const [replyTo, setReplyTo] = useState<ReviewComment | null>(null);
   const [postingComment, setPostingComment] = useState(false);
+  const [transcribingComment, setTranscribingComment] = useState(false);
   const [votingCommentId, setVotingCommentId] = useState<string | null>(null);
+  const commentInputRef = useRef<TextInput>(null);
 
   const loadReview = useCallback(async () => {
     try {
@@ -933,6 +937,16 @@ function ReviewDetailScreen({
     }
   };
 
+  const startCommentDictation = () => {
+    commentInputRef.current?.focus();
+    startDictation({
+      onTranscript: (transcript) => appendTranscript(setCommentBody, transcript),
+      onEnd: setTranscribingComment,
+      unavailableMessage:
+        'Tap the microphone on your keyboard to dictate a comment. Native in-app transcription needs a custom development build.',
+    });
+  };
+
   if (!review) {
     return (
       <View style={styles.center}>
@@ -946,7 +960,7 @@ function ReviewDetailScreen({
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
       <Header title="Review" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
-      <View style={styles.detailBlock}>
+      <View style={styles.detailInline}>
         <View style={styles.authorRow}>
           <Avatar label={review.author.displayName} />
           <View>
@@ -963,7 +977,7 @@ function ReviewDetailScreen({
           <PrimaryButton label="Reveal spoilers" onPress={() => setRevealed(true)} />
         )}
       </View>
-      <View style={styles.notice}>
+      <View style={styles.commentsInline}>
         <View style={styles.sectionHeader}>
           <Text style={styles.emptyTitle}>Comments</Text>
           <Text style={styles.bubble}>{review.commentCount} chats</Text>
@@ -977,14 +991,25 @@ function ReviewDetailScreen({
               </Pressable>
             </View>
           ) : null}
-          <TextInput
-            value={commentBody}
-            onChangeText={setCommentBody}
-            placeholder={replyTo ? 'Write a reply' : 'Join the discussion'}
-            placeholderTextColor={colors.muted}
-            multiline
-            style={[styles.commentInput, webNoOutline]}
-          />
+          <View style={styles.commentInputWrap}>
+            <TextInput
+              ref={commentInputRef}
+              value={commentBody}
+              onChangeText={setCommentBody}
+              placeholder={replyTo ? 'Write a reply' : 'Join the discussion'}
+              placeholderTextColor={colors.muted}
+              multiline
+              style={[styles.commentInput, styles.commentInputWithMic, webNoOutline]}
+            />
+            <Pressable
+              style={[styles.commentDictationButton, transcribingComment && styles.dictationButtonActive]}
+              onPress={startCommentDictation}
+              disabled={transcribingComment}
+              hitSlop={8}
+            >
+              <Mic size={22} color={transcribingComment ? colors.surface : colors.ink} />
+            </Pressable>
+          </View>
           <PrimaryButton label={replyTo ? 'Post reply' : 'Post comment'} onPress={postComment} disabled={postingComment || !commentBody.trim()} compact />
         </View>
         {review.comments.length ? (
@@ -1136,89 +1161,166 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
 
   return (
     <View style={styles.screen}>
-      <Header title="Friends" />
+      <Header title="Friends" right={loadingRequests ? <ActivityIndicator color={colors.pink} /> : undefined} />
       <Field value={query} onChangeText={setQuery} placeholder="Search username" autoCapitalize="none" icon={<UserPlus size={18} color={colors.muted} />} />
       <ScrollView contentContainerStyle={styles.stack}>
-        <View style={styles.sectionBlock}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Requests</Text>
-            {loadingRequests ? <ActivityIndicator color={colors.pink} /> : null}
-          </View>
-          {incoming.length ? (
-            incoming.map((request) => (
-              <View key={request.id} style={styles.resultRow}>
-                <Avatar label={request.requester.displayName} />
-                <View style={styles.reviewCopy}>
-                  <Text style={styles.movieTitle}>@{request.requester.username}</Text>
-                  <Text style={styles.mutedText}>{request.requester.displayName} wants to be friends</Text>
-                </View>
-                <View style={styles.actionRow}>
-                  <Pressable style={styles.acceptButton} onPress={() => void accept(request.id)}>
-                    <Text style={styles.acceptButtonText}>Accept</Text>
-                  </Pressable>
-                  <Pressable style={styles.declineButton} onPress={() => void decline(request.id)}>
-                    <Text style={styles.declineButtonText}>No</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.mutedText}>No incoming requests.</Text>
-          )}
-          {outgoing.length ? (
-            <View style={styles.tagList}>
-              {outgoing.map((request) => (
-                <Text key={request.id} style={styles.tagPill}>
-                  pending @{request.addressee.username}
-                </Text>
-              ))}
-            </View>
-          ) : null}
-        </View>
-
-        {friends.length ? (
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Friends</Text>
-            {friends.map((friend) => (
-              <View key={friend.id} style={styles.resultRow}>
-                <Avatar label={friend.displayName} />
-                <View style={styles.reviewCopy}>
-                  <Text style={styles.movieTitle}>@{friend.username}</Text>
-                  <Text style={styles.mutedText}>{friend.displayName}</Text>
-                </View>
+        {incoming.length ? (
+          <View style={styles.requestStrip}>
+            {incoming.map((request) => (
+              <View key={request.id} style={styles.requestPill}>
+                <Text style={styles.requestText}>@{request.requester.username}</Text>
+                <Pressable style={styles.acceptButton} onPress={() => void accept(request.id)}>
+                  <Text style={styles.acceptButtonText}>Accept</Text>
+                </Pressable>
+                <Pressable style={styles.declineButton} onPress={() => void decline(request.id)}>
+                  <Text style={styles.declineButtonText}>No</Text>
+                </Pressable>
               </View>
             ))}
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Find people</Text>
-        {users.map((item) => (
-          <View key={item.id} style={styles.resultRow}>
-            <Avatar label={item.displayName} />
-            <View style={styles.reviewCopy}>
-              <Text style={styles.movieTitle}>@{item.username}</Text>
-              <Text style={styles.mutedText}>{item.displayName}</Text>
-            </View>
-            <Pressable disabled={item.friendshipStatus !== null} onPress={() => void add(item.id)}>
-              <Text style={styles.pill}>{item.friendshipStatus ?? 'Add'}</Text>
-            </Pressable>
+        {query.trim().length >= 2 ? (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Find people</Text>
+            {users.map((item) => (
+              <View key={item.id} style={styles.simplePersonRow}>
+                <Avatar label={item.displayName} />
+                <Text style={styles.author}>@{item.username}</Text>
+                <Pressable disabled={item.friendshipStatus !== null} onPress={() => void add(item.id)}>
+                  <Text style={styles.pill}>{item.friendshipStatus ?? 'Add'}</Text>
+                </Pressable>
+              </View>
+            ))}
+            {!users.length ? <Text style={styles.mutedText}>No matches yet.</Text> : null}
           </View>
-        ))}
+        ) : (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Friends</Text>
+              <Text style={styles.bubble}>{friends.length}</Text>
+            </View>
+            {friends.length ? (
+              <View style={styles.friendGrid}>
+                {friends.map((friend) => (
+                  <View key={friend.id} style={styles.friendBubble}>
+                    <Avatar label={friend.displayName || friend.username} large />
+                    <Text numberOfLines={1} style={styles.friendHandle}>@{friend.username}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.mutedText}>Search a username to add friends.</Text>
+            )}
+            {outgoing.length ? (
+              <View style={styles.pendingList}>
+                {outgoing.map((request) => (
+                  <Text key={request.id} style={styles.pendingText}>
+                    pending @{request.addressee.username}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+          </>
+        )}
       </ScrollView>
     </View>
   );
 }
 
-function ProfileScreen({ user, onSignOut }: { user: AuthUser; onSignOut: () => void }) {
+function ProfileScreen({
+  tokens,
+  user,
+  onOpenReview,
+  onSignOut,
+}: {
+  tokens: AuthTokens;
+  user: AuthUser;
+  onOpenReview: (id: string) => void;
+  onSignOut: () => void;
+}) {
+  const [reviews, setReviews] = useState<FeedItem[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadReviews = useCallback(
+    async (nextCursor?: string | null) => {
+      const response = await api.myReviews(tokens, nextCursor);
+      setReviews((current) => (nextCursor ? [...current, ...response.items] : response.items));
+      setCursor(response.nextCursor);
+    },
+    [tokens],
+  );
+
+  useEffect(() => {
+    void (async () => {
+      setLoading(true);
+      try {
+        await loadReviews();
+      } catch (err) {
+        Alert.alert('Could not load reviews', err instanceof Error ? err.message : 'Try again');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [loadReviews]);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadReviews();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      await loadReviews(cursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.stack}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+    >
       <Header title={`@${user.username}`} right={<IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />} />
       <View style={styles.profileBlock}>
         <Avatar label={user.displayName} large />
         <Text style={styles.profileName}>{user.displayName}</Text>
         <Text style={styles.mutedText}>{user.email}</Text>
       </View>
-    </View>
+      <View style={styles.sectionBlock}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>My reviews</Text>
+          {loading ? <ActivityIndicator color={colors.pink} /> : <Text style={styles.bubble}>{reviews.length}</Text>}
+        </View>
+        {reviews.map((review) => (
+          <ReviewCard key={review.reviewId} item={review} onPress={() => onOpenReview(review.reviewId)} />
+        ))}
+        {!loading && !reviews.length ? (
+          <Text style={styles.mutedText}>Your reviews will show up here after you post.</Text>
+        ) : null}
+        {cursor ? (
+          <PrimaryButton
+            label={loadingMore ? 'Loading...' : 'Load more'}
+            onPress={loadMore}
+            disabled={loadingMore}
+            compact
+          />
+        ) : null}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -1354,10 +1456,16 @@ const styles = StyleSheet.create({
   },
   auth: {
     flexGrow: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     gap: 18,
     padding: 22,
     backgroundColor: colors.surface,
+  },
+  welcomeLogo: {
+    alignSelf: 'center',
+    width: 236,
+    height: 236,
+    borderRadius: 54,
   },
   reel: {
     alignSelf: 'center',
@@ -1945,6 +2053,10 @@ const styles = StyleSheet.create({
   commentComposer: {
     gap: 8,
   },
+  commentsInline: {
+    gap: 12,
+    paddingBottom: 8,
+  },
   replyBanner: {
     minHeight: 34,
     borderWidth: 2,
@@ -1978,6 +2090,23 @@ const styles = StyleSheet.create({
     padding: 12,
     textAlignVertical: 'top',
     fontWeight: '700',
+  },
+  commentInputWrap: {
+    position: 'relative',
+  },
+  commentInputWithMic: {
+    paddingRight: 56,
+  },
+  commentDictationButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.yellow,
   },
   commentList: {
     gap: 10,
@@ -2180,6 +2309,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: 12,
   },
+  detailInline: {
+    gap: 12,
+    paddingBottom: 4,
+  },
   detailTitle: {
     fontSize: 20,
     lineHeight: 24,
@@ -2205,6 +2338,59 @@ const styles = StyleSheet.create({
   profileName: {
     color: colors.ink,
     fontSize: 26,
+    fontWeight: '900',
+  },
+  requestStrip: {
+    gap: 8,
+  },
+  requestPill: {
+    minHeight: 40,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requestText: {
+    flex: 1,
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  simplePersonRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  friendGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 22,
+  },
+  friendBubble: {
+    width: '30%',
+    minWidth: 84,
+    alignItems: 'center',
+    gap: 6,
+  },
+  friendHandle: {
+    maxWidth: '100%',
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  pendingList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  pendingText: {
+    color: colors.muted,
+    fontSize: 12,
     fontWeight: '900',
   },
   tabBar: {

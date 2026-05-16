@@ -75,6 +75,10 @@ export const api = {
     apiRequest<FeedResponse>(`/feed${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
       tokens,
     }),
+  myReviews: (tokens: AuthTokens, cursor?: string | null) =>
+    apiRequest<FeedResponse>(`/feed/me${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
+      tokens,
+    }),
   searchMovies: (tokens: AuthTokens, query: string) =>
     apiRequest<{ items: MovieSummary[]; source: string }>(
       `/movies/search?q=${encodeURIComponent(query)}`,

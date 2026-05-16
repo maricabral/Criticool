@@ -14,4 +14,9 @@ export class FeedController {
   feed(@CurrentUser() user: RequestUser, @Query() query: FeedQueryDto) {
     return this.feedService.feed(user.id, query.cursor);
   }
+
+  @Get('me')
+  myReviews(@CurrentUser() user: RequestUser, @Query() query: FeedQueryDto) {
+    return this.feedService.userReviews(user.id, query.cursor);
+  }
 }

@@ -58,6 +58,37 @@ export class FeedService {
     };
   }
 
+  async userReviews(userId: string, cursor?: string) {
+    const parsedCursor = decodeCursor(cursor);
+    const reviews = await this.prisma.review.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        OR: parsedCursor
+          ? [
+              { createdAt: { lt: parsedCursor.createdAt } },
+              { createdAt: parsedCursor.createdAt, id: { lt: parsedCursor.id } },
+            ]
+          : undefined,
+      },
+      include: {
+        user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        movie: true,
+        _count: { select: { comments: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: PAGE_SIZE + 1,
+    });
+
+    const page = reviews.slice(0, PAGE_SIZE);
+    const last = page.at(-1);
+
+    return {
+      items: page.map((review) => this.presentFeedItem(review)),
+      nextCursor: reviews.length > PAGE_SIZE && last ? encodeCursor(last.createdAt, last.id) : null,
+    };
+  }
+
   private presentFeedItem(
     review: Prisma.ReviewGetPayload<{
       include: {
