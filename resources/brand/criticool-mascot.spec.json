@@ -1,0 +1,20 @@
+{
+  "name": "CritiCool mascot logo",
+  "source": "criticool-mascot-source.png",
+  "transparentPng": "criticool-mascot-transparent.png",
+  "svg": "criticool-mascot.svg",
+  "dimensions": {
+    "width": 1024,
+    "height": 1024
+  },
+  "background": "transparent",
+  "mobileCopies": {
+    "welcomeLogo": "../../apps/mobile/assets/criticool-logo.png",
+    "appIcon": "../../apps/mobile/assets/criticool-icon.png",
+    "splashIcon": "../../apps/mobile/assets/criticool-splash.png"
+  },
+  "notes": [
+    "The black background was removed by edge flood fill so internal black linework remains visible.",
+    "Use on warm or colored backgrounds when possible because the mark is mostly white."
+  ]
+}

@@ -4,13 +4,20 @@
     "slug": "criticool",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/criticool-icon.png",
     "userInterfaceStyle": "light",
     "scheme": "criticool",
+    "splash": {
+      "image": "./assets/criticool-splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fff0d2"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/criticool-icon.png",
         "backgroundColor": "#fff0d2"
       }
     }

@@ -258,7 +258,8 @@ export default function App() {
 function LoadingScreen() {
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.center}>
+      <View style={styles.loadingCenter}>
+        <Image source={welcomeLogo} style={styles.loadingLogo} resizeMode="contain" />
         <ActivityIndicator color={colors.pink} />
       </View>
     </SafeAreaView>
@@ -1453,6 +1454,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 18,
+    backgroundColor: colors.cream,
+  },
+  loadingLogo: {
+    width: 156,
+    height: 156,
   },
   auth: {
     flexGrow: 1,
