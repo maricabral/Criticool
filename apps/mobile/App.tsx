@@ -2155,7 +2155,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     alignItems: 'flex-start',
-    minHeight: 120,
+    minHeight: 128,
     borderWidth: 2,
     borderColor: '#0f0d10',
     borderRadius: 16,
@@ -2325,11 +2325,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   reviewFooter: {
-    minHeight: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    minHeight: 46,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    gap: 4,
   },
   miniAvatars: {
     flexShrink: 1,
@@ -2412,7 +2411,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardTagPill: {
-    maxWidth: 130,
+    maxWidth: '100%',
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
