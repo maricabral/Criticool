@@ -566,6 +566,8 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 }
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
+  const quickTake = item.containsSpoilers ? 'Spoiler review' : item.quickTake?.trim();
+
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
       <FramePerfRow style={styles.framePerfTop} />
@@ -575,12 +577,17 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
         <Text numberOfLines={2} style={styles.movieTitle}>
           {item.movie.title}
         </Text>
-        <Text numberOfLines={2} style={styles.quickTake}>
-          {item.containsSpoilers ? 'Spoiler review' : item.quickTake || 'No quick take'}
-        </Text>
+        {quickTake ? (
+          <Text numberOfLines={2} style={styles.quickTake}>
+            {quickTake}
+          </Text>
+        ) : null}
         <View style={styles.takeRow}>
-          <Rating value={item.rating} />
-          <Text style={styles.bubble}>{item.commentCount} chats</Text>
+          <PopcornRating value={item.rating} />
+          <View style={styles.commentBubble}>
+            <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
+            <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
+          </View>
         </View>
         <View style={styles.miniAvatars}>
           <Avatar label={item.author.displayName || item.author.username} mini />
@@ -1666,6 +1673,18 @@ function Rating({ value, size = 18 }: { value: number; size?: number }) {
   );
 }
 
+function PopcornRating({ value }: { value: number }) {
+  const count = Math.max(0, Math.min(5, Math.round(value)));
+
+  return (
+    <View style={styles.popcornRating} accessibilityLabel={`${value.toFixed(1)} out of 5`}>
+      {Array.from({ length: count }).map((_, index) => (
+        <Popcorn key={index} size={15} color={colors.ink} strokeWidth={2.7} />
+      ))}
+    </View>
+  );
+}
+
 function TagPills({ tags }: { tags: string[] }) {
   return (
     <View style={styles.tagList}>
@@ -2241,6 +2260,12 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '800',
   },
+  popcornRating: {
+    minHeight: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
   quickTake: {
     color: colors.ink,
     fontSize: 13,
@@ -2264,6 +2289,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     backgroundColor: colors.surface,
     overflow: 'hidden',
+  },
+  commentBubble: {
+    minHeight: 24,
+    minWidth: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    backgroundColor: colors.surface,
+  },
+  commentBubbleText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
   },
   miniAvatars: {
     flexDirection: 'row',
