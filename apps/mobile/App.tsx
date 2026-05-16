@@ -30,7 +30,15 @@ import {
 } from 'react-native';
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
-import { api, FriendRequest, FriendSummary, loadTokens, ReviewComment, ReviewDetail, saveTokens } from './src/api';
+import {
+  api,
+  FriendRequest,
+  FriendSummary,
+  loadTokens,
+  ReviewComment,
+  ReviewDetail,
+  saveTokens,
+} from './src/api';
 import { colors } from './src/theme';
 
 type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
@@ -57,13 +65,7 @@ const REVIEW_TAG_CATEGORIES = [
   },
   {
     title: 'Atmosphere',
-    tags: [
-      '420 friendly',
-      'rainy day watch',
-      'midnight movie',
-      'airport layover',
-      'couch locked',
-    ],
+    tags: ['420 friendly', 'rainy day watch', 'midnight movie', 'airport layover', 'couch locked'],
   },
   {
     title: 'Feelings',
@@ -77,13 +79,7 @@ const REVIEW_TAG_CATEGORIES = [
   },
   {
     title: 'Energy',
-    tags: [
-      'brain off bliss',
-      'chaos cinema',
-      'quiet banger',
-      'full throttle',
-      'slow burn fever',
-    ],
+    tags: ['brain off bliss', 'chaos cinema', 'quiet banger', 'full throttle', 'slow burn fever'],
   },
   {
     title: 'Snacks',
@@ -274,7 +270,11 @@ function LoadingScreen() {
   );
 }
 
-function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void }) {
+function AuthScreen({
+  onAuth,
+}: {
+  onAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void;
+}) {
   const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -292,10 +292,9 @@ function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: A
     setBusy(true);
     setError(null);
     try {
-      const response =
-        isRegister
-          ? await api.register({ email, password, username, displayName })
-          : await api.login({ email, password });
+      const response = isRegister
+        ? await api.register({ email, password, username, displayName })
+        : await api.login({ email, password });
       await onAuth(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -312,7 +311,12 @@ function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: A
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={[styles.auth, isWelcome ? styles.authWelcome : styles.authFormScreen]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.auth,
+          isWelcome ? styles.authWelcome : styles.authFormScreen,
+        ]}
+      >
         {isWelcome ? (
           <View style={styles.authWelcomeContent}>
             <View style={styles.authBrand}>
@@ -320,7 +324,9 @@ function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: A
                 <Image source={welcomeLogo} style={styles.welcomeLogo} resizeMode="contain" />
               </View>
               <Text style={styles.logo}>CritiCool</Text>
-              <Text style={styles.tagline}>Movie takes from your friends.{'\n'}Cute, quick, and private first.</Text>
+              <Text style={styles.tagline}>
+                Movie takes from your friends.{'\n'}Cute, quick, and private first.
+              </Text>
             </View>
             <View style={styles.authActions}>
               <PrimaryButton label="Create account" onPress={() => chooseMode('register')} />
@@ -338,7 +344,12 @@ function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: A
               <Text style={styles.authTitle}>{isRegister ? 'Create account' : 'Log in'}</Text>
             </View>
             <View style={styles.form}>
-              <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
+              <Field
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                autoCapitalize="none"
+              />
               <Field
                 value={password}
                 onChangeText={setPassword}
@@ -372,7 +383,9 @@ function AuthScreen({ onAuth }: { onAuth: (response: { user: AuthUser; tokens: A
               >
                 <Text style={styles.authLinkMuted}>
                   {isRegister ? 'Already have an account? ' : 'Need an account? '}
-                  <Text style={styles.authLinkText}>{isRegister ? 'Log in' : 'Create account'}</Text>
+                  <Text style={styles.authLinkText}>
+                    {isRegister ? 'Log in' : 'Create account'}
+                  </Text>
                 </Text>
               </Pressable>
             </View>
@@ -417,9 +430,7 @@ function AppShell({
             }}
           />
         ) : null}
-        {tab === 'search' ? (
-          <SearchScreen tokens={tokens} onReviewMovie={openCreate} />
-        ) : null}
+        {tab === 'search' ? <SearchScreen tokens={tokens} onReviewMovie={openCreate} /> : null}
         {tab === 'create' ? (
           <CreateScreen
             tokens={tokens}
@@ -434,7 +445,11 @@ function AppShell({
         {tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
         {tab === 'profile' ? (
           selectedReviewId ? (
-            <ReviewDetailScreen tokens={tokens} reviewId={selectedReviewId} onBack={() => setSelectedReviewId(null)} />
+            <ReviewDetailScreen
+              tokens={tokens}
+              reviewId={selectedReviewId}
+              onBack={() => setSelectedReviewId(null)}
+            />
           ) : (
             <ProfileScreen
               tokens={tokens}
@@ -500,7 +515,10 @@ function FeedScreen({
 
   return (
     <View style={styles.screen}>
-      <Header title="CritiCool" right={<IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />} />
+      <Header
+        title="CritiCool"
+        right={<IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />}
+      />
       {items.length ? (
         <View style={styles.feedTape}>
           <View style={styles.feedEdgeLeft} />
@@ -513,7 +531,9 @@ function FeedScreen({
             contentContainerStyle={styles.feedFrames}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
             onEndReached={loadMore}
-            renderItem={({ item }) => <ReviewCard item={item} onPress={() => onOpenReview(item.reviewId)} />}
+            renderItem={({ item }) => (
+              <ReviewCard item={item} onPress={() => onOpenReview(item.reviewId)} />
+            )}
           />
         </View>
       ) : (
@@ -552,7 +572,9 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
       <FramePerfRow style={styles.framePerfBottom} />
       <Poster movie={item.movie} compact />
       <View style={styles.reviewCopy}>
-        <Text numberOfLines={2} style={styles.movieTitle}>{item.movie.title}</Text>
+        <Text numberOfLines={2} style={styles.movieTitle}>
+          {item.movie.title}
+        </Text>
         <Text numberOfLines={2} style={styles.quickTake}>
           {item.containsSpoilers ? 'Spoiler review' : item.quickTake || 'No quick take'}
         </Text>
@@ -634,11 +656,21 @@ function SearchScreen({
   return (
     <View style={styles.screen}>
       <Header title="Search" />
-      <Field value={query} onChangeText={setQuery} placeholder="Find a movie" autoCapitalize="none" icon={<Search size={18} color={colors.muted} />} />
+      <Field
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Find a movie"
+        autoCapitalize="none"
+        icon={<Search size={18} color={colors.muted} />}
+      />
       {busy ? <ActivityIndicator color={colors.pink} style={styles.inlineLoader} /> : null}
       <ScrollView contentContainerStyle={styles.stack}>
         {results.map((movie) => (
-          <Pressable key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`} style={styles.resultRow} onPress={() => selectMovie(movie)}>
+          <Pressable
+            key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
+            style={styles.resultRow}
+            onPress={() => selectMovie(movie)}
+          >
             <Poster movie={movie} />
             <View style={styles.reviewCopy}>
               <Text style={styles.movieTitle}>{movie.title}</Text>
@@ -773,7 +805,10 @@ function CreateScreen({
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
-      <Header title="New Review" right={<PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} compact />} />
+      <Header
+        title="New Review"
+        right={<PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} compact />}
+      />
       {selectedMovie ? (
         <View style={styles.resultRow}>
           <Poster movie={selectedMovie} />
@@ -791,9 +826,15 @@ function CreateScreen({
             autoCapitalize="none"
             icon={<Search size={18} color={colors.muted} />}
           />
-          {movieSearchBusy ? <ActivityIndicator color={colors.pink} style={styles.inlineLoader} /> : null}
+          {movieSearchBusy ? (
+            <ActivityIndicator color={colors.pink} style={styles.inlineLoader} />
+          ) : null}
           {movieResults.map((movie) => (
-            <Pressable key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`} style={styles.resultRow} onPress={() => selectMovie(movie)}>
+            <Pressable
+              key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
+              style={styles.resultRow}
+              onPress={() => selectMovie(movie)}
+            >
               <Poster movie={movie} />
               <View style={styles.reviewCopy}>
                 <Text style={styles.movieTitle}>{movie.title}</Text>
@@ -815,7 +856,11 @@ function CreateScreen({
               onPress={() => setRating(value)}
               hitSlop={8}
             >
-              <Popcorn size={28} color={active ? colors.pink : colors.ink} strokeWidth={active ? 3.4 : 2.6} />
+              <Popcorn
+                size={28}
+                color={active ? colors.pink : colors.ink}
+                strokeWidth={active ? 3.4 : 2.6}
+              />
             </Pressable>
           );
         })}
@@ -830,7 +875,11 @@ function CreateScreen({
               <Pressable
                 key={tag}
                 disabled={disabled}
-                style={[styles.tagChip, active && styles.tagChipActive, disabled && styles.tagChipDisabled]}
+                style={[
+                  styles.tagChip,
+                  active && styles.tagChipActive,
+                  disabled && styles.tagChipDisabled,
+                ]}
                 onPress={() => toggleTag(tag)}
               >
                 <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tag}</Text>
@@ -838,8 +887,13 @@ function CreateScreen({
             );
           })}
         </View>
-        <Pressable style={styles.secondaryButton} onPress={() => setShowAllTags((current) => !current)}>
-          <Text style={styles.secondaryButtonText}>{showAllTags ? 'Hide more tags' : 'Browse more tags'}</Text>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={() => setShowAllTags((current) => !current)}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {showAllTags ? 'Hide more tags' : 'Browse more tags'}
+          </Text>
         </Pressable>
         {showAllTags ? (
           <>
@@ -861,10 +915,16 @@ function CreateScreen({
                       <Pressable
                         key={tag}
                         disabled={disabled}
-                        style={[styles.tagChip, active && styles.tagChipActive, disabled && styles.tagChipDisabled]}
+                        style={[
+                          styles.tagChip,
+                          active && styles.tagChipActive,
+                          disabled && styles.tagChipDisabled,
+                        ]}
                         onPress={() => toggleTag(tag)}
                       >
-                        <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tag}</Text>
+                        <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
+                          {tag}
+                        </Text>
                       </Pressable>
                     );
                   })}
@@ -897,7 +957,9 @@ function CreateScreen({
         style={[styles.spoilerToggle, containsSpoilers && styles.spoilerToggleOn]}
         onPress={() => setContainsSpoilers((current) => !current)}
       >
-        <Text style={styles.spoilerText}>{containsSpoilers ? 'Contains spoilers' : 'Spoiler-free'}</Text>
+        <Text style={styles.spoilerText}>
+          {containsSpoilers ? 'Contains spoilers' : 'Spoiler-free'}
+        </Text>
       </Pressable>
       <PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} />
     </ScrollView>
@@ -1004,10 +1066,14 @@ function ReviewDetailScreen({
               <Avatar label={review.author.displayName || review.author.username} mini />
               <Text style={styles.author}>@{review.author.username}</Text>
             </View>
-            <Text numberOfLines={2} style={styles.detailMovieTitle}>{review.movie.title}</Text>
+            <Text numberOfLines={2} style={styles.detailMovieTitle}>
+              {review.movie.title}
+            </Text>
             <View style={styles.takeRow}>
               <Rating value={review.rating} size={22} />
-              <Text style={styles.bubble}>{review.containsSpoilers ? 'spoilers' : 'spoiler-free'}</Text>
+              <Text style={styles.bubble}>
+                {review.containsSpoilers ? 'spoilers' : 'spoiler-free'}
+              </Text>
             </View>
           </View>
         </View>
@@ -1046,7 +1112,10 @@ function ReviewDetailScreen({
               style={[styles.commentInput, styles.commentInputWithMic, webNoOutline]}
             />
             <Pressable
-              style={[styles.commentDictationButton, transcribingComment && styles.dictationButtonActive]}
+              style={[
+                styles.commentDictationButton,
+                transcribingComment && styles.dictationButtonActive,
+              ]}
               onPress={startCommentDictation}
               disabled={transcribingComment}
               hitSlop={8}
@@ -1054,7 +1123,12 @@ function ReviewDetailScreen({
               <Mic size={22} color={transcribingComment ? colors.surface : colors.ink} />
             </Pressable>
           </View>
-          <PrimaryButton label={replyTo ? 'Post reply' : 'Post comment'} onPress={postComment} disabled={postingComment || !commentBody.trim()} compact />
+          <PrimaryButton
+            label={replyTo ? 'Post reply' : 'Post comment'}
+            onPress={postComment}
+            disabled={postingComment || !commentBody.trim()}
+            compact
+          />
         </View>
         {review.comments.length ? (
           <View style={styles.commentList}>
@@ -1098,11 +1172,15 @@ function CommentNode({
       <View style={[styles.commentCard, comment.depth > 0 && styles.commentReplyCard]}>
         <View style={styles.voteColumn}>
           <Pressable disabled={voteDisabled} onPress={() => onVote(comment, 1)} hitSlop={8}>
-            <Text style={[styles.voteButton, comment.viewerVote === 1 && styles.voteButtonActive]}>^</Text>
+            <Text style={[styles.voteButton, comment.viewerVote === 1 && styles.voteButtonActive]}>
+              ^
+            </Text>
           </Pressable>
           <Text style={styles.voteScore}>{comment.score}</Text>
           <Pressable disabled={voteDisabled} onPress={() => onVote(comment, -1)} hitSlop={8}>
-            <Text style={[styles.voteButton, comment.viewerVote === -1 && styles.voteButtonActive]}>v</Text>
+            <Text style={[styles.voteButton, comment.viewerVote === -1 && styles.voteButtonActive]}>
+              v
+            </Text>
           </Pressable>
         </View>
         <View style={styles.commentCopy}>
@@ -1110,7 +1188,9 @@ function CommentNode({
             <Avatar label={comment.author.displayName || comment.author.username} mini />
             <View style={styles.reviewCopy}>
               <Text style={styles.author}>@{comment.author.username}</Text>
-              <Text style={styles.commentMeta}>{new Date(comment.createdAt).toLocaleDateString()}</Text>
+              <Text style={styles.commentMeta}>
+                {new Date(comment.createdAt).toLocaleDateString()}
+              </Text>
             </View>
           </View>
           <Text style={styles.bodyText}>{comment.body}</Text>
@@ -1137,7 +1217,9 @@ function CommentNode({
 
 function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
   const [query, setQuery] = useState('');
-  const [users, setUsers] = useState<Array<{ id: string; username: string; displayName: string; friendshipStatus: string | null }>>([]);
+  const [users, setUsers] = useState<
+    Array<{ id: string; username: string; displayName: string; friendshipStatus: string | null }>
+  >([]);
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendSummary[]>([]);
@@ -1171,7 +1253,10 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
       return;
     }
     const timeout = setTimeout(() => {
-      void api.searchUsers(tokens, query).then(setUsers).catch(() => setUsers([]));
+      void api
+        .searchUsers(tokens, query)
+        .then(setUsers)
+        .catch(() => setUsers([]));
     }, 300);
     return () => clearTimeout(timeout);
   }, [query, tokens]);
@@ -1208,8 +1293,17 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
 
   return (
     <View style={styles.screen}>
-      <Header title="Friends" right={loadingRequests ? <ActivityIndicator color={colors.pink} /> : undefined} />
-      <Field value={query} onChangeText={setQuery} placeholder="Search username" autoCapitalize="none" icon={<UserPlus size={18} color={colors.muted} />} />
+      <Header
+        title="Friends"
+        right={loadingRequests ? <ActivityIndicator color={colors.pink} /> : undefined}
+      />
+      <Field
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search username"
+        autoCapitalize="none"
+        icon={<UserPlus size={18} color={colors.muted} />}
+      />
       <ScrollView contentContainerStyle={styles.stack}>
         {incoming.length ? (
           <View style={styles.requestStrip}>
@@ -1233,7 +1327,9 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
             {users.map((item) => (
               <View key={item.id} style={styles.simplePersonRow}>
                 <Avatar label={item.displayName} />
-                <Text numberOfLines={1} style={styles.friendSearchName}>@{item.username}</Text>
+                <Text numberOfLines={1} style={styles.friendSearchName}>
+                  @{item.username}
+                </Text>
                 <Pressable
                   disabled={item.friendshipStatus !== null}
                   onPress={() => void add(item.id)}
@@ -1258,7 +1354,9 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
                     <View style={styles.friendAvatarRing}>
                       <Avatar label={friend.displayName || friend.username} large />
                     </View>
-                    <Text numberOfLines={1} style={styles.friendHandle}>@{friend.username}</Text>
+                    <Text numberOfLines={1} style={styles.friendHandle}>
+                      @{friend.username}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -1297,9 +1395,11 @@ function ProfileScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [reviewLoadError, setReviewLoadError] = useState<string | null>(null);
 
   const loadReviews = useCallback(
     async (nextCursor?: string | null) => {
+      setReviewLoadError(null);
       const response = await api.myReviews(tokens, nextCursor);
       setReviews((current) => (nextCursor ? [...current, ...response.items] : response.items));
       setCursor(response.nextCursor);
@@ -1313,7 +1413,7 @@ function ProfileScreen({
       try {
         await loadReviews();
       } catch (err) {
-        Alert.alert('Could not load reviews', err instanceof Error ? err.message : 'Try again');
+        setReviewLoadError(err instanceof Error ? err.message : 'Try again');
       } finally {
         setLoading(false);
       }
@@ -1324,6 +1424,8 @@ function ProfileScreen({
     setRefreshing(true);
     try {
       await loadReviews();
+    } catch (err) {
+      setReviewLoadError(err instanceof Error ? err.message : 'Try again');
     } finally {
       setRefreshing(false);
     }
@@ -1336,8 +1438,21 @@ function ProfileScreen({
     setLoadingMore(true);
     try {
       await loadReviews(cursor);
+    } catch (err) {
+      setReviewLoadError(err instanceof Error ? err.message : 'Try again');
     } finally {
       setLoadingMore(false);
+    }
+  };
+
+  const retryReviews = async () => {
+    setLoading(true);
+    try {
+      await loadReviews();
+    } catch (err) {
+      setReviewLoadError(err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1347,24 +1462,64 @@ function ProfileScreen({
       contentContainerStyle={styles.stack}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
-      <Header title={`@${user.username}`} right={<IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />} />
+      <Header
+        title={`@${user.username}`}
+        right={<IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />}
+      />
       <View style={styles.profileBlock}>
         <Avatar label={user.displayName} large />
-        <Text style={styles.profileName}>{user.displayName}</Text>
-        <Text style={styles.mutedText}>{user.email}</Text>
+        <View style={styles.profileCopy}>
+          <Text numberOfLines={1} style={styles.profileName}>
+            {user.displayName}
+          </Text>
+          <Text numberOfLines={1} style={styles.profileHandle}>
+            @{user.username}
+          </Text>
+          <Text numberOfLines={1} style={styles.profileEmail}>
+            {user.email}
+          </Text>
+        </View>
+        <View style={styles.profileStat}>
+          {loading ? (
+            <ActivityIndicator color={colors.pink} />
+          ) : (
+            <Text style={styles.profileStatValue}>{reviewLoadError ? '-' : reviews.length}</Text>
+          )}
+          <Text style={styles.profileStatLabel}>reviews</Text>
+        </View>
       </View>
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>My reviews</Text>
-          {loading ? <ActivityIndicator color={colors.pink} /> : <Text style={styles.bubble}>{reviews.length}</Text>}
+          {loading ? (
+            <ActivityIndicator color={colors.pink} />
+          ) : !reviewLoadError ? (
+            <Text style={styles.bubble}>{reviews.length}</Text>
+          ) : null}
         </View>
-        {reviews.map((review) => (
-          <ReviewCard key={review.reviewId} item={review} onPress={() => onOpenReview(review.reviewId)} />
-        ))}
-        {!loading && !reviews.length ? (
-          <Text style={styles.mutedText}>Your reviews will show up here after you post.</Text>
+        {reviewLoadError ? (
+          <View style={styles.notice}>
+            <Text style={styles.error}>Could not load reviews.</Text>
+            <Text style={styles.mutedText}>{reviewLoadError}</Text>
+            <PrimaryButton label="Try again" onPress={retryReviews} disabled={loading} compact />
+          </View>
+        ) : (
+          reviews.map((review) => (
+            <ReviewCard
+              key={review.reviewId}
+              item={review}
+              onPress={() => onOpenReview(review.reviewId)}
+            />
+          ))
+        )}
+        {!loading && !reviewLoadError && !reviews.length ? (
+          <View style={styles.emptyProfileState}>
+            <Popcorn size={30} color={colors.ink} />
+            <Text style={styles.emptyTitle}>No reviews yet</Text>
+            <Text style={styles.mutedText}>Your movie takes will appear here after you post.</Text>
+          </View>
         ) : null}
-        {cursor ? (
+        {cursor && !reviewLoadError ? (
           <PrimaryButton
             label={loadingMore ? 'Loading...' : 'Load more'}
             onPress={loadMore}
@@ -1393,7 +1548,11 @@ function Field({
   return (
     <View style={styles.fieldWrap}>
       {icon}
-      <TextInput placeholderTextColor={colors.muted} style={[styles.field, webNoOutline]} {...props} />
+      <TextInput
+        placeholderTextColor={colors.muted}
+        style={[styles.field, webNoOutline]}
+        {...props}
+      />
     </View>
   );
 }
@@ -1413,9 +1572,15 @@ function PrimaryButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.primaryButton, compact && styles.compactButton, disabled && styles.primaryButtonDisabled]}
+      style={[
+        styles.primaryButton,
+        compact && styles.compactButton,
+        disabled && styles.primaryButtonDisabled,
+      ]}
     >
-      <Text style={[styles.primaryButtonText, disabled && styles.primaryButtonTextDisabled]}>{label}</Text>
+      <Text style={[styles.primaryButtonText, disabled && styles.primaryButtonTextDisabled]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -1446,7 +1611,13 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
         const active = current === tab.id;
         return (
           <Pressable key={tab.id} style={styles.tab} onPress={() => onChange(tab.id)}>
-            <View style={[styles.tabIcon, active && styles.tabIconActive, active && tab.id === 'create' && styles.tabIconCreateActive]}>
+            <View
+              style={[
+                styles.tabIcon,
+                active && styles.tabIconActive,
+                active && tab.id === 'create' && styles.tabIconCreateActive,
+              ]}
+            >
               <Icon size={16} color={active ? colors.surface : colors.muted} />
             </View>
             <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
@@ -1459,7 +1630,13 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
 
 function Poster({ movie, compact }: { movie: MovieSummary; compact?: boolean }) {
   if (movie.posterUrl) {
-    return <Image source={{ uri: movie.posterUrl }} style={[styles.poster, compact && styles.posterCompact]} resizeMode="cover" />;
+    return (
+      <Image
+        source={{ uri: movie.posterUrl }}
+        style={[styles.poster, compact && styles.posterCompact]}
+        resizeMode="cover"
+      />
+    );
   }
   return (
     <View style={[styles.poster, compact && styles.posterCompact, styles.posterFallback]}>
@@ -1471,7 +1648,11 @@ function Poster({ movie, compact }: { movie: MovieSummary; compact?: boolean }) 
 function Avatar({ label, large, mini }: { label: string; large?: boolean; mini?: boolean }) {
   return (
     <View style={[styles.avatar, large && styles.avatarLarge, mini && styles.avatarMini]}>
-      <Text style={[styles.avatarText, large && styles.avatarTextLarge, mini && styles.avatarTextMini]}>{label.slice(0, 1).toUpperCase()}</Text>
+      <Text
+        style={[styles.avatarText, large && styles.avatarTextLarge, mini && styles.avatarTextMini]}
+      >
+        {label.slice(0, 1).toUpperCase()}
+      </Text>
     </View>
   );
 }
@@ -2520,19 +2701,69 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileBlock: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    minHeight: 260,
+    gap: 12,
+    minHeight: 132,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 8,
     backgroundColor: colors.surface,
+    padding: 14,
+  },
+  profileCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
   },
   profileName: {
     color: colors.ink,
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
+  },
+  profileHandle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  profileEmail: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  profileStat: {
+    width: 74,
+    minHeight: 70,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 8,
+    backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+  },
+  profileStatValue: {
+    color: colors.ink,
+    fontSize: 22,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  profileStatLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  emptyProfileState: {
+    minHeight: 150,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 8,
+    backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 18,
   },
   requestStrip: {
     gap: 8,
