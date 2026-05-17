@@ -1189,39 +1189,45 @@ function CommentNode({
   return (
     <View style={[styles.commentThread, { marginLeft: Math.min(comment.depth, 3) * 18 }]}>
       <View style={[styles.commentCard, comment.depth > 0 && styles.commentReplyCard]}>
-        <View style={styles.voteColumn}>
-          <Pressable disabled={voteDisabled} onPress={() => onVote(comment, 1)} hitSlop={8}>
-            <Text style={[styles.voteButton, comment.viewerVote === 1 && styles.voteButtonActive]}>
-              ^
-            </Text>
-          </Pressable>
-          <Text style={styles.voteScore}>{comment.score}</Text>
-          <Pressable disabled={voteDisabled} onPress={() => onVote(comment, -1)} hitSlop={8}>
-            <Text style={[styles.voteButton, comment.viewerVote === -1 && styles.voteButtonActive]}>
-              v
-            </Text>
-          </Pressable>
-        </View>
-        <View style={styles.commentCopy}>
-          <View style={styles.commentAuthorRow}>
-            <Avatar label={comment.author.displayName || comment.author.username} mini />
-            <View style={styles.reviewCopy}>
-              <Text style={styles.author}>@{comment.author.username}</Text>
-              <Text style={styles.commentMeta}>
-                {new Date(comment.createdAt).toLocaleDateString()}
+        <View style={styles.commentCardBody}>
+          <View style={styles.voteColumn}>
+            <Pressable disabled={voteDisabled} onPress={() => onVote(comment, 1)} hitSlop={8}>
+              <Text
+                style={[styles.voteButton, comment.viewerVote === 1 && styles.voteButtonActive]}
+              >
+                ^
               </Text>
-            </View>
-          </View>
-          <Text style={styles.bodyText}>{comment.body}</Text>
-          {canReply ? (
-            <Pressable style={styles.commentReplyButton} onPress={() => onReply(comment)}>
-              <Send size={14} color={colors.ink} />
-              <Text style={styles.commentReplyText}>Reply</Text>
             </Pressable>
-          ) : null}
+            <Text style={styles.voteScore}>{comment.score}</Text>
+            <Pressable disabled={voteDisabled} onPress={() => onVote(comment, -1)} hitSlop={8}>
+              <Text
+                style={[styles.voteButton, comment.viewerVote === -1 && styles.voteButtonActive]}
+              >
+                v
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.commentCopy}>
+            <View style={styles.commentAuthorRow}>
+              <Avatar label={comment.author.displayName || comment.author.username} mini />
+              <View style={styles.reviewCopy}>
+                <Text style={styles.author}>@{comment.author.username}</Text>
+                <Text style={styles.commentMeta}>
+                  {new Date(comment.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.bodyText}>{comment.body}</Text>
+            {canReply ? (
+              <Pressable style={styles.commentReplyButton} onPress={() => onReply(comment)}>
+                <Send size={14} color={colors.ink} />
+                <Text style={styles.commentReplyText}>Reply</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
+        {showReplyComposer ? <View style={styles.activeReplyComposer}>{replyComposer}</View> : null}
       </View>
-      {showReplyComposer ? <View style={styles.inlineReplyComposer}>{replyComposer}</View> : null}
       {comment.replies.map((reply) => (
         <CommentNode
           key={reply.id}
@@ -2588,8 +2594,8 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 8,
   },
-  inlineReplyComposer: {
-    marginTop: 8,
+  activeReplyComposer: {
+    marginTop: 10,
   },
   commentsInline: {
     gap: 12,
@@ -2666,7 +2672,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   commentCard: {
-    flexDirection: 'row',
     gap: 10,
     borderWidth: 3,
     borderColor: colors.ink,
@@ -2676,6 +2681,10 @@ const styles = StyleSheet.create({
   },
   commentReplyCard: {
     backgroundColor: colors.cream,
+  },
+  commentCardBody: {
+    flexDirection: 'row',
+    gap: 10,
   },
   voteColumn: {
     width: 34,
