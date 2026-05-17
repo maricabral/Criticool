@@ -1417,6 +1417,7 @@ function ProfileScreen({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [reviewLoadError, setReviewLoadError] = useState<string | null>(null);
+  const [reviewQuery, setReviewQuery] = useState('');
 
   const loadReviews = useCallback(
     async (nextCursor?: string | null) => {
@@ -1476,6 +1477,28 @@ function ProfileScreen({
       setLoading(false);
     }
   };
+  const filteredReviews = useMemo(() => {
+    const needle = reviewQuery.trim().toLowerCase();
+    if (!needle) {
+      return reviews;
+    }
+
+    return reviews.filter((review) => {
+      const searchable = [
+        review.movie.title,
+        review.movie.releaseYear?.toString(),
+        review.quickTake,
+        review.containsSpoilers ? 'spoilers' : 'spoiler-free',
+        review.author.username,
+        review.author.displayName,
+        ...review.tags,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return searchable.includes(needle);
+    });
+  }, [reviewQuery, reviews]);
 
   return (
     <ScrollView
@@ -1515,6 +1538,15 @@ function ProfileScreen({
             <Text style={styles.bubble}>{reviews.length}</Text>
           ) : null}
         </View>
+        {!reviewLoadError && reviews.length ? (
+          <Field
+            value={reviewQuery}
+            onChangeText={setReviewQuery}
+            placeholder="Search my reviews"
+            autoCapitalize="none"
+            icon={<Search size={18} color={colors.muted} />}
+          />
+        ) : null}
         {reviewLoadError ? (
           <View style={styles.notice}>
             <Text style={styles.error}>Could not load reviews.</Text>
@@ -1522,7 +1554,7 @@ function ProfileScreen({
             <PrimaryButton label="Try again" onPress={retryReviews} disabled={loading} compact />
           </View>
         ) : (
-          reviews.map((review) => (
+          filteredReviews.map((review) => (
             <ReviewCard
               key={review.reviewId}
               item={review}
@@ -1530,6 +1562,13 @@ function ProfileScreen({
             />
           ))
         )}
+        {!loading && !reviewLoadError && reviews.length && !filteredReviews.length ? (
+          <View style={styles.emptyProfileState}>
+            <Search size={28} color={colors.ink} />
+            <Text style={styles.emptyTitle}>No matching reviews</Text>
+            <Text style={styles.mutedText}>Try another movie, tag, or quick take.</Text>
+          </View>
+        ) : null}
         {!loading && !reviewLoadError && !reviews.length ? (
           <View style={styles.emptyProfileState}>
             <Popcorn size={30} color={colors.ink} />

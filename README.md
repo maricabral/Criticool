@@ -166,6 +166,15 @@ Rules:
 - Show tags below the header, usually capped to the most relevant one or two in compact areas.
 - Comments should remain visible below the review body area.
 
+### Profile And My Reviews
+
+Rules:
+
+- Do not show the user's email address on the Me page.
+- Show a local search field under `My reviews` when reviews are loaded.
+- The search should filter loaded reviews by movie title, year, quick take, spoiler state, reviewer, and tags.
+- Profile review cards use the same card pattern as the feed.
+
 ### Post Flow
 
 The Post screen is progressive.
