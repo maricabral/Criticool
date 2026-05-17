@@ -28,7 +28,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
 import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
 import {
   api,
@@ -531,7 +531,7 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const quickTake = item.containsSpoilers ? null : item.quickTake?.trim();
-  const primaryTag = item.tags?.[0];
+  const visibleTags = item.tags?.slice(0, 2) ?? [];
   const timeAgo = formatRelativeTime(item.createdAt);
   const reviewerName = item.author.displayName || item.author.username;
 
@@ -561,34 +561,27 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
           <Text numberOfLines={1} style={styles.movieTitle}>
             {item.movie.title}
           </Text>
-          <PopcornRating value={item.rating} />
-          {item.containsSpoilers ? (
-            <Text numberOfLines={1} style={[styles.tagPill, styles.spoilerBadge]}>
-              Contains spoilers
-            </Text>
-          ) : quickTake ? (
+          <View style={styles.cardRatingLine}>
+            <PopcornRating value={item.rating} />
+            {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
+          </View>
+          {quickTake ? (
             <Text numberOfLines={2} style={styles.quickTake}>
               {quickTake}
             </Text>
           ) : null}
-          {primaryTag ? (
-            <Text numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
-              {primaryTag}
-            </Text>
+          {visibleTags.length ? (
+            <View style={styles.cardTagRow}>
+              {visibleTags.map((tag) => (
+                <Text key={tag} numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
+                  {tag}
+                </Text>
+              ))}
+            </View>
           ) : null}
         </View>
       </View>
     </Pressable>
-  );
-}
-
-function FramePerfRow({ style }: { style: StyleProp<ViewStyle> }) {
-  return (
-    <View pointerEvents="none" style={[styles.framePerfRow, style]}>
-      {Array.from({ length: 10 }).map((_, index) => (
-        <View key={index} style={styles.framePerfHole} />
-      ))}
-    </View>
   );
 }
 
@@ -1065,24 +1058,23 @@ function ReviewDetailScreen({
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
       <Header title="Review" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
-      <View style={styles.detailTape}>
-        <FramePerfRow style={styles.detailTapePerfTop} />
-        <View style={styles.detailHeaderCard}>
-          <Poster movie={review.movie} compact />
-          <View style={styles.reviewCopy}>
-            <View style={styles.authorRow}>
-              <Avatar label={review.author.displayName || review.author.username} mini />
-              <Text style={styles.author}>@{review.author.username}</Text>
-            </View>
-            <Text numberOfLines={2} style={styles.detailMovieTitle}>
-              {review.movie.title}
-            </Text>
-            <View style={styles.takeRow}>
-              <Rating value={review.rating} size={22} />
-              <Text style={styles.bubble}>
-                {review.containsSpoilers ? 'spoilers' : 'spoiler-free'}
-              </Text>
-            </View>
+      <View style={styles.detailHeaderCard}>
+        <Poster movie={review.movie} compact />
+        <View style={styles.reviewCopy}>
+          <View style={styles.authorRow}>
+            <Avatar label={review.author.displayName || review.author.username} mini />
+            <Text style={styles.author}>@{review.author.username}</Text>
+          </View>
+          <Text numberOfLines={2} style={styles.detailMovieTitle}>
+            {review.movie.title}
+          </Text>
+          <View style={styles.takeRow}>
+            <Rating value={review.rating} size={22} />
+            {review.containsSpoilers ? (
+              <Text style={styles.detailSpoilerText}>Spoilers</Text>
+            ) : (
+              <Text style={styles.detailSafeText}>Spoiler-free</Text>
+            )}
           </View>
         </View>
       </View>
@@ -1090,7 +1082,14 @@ function ReviewDetailScreen({
         {review.quickTake ? <Text style={styles.detailTitle}>{review.quickTake}</Text> : null}
         {review.tags?.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
         {showBody ? (
-          <Text style={styles.bodyText}>{review.body || 'No full review.'}</Text>
+          <>
+            {review.containsSpoilers ? (
+              <Pressable style={styles.secondaryButton} onPress={() => setRevealed(false)}>
+                <Text style={styles.secondaryButtonText}>Hide spoilers</Text>
+              </Pressable>
+            ) : null}
+            <Text style={styles.bodyText}>{review.body || 'No full review.'}</Text>
+          </>
         ) : (
           <PrimaryButton label="Reveal spoilers" onPress={() => setRevealed(true)} />
         )}
@@ -2239,6 +2238,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
+  cardRatingLine: {
+    minHeight: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  feedSpoilerText: {
+    color: colors.orange,
+    fontSize: 12,
+    fontWeight: '900',
+  },
   quickTake: {
     color: colors.ink,
     fontSize: 13,
@@ -2350,13 +2360,16 @@ const styles = StyleSheet.create({
   },
   cardTagPill: {
     alignSelf: 'flex-start',
-    maxWidth: '100%',
+    maxWidth: '48%',
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
-  spoilerBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#ffd8bd',
+  cardTagRow: {
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   stack: {
     gap: 12,
@@ -2714,28 +2727,23 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 4,
   },
-  detailTape: {
-    position: 'relative',
-    borderWidth: 3,
-    borderColor: colors.ink,
-    borderRadius: 22,
-    backgroundColor: '#211d23',
-    padding: 10,
-    paddingTop: 16,
-    overflow: 'hidden',
-  },
-  detailTapePerfTop: {
-    top: 6,
-  },
   detailHeaderCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 16,
     backgroundColor: colors.surface,
     padding: 12,
+  },
+  detailSpoilerText: {
+    color: colors.orange,
+    fontWeight: '900',
+  },
+  detailSafeText: {
+    color: colors.muted,
+    fontWeight: '900',
   },
   detailMovieTitle: {
     color: colors.ink,

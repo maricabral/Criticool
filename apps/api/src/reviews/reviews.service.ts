@@ -180,6 +180,19 @@ export class ReviewsService {
       const existing = await tx.commentVote.findUnique({
         where: { commentId_userId: { commentId, userId } },
       });
+
+      if (existing?.value === value) {
+        await tx.commentVote.delete({
+          where: { commentId_userId: { commentId, userId } },
+        });
+
+        return tx.comment.update({
+          where: { id: commentId },
+          data: { score: { increment: -value } },
+          include: this.commentInclude(userId),
+        });
+      }
+
       const delta = existing ? value - existing.value : value;
 
       await tx.commentVote.upsert({
