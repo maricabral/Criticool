@@ -54,103 +54,43 @@ const webNoOutline =
     : null;
 const REVIEW_TAG_CATEGORIES = [
   {
-    title: 'Company',
-    tags: [
-      'to watch with grandma',
-      'date night chaos',
-      'solo spiral',
-      'group chat bait',
-      'watch with enemies',
-    ],
+    title: 'Mood',
+    tags: ['comfort watch', 'feel-good', 'heavy watch', 'cozy pick', 'thought-provoking'],
   },
   {
-    title: 'Atmosphere',
-    tags: ['420 friendly', 'rainy day watch', 'midnight movie', 'airport layover', 'couch locked'],
+    title: 'Viewing Context',
+    tags: ['date night', 'great with friends', 'family night', 'solo watch', 'rainy day watch'],
   },
   {
-    title: 'Feelings',
-    tags: [
-      'crying in public',
-      'therapy invoice',
-      'existential damage',
-      'heart repaired',
-      'tiny meltdown',
-    ],
+    title: 'Pace',
+    tags: ['slow burn', 'fast-paced', 'tight runtime', 'needs patience', 'instant rewatch'],
   },
   {
-    title: 'Energy',
-    tags: ['brain off bliss', 'chaos cinema', 'quiet banger', 'full throttle', 'slow burn fever'],
-  },
-  {
-    title: 'Snacks',
-    tags: [
-      'best with snacks',
-      'pizza required',
-      'popcorn mandatory',
-      'wine pairing',
-      'breakfast movie',
-    ],
-  },
-  {
-    title: 'Taste',
-    tags: [
-      'camp masterpiece',
-      'oscar bait but fun',
-      'prestige nonsense',
-      'trash treasure',
-      'secretly perfect',
-    ],
-  },
-  {
-    title: 'Social Risk',
-    tags: [
-      'first date test',
-      'family safe-ish',
-      'friendship ender',
-      'room divider',
-      'text your ex bait',
-    ],
-  },
-  {
-    title: 'Aftermath',
-    tags: [
-      'needed a walk',
-      'instant rewatch',
-      'never again',
-      'stayed with me',
-      'forgot immediately',
-    ],
+    title: 'Craft',
+    tags: ['great performances', 'sharp writing', 'beautifully shot', 'strong soundtrack', 'style over story'],
   },
   {
     title: 'Audience',
-    tags: [
-      'for film nerds',
-      'for tired people',
-      'for drama queens',
-      'for dads somehow',
-      'for weird little guys',
-    ],
+    tags: ['for film nerds', 'crowd pleaser', 'not for everyone', 'good starter pick', 'best with snacks'],
   },
   {
-    title: 'Warnings',
-    tags: [
-      'bring tissues',
-      'volume down',
-      'too much yelling',
-      'do not eat during',
-      'check the runtime',
-    ],
+    title: 'Content Notes',
+    tags: ['bring tissues', 'intense scenes', 'check the runtime', 'volume down', 'kids may hate it'],
+  },
+  {
+    title: 'Wildcards',
+    tags: ['therapy invoice', 'brain off bliss', 'chaos cinema', 'trash treasure', 'secretly perfect'],
   },
 ];
 const FEATURED_REVIEW_TAGS = [
-  'to watch with grandma',
-  '420 friendly',
-  'date night chaos',
-  'therapy invoice',
-  'best with snacks',
+  'comfort watch',
+  'date night',
+  'great with friends',
+  'thought-provoking',
   'instant rewatch',
   'bring tissues',
-  'brain off bliss',
+  'slow burn',
+  'best with snacks',
 ];
 
 type SpeechRecognitionInstance = {
@@ -172,6 +112,36 @@ function appendTranscript(
     const trimmed = current.trim();
     return trimmed ? `${trimmed}\n\n${transcript}` : transcript;
   });
+}
+
+function formatRelativeTime(value: string) {
+  const then = new Date(value).getTime();
+  if (!Number.isFinite(then)) {
+    return null;
+  }
+
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) {
+    return 'now';
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    return `${days}d`;
+  }
+
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w`;
 }
 
 function startDictation({
@@ -520,22 +490,16 @@ function FeedScreen({
         right={<IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />}
       />
       {items.length ? (
-        <View style={styles.feedTape}>
-          <View style={styles.feedEdgeLeft} />
-          <View style={styles.feedEdgeRight} />
-          <FilmPerfColumn style={styles.feedPerfLeft} />
-          <FilmPerfColumn style={styles.feedPerfRight} />
-          <FlatList
-            data={items}
-            keyExtractor={(item) => item.reviewId}
-            contentContainerStyle={styles.feedFrames}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
-            onEndReached={loadMore}
-            renderItem={({ item }) => (
-              <ReviewCard item={item} onPress={() => onOpenReview(item.reviewId)} />
-            )}
-          />
-        </View>
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.reviewId}
+          contentContainerStyle={styles.feedList}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          onEndReached={loadMore}
+          renderItem={({ item }) => (
+            <ReviewCard item={item} onPress={() => onOpenReview(item.reviewId)} />
+          )}
+        />
       ) : (
         <FlatList
           data={items}
@@ -566,37 +530,47 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 }
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
-  const quickTake = item.containsSpoilers ? 'Spoiler review' : item.quickTake?.trim();
+  const quickTake = item.containsSpoilers ? null : item.quickTake?.trim();
   const primaryTag = item.tags?.[0];
+  const timeAgo = formatRelativeTime(item.createdAt);
+  const reviewerName = item.author.displayName || item.author.username;
 
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
-      <FramePerfRow style={styles.framePerfTop} />
-      <FramePerfRow style={styles.framePerfBottom} />
-      <Poster movie={item.movie} compact />
-      <View style={styles.reviewCopy}>
-        <Text numberOfLines={1} style={styles.movieTitle}>
-          {item.movie.title}
-        </Text>
-        {quickTake ? (
-          <Text numberOfLines={1} style={styles.quickTake}>
-            {quickTake}
-          </Text>
-        ) : null}
-        <View style={styles.reviewMetaRow}>
-          <PopcornRating value={item.rating} />
-          <View style={styles.commentBubble}>
-            <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
-            <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
-          </View>
-        </View>
-        <View style={styles.reviewFooter}>
-          <View style={styles.miniAvatars}>
-            <Avatar label={item.author.displayName || item.author.username} mini />
-            <Text numberOfLines={1} style={styles.frameAuthor}>
+      <View style={styles.reviewCardHeader}>
+        <View style={styles.reviewerRow}>
+          <Avatar label={reviewerName} mini />
+          <View style={styles.reviewerCopy}>
+            <Text numberOfLines={1} style={styles.reviewerName}>
+              {reviewerName}
+            </Text>
+            <Text numberOfLines={1} style={styles.reviewerHandle}>
               @{item.author.username}
+              {timeAgo ? ` - ${timeAgo}` : ''}
             </Text>
           </View>
+        </View>
+        <View style={styles.commentBubble}>
+          <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
+          <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
+        </View>
+      </View>
+      <View style={styles.reviewCardBody}>
+        <Poster movie={item.movie} compact />
+        <View style={styles.reviewCopy}>
+          <Text numberOfLines={1} style={styles.movieTitle}>
+            {item.movie.title}
+          </Text>
+          <PopcornRating value={item.rating} />
+          {item.containsSpoilers ? (
+            <Text numberOfLines={1} style={[styles.tagPill, styles.spoilerBadge]}>
+              Contains spoilers
+            </Text>
+          ) : quickTake ? (
+            <Text numberOfLines={2} style={styles.quickTake}>
+              {quickTake}
+            </Text>
+          ) : null}
           {primaryTag ? (
             <Text numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
               {primaryTag}
@@ -605,16 +579,6 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
         </View>
       </View>
     </Pressable>
-  );
-}
-
-function FilmPerfColumn({ style }: { style: StyleProp<ViewStyle> }) {
-  return (
-    <View pointerEvents="none" style={[styles.filmPerfColumn, style]}>
-      {Array.from({ length: 18 }).map((_, index) => (
-        <View key={index} style={styles.filmPerfHole} />
-      ))}
-    </View>
   );
 }
 
@@ -708,7 +672,7 @@ function CreateScreen({
 }: {
   tokens: AuthTokens;
   selectedMovie: MovieSummary | null;
-  onSelectMovie: (movie: MovieSummary) => void;
+  onSelectMovie: (movie: MovieSummary | null) => void;
   onPosted: (id: string) => void;
 }) {
   const [movieQuery, setMovieQuery] = useState('');
@@ -769,7 +733,23 @@ function CreateScreen({
     }
   };
 
-  const canPost = selectedMovie?.id && rating > 0;
+  const resetReviewFields = () => {
+    setRating(0);
+    setQuickTake('');
+    setBody('');
+    setSelectedTags([]);
+    setTagQuery('');
+    setShowAllTags(false);
+    setContainsSpoilers(false);
+  };
+
+  const clearSelectedMovie = () => {
+    onSelectMovie(null);
+    setMovieResults([]);
+    resetReviewFields();
+  };
+
+  const canPost = Boolean(selectedMovie?.id && rating > 0);
   const toggleTag = (tag: string) => {
     setSelectedTags((current) =>
       current.includes(tag)
@@ -804,12 +784,8 @@ function CreateScreen({
         tags: selectedTags,
         containsSpoilers,
       });
-      setRating(0);
-      setQuickTake('');
-      setBody('');
-      setSelectedTags([]);
-      setTagQuery('');
-      setShowAllTags(false);
+      resetReviewFields();
+      onSelectMovie(null);
       onPosted(review.id);
       Alert.alert('Posted', 'Your review is live.');
     } catch (err) {
@@ -823,7 +799,11 @@ function CreateScreen({
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
       <Header
         title="New Review"
-        right={<PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} compact />}
+        right={
+          selectedMovie ? (
+            <PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} compact />
+          ) : undefined
+        }
       />
       {selectedMovie ? (
         <View style={styles.resultRow}>
@@ -832,6 +812,9 @@ function CreateScreen({
             <Text style={styles.movieTitle}>{selectedMovie.title}</Text>
             <Text style={styles.mutedText}>{selectedMovie.releaseYear ?? 'TBA'}</Text>
           </View>
+          <Pressable style={styles.pillButton} onPress={clearSelectedMovie}>
+            <Text style={styles.pillButtonText}>Change</Text>
+          </Pressable>
         </View>
       ) : (
         <>
@@ -861,123 +844,132 @@ function CreateScreen({
           ))}
         </>
       )}
-      <Text style={styles.label}>Rating</Text>
-      <View style={styles.ratingPicker}>
-        {[1, 2, 3, 4, 5].map((value) => {
-          const active = rating >= value;
-          return (
+      {selectedMovie ? (
+        <>
+          <Text style={styles.label}>Rating</Text>
+          <View style={styles.ratingPicker}>
+            {[1, 2, 3, 4, 5].map((value) => {
+              const active = rating >= value;
+              return (
+                <Pressable
+                  key={value}
+                  style={styles.ratingButton}
+                  onPress={() => setRating(value)}
+                  hitSlop={8}
+                >
+                  <Popcorn
+                    size={28}
+                    color={active ? colors.pink : colors.ink}
+                    strokeWidth={active ? 3.4 : 2.6}
+                  />
+                </Pressable>
+              );
+            })}
+          </View>
+          <Field value={quickTake} onChangeText={setQuickTake} placeholder="Quick take" />
+          <View style={styles.tagPanel}>
+            <View style={styles.tagPicker}>
+              {FEATURED_REVIEW_TAGS.map((tag) => {
+                const active = selectedTags.includes(tag);
+                const disabled = selectedTags.length >= 5 && !active;
+                return (
+                  <Pressable
+                    key={tag}
+                    disabled={disabled}
+                    style={[
+                      styles.tagChip,
+                      active && styles.tagChipActive,
+                      disabled && styles.tagChipDisabled,
+                    ]}
+                    onPress={() => toggleTag(tag)}
+                  >
+                    <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
+                      {tag}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             <Pressable
-              key={value}
-              style={styles.ratingButton}
-              onPress={() => setRating(value)}
+              style={styles.secondaryButton}
+              onPress={() => setShowAllTags((current) => !current)}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {showAllTags ? 'Hide more tags' : 'Browse more tags'}
+              </Text>
+            </Pressable>
+            {showAllTags ? (
+              <>
+                <Field
+                  value={tagQuery}
+                  onChangeText={setTagQuery}
+                  placeholder="Search tags"
+                  autoCapitalize="none"
+                  icon={<Search size={18} color={colors.muted} />}
+                />
+                {visibleTagCategories.map((category) => (
+                  <View key={category.title} style={styles.tagGroup}>
+                    <Text style={styles.tagGroupTitle}>{category.title}</Text>
+                    <View style={styles.tagPicker}>
+                      {category.tags.map((tag) => {
+                        const active = selectedTags.includes(tag);
+                        const disabled = selectedTags.length >= 5 && !active;
+                        return (
+                          <Pressable
+                            key={tag}
+                            disabled={disabled}
+                            style={[
+                              styles.tagChip,
+                              active && styles.tagChipActive,
+                              disabled && styles.tagChipDisabled,
+                            ]}
+                            onPress={() => toggleTag(tag)}
+                          >
+                            <Text
+                              style={[styles.tagChipText, active && styles.tagChipTextActive]}
+                            >
+                              {tag}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : null}
+          </View>
+          <View style={styles.textAreaWrap}>
+            <TextInput
+              ref={bodyInputRef}
+              value={body}
+              onChangeText={setBody}
+              placeholder="Full review"
+              placeholderTextColor={colors.muted}
+              multiline
+              style={[styles.textArea, webNoOutline]}
+            />
+            <Pressable
+              style={[styles.dictationButton, transcribing && styles.dictationButtonActive]}
+              onPress={startReviewDictation}
+              disabled={transcribing}
               hitSlop={8}
             >
-              <Popcorn
-                size={28}
-                color={active ? colors.pink : colors.ink}
-                strokeWidth={active ? 3.4 : 2.6}
-              />
+              <Mic size={24} color={transcribing ? colors.surface : colors.ink} />
             </Pressable>
-          );
-        })}
-      </View>
-      <Field value={quickTake} onChangeText={setQuickTake} placeholder="Quick take" />
-      <View style={styles.tagPanel}>
-        <View style={styles.tagPicker}>
-          {FEATURED_REVIEW_TAGS.map((tag) => {
-            const active = selectedTags.includes(tag);
-            const disabled = selectedTags.length >= 5 && !active;
-            return (
-              <Pressable
-                key={tag}
-                disabled={disabled}
-                style={[
-                  styles.tagChip,
-                  active && styles.tagChipActive,
-                  disabled && styles.tagChipDisabled,
-                ]}
-                onPress={() => toggleTag(tag)}
-              >
-                <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tag}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Pressable
-          style={styles.secondaryButton}
-          onPress={() => setShowAllTags((current) => !current)}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {showAllTags ? 'Hide more tags' : 'Browse more tags'}
-          </Text>
-        </Pressable>
-        {showAllTags ? (
-          <>
-            <Field
-              value={tagQuery}
-              onChangeText={setTagQuery}
-              placeholder="Search tags"
-              autoCapitalize="none"
-              icon={<Search size={18} color={colors.muted} />}
-            />
-            {visibleTagCategories.map((category) => (
-              <View key={category.title} style={styles.tagGroup}>
-                <Text style={styles.tagGroupTitle}>{category.title}</Text>
-                <View style={styles.tagPicker}>
-                  {category.tags.map((tag) => {
-                    const active = selectedTags.includes(tag);
-                    const disabled = selectedTags.length >= 5 && !active;
-                    return (
-                      <Pressable
-                        key={tag}
-                        disabled={disabled}
-                        style={[
-                          styles.tagChip,
-                          active && styles.tagChipActive,
-                          disabled && styles.tagChipDisabled,
-                        ]}
-                        onPress={() => toggleTag(tag)}
-                      >
-                        <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
-                          {tag}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-          </>
-        ) : null}
-      </View>
-      <View style={styles.textAreaWrap}>
-        <TextInput
-          ref={bodyInputRef}
-          value={body}
-          onChangeText={setBody}
-          placeholder="Full review"
-          placeholderTextColor={colors.muted}
-          multiline
-          style={[styles.textArea, webNoOutline]}
-        />
-        <Pressable
-          style={[styles.dictationButton, transcribing && styles.dictationButtonActive]}
-          onPress={startReviewDictation}
-          disabled={transcribing}
-          hitSlop={8}
-        >
-          <Mic size={24} color={transcribing ? colors.surface : colors.ink} />
-        </Pressable>
-      </View>
-      <Pressable
-        style={[styles.spoilerToggle, containsSpoilers && styles.spoilerToggleOn]}
-        onPress={() => setContainsSpoilers((current) => !current)}
-      >
-        <Text style={styles.spoilerText}>
-          {containsSpoilers ? 'Contains spoilers' : 'Spoiler-free'}
-        </Text>
-      </Pressable>
-      <PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} />
+          </View>
+          <Pressable
+            style={[styles.spoilerToggle, containsSpoilers && styles.spoilerToggleOn]}
+            onPress={() => setContainsSpoilers((current) => !current)}
+          >
+            <Text style={styles.spoilerText}>Contains spoilers</Text>
+            <View style={[styles.toggleTrack, containsSpoilers && styles.toggleTrackOn]}>
+              <View style={[styles.toggleKnob, containsSpoilers && styles.toggleKnobOn]} />
+            </View>
+          </Pressable>
+          <PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} />
+        </>
+      ) : null}
     </ScrollView>
   );
 }
@@ -2041,67 +2033,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   feedList: {
-    gap: 18,
-    paddingBottom: 22,
-  },
-  feedTape: {
-    flex: 1,
-    marginHorizontal: 2,
-    marginTop: 4,
-    marginBottom: 14,
-    borderWidth: 4,
-    borderColor: colors.ink,
-    borderRadius: 28,
-    backgroundColor: '#211d23',
-    paddingHorizontal: 30,
-    paddingVertical: 18,
-    shadowColor: colors.ink,
-    shadowOpacity: 0.12,
-    shadowRadius: 0,
-    shadowOffset: { width: 7, height: 8 },
-    overflow: 'hidden',
-  },
-  feedEdgeLeft: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: 18,
-    backgroundColor: '#2b262c',
-  },
-  feedEdgeRight: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: 18,
-    backgroundColor: '#2b262c',
-  },
-  filmPerfColumn: {
-    position: 'absolute',
-    top: 18,
-    bottom: 18,
-    width: 9,
-    justifyContent: 'space-between',
-    zIndex: 1,
-    opacity: 0.78,
-  },
-  feedPerfLeft: {
-    left: 7,
-  },
-  feedPerfRight: {
-    right: 7,
-  },
-  filmPerfHole: {
-    width: 9,
-    height: 12,
-    borderRadius: 5,
-    backgroundColor: colors.cream,
-  },
-  feedFrames: {
-    gap: 16,
+    gap: 14,
+    paddingTop: 4,
     paddingBottom: 24,
-    zIndex: 2,
   },
   emptyList: {
     flexGrow: 1,
@@ -2151,21 +2085,51 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    position: 'relative',
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-    minHeight: 128,
-    borderWidth: 2,
-    borderColor: '#0f0d10',
-    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 12,
     backgroundColor: colors.cream,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    shadowColor: colors.surface,
-    shadowOpacity: 0.35,
+    padding: 10,
+    gap: 10,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.1,
     shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: { width: 3, height: 4 },
+  },
+  reviewCardHeader: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  reviewCardBody: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  reviewerRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reviewerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  reviewerName: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: '900',
+  },
+  reviewerHandle: {
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
   },
   framePerfRow: {
     position: 'absolute',
@@ -2281,13 +2245,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: '700',
   },
-  reviewMetaRow: {
-    minHeight: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
   takeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2323,25 +2280,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 12,
     fontWeight: '900',
-  },
-  reviewFooter: {
-    minHeight: 46,
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    gap: 4,
-  },
-  miniAvatars: {
-    flexShrink: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  frameAuthor: {
-    flexShrink: 1,
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '800',
   },
   sectionBlock: {
     gap: 10,
@@ -2411,9 +2349,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardTagPill: {
+    alignSelf: 'flex-start',
     maxWidth: '100%',
     paddingVertical: 3,
     paddingHorizontal: 8,
+  },
+  spoilerBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ffd8bd',
   },
   stack: {
     gap: 12,
@@ -2442,6 +2385,21 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     backgroundColor: colors.yellow,
     overflow: 'hidden',
+  },
+  pillButton: {
+    minHeight: 34,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 10,
+  },
+  pillButtonText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
   },
   notice: {
     borderWidth: 3,
@@ -2706,19 +2664,43 @@ const styles = StyleSheet.create({
   },
   spoilerToggle: {
     minHeight: 44,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: colors.ink,
-    borderRadius: 8,
+    borderRadius: 999,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    flexDirection: 'row',
     backgroundColor: colors.surface,
+    paddingHorizontal: 12,
   },
   spoilerToggleOn: {
-    backgroundColor: colors.orange,
+    backgroundColor: '#ffd8bd',
   },
   spoilerText: {
     fontWeight: '900',
     color: colors.ink,
+  },
+  toggleTrack: {
+    width: 46,
+    height: 26,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 13,
+    backgroundColor: colors.surface,
+    padding: 2,
+  },
+  toggleTrackOn: {
+    backgroundColor: colors.orange,
+  },
+  toggleKnob: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.ink,
+  },
+  toggleKnobOn: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.surface,
   },
   detailBlock: {
     borderWidth: 3,
