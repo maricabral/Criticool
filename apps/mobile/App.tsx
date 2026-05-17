@@ -1482,9 +1482,6 @@ function ProfileScreen({
           <Text numberOfLines={1} style={styles.profileHandle}>
             @{user.username}
           </Text>
-          <Text numberOfLines={1} style={styles.profileEmail}>
-            {user.email}
-          </Text>
         </View>
         <View style={styles.profileStat}>
           {loading ? (
@@ -2788,11 +2785,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 14,
     fontWeight: '900',
-  },
-  profileEmail: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '800',
   },
   profileStat: {
     width: 74,
