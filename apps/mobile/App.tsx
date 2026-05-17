@@ -1185,9 +1185,10 @@ function CommentNode({
   const voteDisabled = votingCommentId === comment.id;
   const canReply = comment.depth < 3;
   const showReplyComposer = activeReplyId === comment.id;
+  const isRootComment = comment.depth === 0;
 
   return (
-    <View style={[styles.commentThread, { marginLeft: Math.min(comment.depth, 3) * 18 }]}>
+    <View style={isRootComment ? styles.commentThread : styles.commentReplyThread}>
       <View style={[styles.commentCard, comment.depth > 0 && styles.commentReplyCard]}>
         <View style={styles.commentCardBody}>
           <View style={styles.voteColumn}>
@@ -2669,18 +2670,24 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   commentThread: {
-    gap: 8,
-  },
-  commentCard: {
-    gap: 10,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 22,
     backgroundColor: colors.surface,
     padding: 10,
+    gap: 10,
+  },
+  commentReplyThread: {
+    gap: 8,
+    marginLeft: 18,
+  },
+  commentCard: {
+    gap: 10,
   },
   commentReplyCard: {
-    backgroundColor: colors.cream,
+    borderTopWidth: 2,
+    borderTopColor: colors.ink,
+    paddingTop: 10,
   },
   commentCardBody: {
     flexDirection: 'row',
