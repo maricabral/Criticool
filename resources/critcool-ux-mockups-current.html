@@ -354,6 +354,27 @@
       box-shadow: -3px 6px 0 -5px var(--ink);
     }
 
+    .comment-cluster {
+      min-width: 44px;
+      display: grid;
+      justify-items: end;
+      gap: 4px;
+    }
+
+    .active-row {
+      min-height: 18px;
+      display: flex;
+      justify-content: flex-end;
+      padding-right: 2px;
+    }
+
+    .active-row .avatar {
+      width: 20px;
+      height: 20px;
+      margin-left: -6px;
+      font-size: 9px;
+    }
+
     .review-body {
       display: flex;
       align-items: flex-start;
@@ -929,13 +950,17 @@
                       <span class="avatar">G</span>
                       <div><strong>Guba</strong><span>@guba - 22h</span></div>
                     </div>
-                    <span class="comment-count">1</span>
+                    <div class="comment-cluster">
+                      <span class="spoiler">Spoilers</span>
+                      <span class="comment-count">1</span>
+                      <div class="active-row"><span class="avatar">G</span></div>
+                    </div>
                   </div>
                   <div class="review-body">
                     <div class="poster"><span>Gladiator</span></div>
                     <div class="review-copy">
                       <div class="movie-title">Gladiator II</div>
-                    <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i></span><span class="spoiler">Spoilers</span></div>
+                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i></span></div>
                     </div>
                   </div>
                 </section>
@@ -946,7 +971,9 @@
                       <span class="avatar">M</span>
                       <div><strong>mariana</strong><span>@marimari - 1d</span></div>
                     </div>
-                    <span class="comment-count">0</span>
+                    <div class="comment-cluster">
+                      <span class="comment-count">0</span>
+                    </div>
                   </div>
                   <div class="review-body">
                     <div class="poster red"><span>Prada</span></div>
@@ -964,13 +991,17 @@
                       <span class="avatar">M</span>
                       <div><strong>mariana</strong><span>@marimari - 1d</span></div>
                     </div>
-                    <span class="comment-count">3</span>
+                    <div class="comment-cluster">
+                      <span class="spoiler">Spoilers</span>
+                      <span class="comment-count">3</span>
+                      <div class="active-row"><span class="avatar">G</span><span class="avatar">M</span><span class="avatar">A</span></div>
+                    </div>
                   </div>
                   <div class="review-body">
                     <div class="poster blue"><span>Beethoven</span></div>
                     <div class="review-copy">
                       <div class="movie-title">Beethoven</div>
-                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span><span class="spoiler">Spoilers</span></div>
+                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span></div>
                       <div class="tag-row"><span class="tag">best with snacks</span><span class="tag">date night</span></div>
                     </div>
                   </div>
@@ -982,7 +1013,9 @@
                       <span class="avatar">M</span>
                       <div><strong>mariana</strong><span>@marimari - 1d</span></div>
                     </div>
-                    <span class="comment-count">0</span>
+                    <div class="comment-cluster">
+                      <span class="comment-count">0</span>
+                    </div>
                   </div>
                   <div class="review-body">
                     <div class="poster light"><span>Beatles</span></div>
@@ -1175,13 +1208,17 @@
                     <span class="avatar">M</span>
                     <div><strong>mariana</strong><span>@marimari - 1d</span></div>
                   </div>
-                  <span class="comment-count">3</span>
+                  <div class="comment-cluster">
+                    <span class="spoiler">Spoilers</span>
+                    <span class="comment-count">3</span>
+                    <div class="active-row"><span class="avatar">G</span><span class="avatar">M</span><span class="avatar">A</span></div>
+                  </div>
                 </div>
                 <div class="review-body">
                   <div class="poster blue"><span>Beethoven</span></div>
                   <div class="review-copy">
                     <div class="movie-title">Beethoven</div>
-                    <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span><span class="spoiler">Spoilers</span></div>
+                    <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span></div>
                     <div class="tag-row"><span class="tag">best with snacks</span><span class="tag">date night</span></div>
                   </div>
                 </div>

@@ -534,6 +534,7 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
   const visibleTags = item.tags?.slice(0, 2) ?? [];
   const timeAgo = formatRelativeTime(item.createdAt);
   const reviewerName = item.author.displayName || item.author.username;
+  const commentParticipants = item.commentParticipants ?? [];
 
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
@@ -550,9 +551,23 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
             </Text>
           </View>
         </View>
-        <View style={styles.commentBubble}>
-          <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
-          <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
+        <View style={styles.reviewCommentCluster}>
+          {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
+          <View style={styles.commentBubble}>
+            <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
+            <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
+          </View>
+          {commentParticipants.length ? (
+            <View style={styles.commentParticipantRow}>
+              {commentParticipants.map((participant) => (
+                <Avatar
+                  key={participant.id}
+                  label={participant.displayName || participant.username}
+                  micro
+                />
+              ))}
+            </View>
+          ) : null}
         </View>
       </View>
       <View style={styles.reviewCardBody}>
@@ -563,7 +578,6 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
           </Text>
           <View style={styles.cardRatingLine}>
             <PopcornRating value={item.rating} />
-            {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
           </View>
           {quickTake ? (
             <Text numberOfLines={2} style={styles.quickTake}>
@@ -1649,11 +1663,33 @@ function Poster({ movie, compact }: { movie: MovieSummary; compact?: boolean }) 
   );
 }
 
-function Avatar({ label, large, mini }: { label: string; large?: boolean; mini?: boolean }) {
+function Avatar({
+  label,
+  large,
+  mini,
+  micro,
+}: {
+  label: string;
+  large?: boolean;
+  mini?: boolean;
+  micro?: boolean;
+}) {
   return (
-    <View style={[styles.avatar, large && styles.avatarLarge, mini && styles.avatarMini]}>
+    <View
+      style={[
+        styles.avatar,
+        large && styles.avatarLarge,
+        mini && styles.avatarMini,
+        micro && styles.avatarMicro,
+      ]}
+    >
       <Text
-        style={[styles.avatarText, large && styles.avatarTextLarge, mini && styles.avatarTextMini]}
+        style={[
+          styles.avatarText,
+          large && styles.avatarTextLarge,
+          mini && styles.avatarTextMini,
+          micro && styles.avatarTextMicro,
+        ]}
       >
         {label.slice(0, 1).toUpperCase()}
       </Text>
@@ -2127,6 +2163,17 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     fontWeight: '800',
   },
+  reviewCommentCluster: {
+    minWidth: 42,
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  commentParticipantRow: {
+    minHeight: 18,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingRight: 2,
+  },
   framePerfRow: {
     position: 'absolute',
     left: 4,
@@ -2173,6 +2220,13 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 2,
   },
+  avatarMicro: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    marginLeft: -6,
+  },
   avatarText: {
     color: colors.surface,
     fontWeight: '900',
@@ -2183,6 +2237,9 @@ const styles = StyleSheet.create({
   },
   avatarTextMini: {
     fontSize: 12,
+  },
+  avatarTextMicro: {
+    fontSize: 9,
   },
   author: {
     fontWeight: '900',

@@ -43,6 +43,14 @@ export class FeedService {
       include: {
         user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
         movie: true,
+        comments: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 8,
+          select: {
+            user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          },
+        },
         _count: { select: { comments: true } },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -74,6 +82,14 @@ export class FeedService {
       include: {
         user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
         movie: true,
+        comments: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 8,
+          select: {
+            user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          },
+        },
         _count: { select: { comments: true } },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -94,10 +110,27 @@ export class FeedService {
       include: {
         user: { select: { id: true; username: true; displayName: true; avatarUrl: true } };
         movie: true;
+        comments: {
+          select: {
+            user: { select: { id: true; username: true; displayName: true; avatarUrl: true } };
+          };
+        };
         _count: { select: { comments: true } };
       };
     }>,
   ) {
+    const participantIds = new Set<string>();
+    const commentParticipants = review.comments
+      .map((comment) => comment.user)
+      .filter((user) => {
+        if (participantIds.has(user.id)) {
+          return false;
+        }
+        participantIds.add(user.id);
+        return true;
+      })
+      .slice(0, 3);
+
     return {
       reviewId: review.id,
       createdAt: review.createdAt.toISOString(),
@@ -106,6 +139,7 @@ export class FeedService {
       tags: review.tags,
       containsSpoilers: review.containsSpoilers,
       commentCount: review._count.comments,
+      commentParticipants,
       author: review.user,
       movie: movieSummary(review.movie),
     };

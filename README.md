@@ -139,15 +139,16 @@ Feed cards must be glanceable.
 Required hierarchy:
 
 1. Reviewer row: avatar, display name, username, timestamp.
-2. Comment count anchored on the top right.
-3. Movie row: poster, title, rating, spoiler state or quick take.
+2. Comment cluster anchored on the top right: spoiler state above, comment count, then recent participant avatars when present.
+3. Movie row: poster, title, rating, and quick take when safe to preview.
 4. Optional tags: show at most two tags on feed cards.
 
 Rules:
 
 - Do not show full review body in the feed.
 - Do not expose quick take text for spoiler reviews.
-- Spoiler state is inline text beside the rating, not a large standalone pill.
+- Spoiler state lives in the comment cluster above the comment count, not as a large standalone pill.
+- Show up to three recent unique comment participants on cards with active discussion.
 - Tags are secondary. They should fit beside each other when space allows.
 - Movie title can truncate to one line in feed.
 - Reviewer identity should never sit below the score.

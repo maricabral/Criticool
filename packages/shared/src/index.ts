@@ -35,6 +35,12 @@ export type FeedItem = {
   tags: string[];
   containsSpoilers: boolean;
   commentCount: number;
+  commentParticipants: Array<{
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  }>;
   author: {
     id: string;
     username: string;
