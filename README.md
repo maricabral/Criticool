@@ -227,8 +227,9 @@ Comments are threaded and can be voted on.
 Rules:
 
 - Upvote/downvote applies per user per comment.
-- Tapping the opposite vote changes the vote and adjusts score by the delta.
-- Tapping the active vote again removes the vote and restores the score.
+- Tapping the active vote again does nothing.
+- Tapping the opposite vote first removes the current vote and restores the score.
+- Tapping the now-inactive opposite vote applies that vote.
 - Active vote states must be visually distinct.
 - Reply actions should stay close to the comment body.
 - Keep comments readable. Dense discussion is acceptable, but controls must not crowd the text.

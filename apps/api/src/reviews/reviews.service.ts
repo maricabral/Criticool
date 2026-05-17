@@ -182,18 +182,29 @@ export class ReviewsService {
       });
 
       if (existing?.value === value) {
+        const unchanged = await tx.comment.findUnique({
+          where: { id: commentId },
+          include: this.commentInclude(userId),
+        });
+
+        if (!unchanged) {
+          throw new NotFoundException('Comment not found');
+        }
+
+        return unchanged;
+      }
+
+      if (existing) {
         await tx.commentVote.delete({
           where: { commentId_userId: { commentId, userId } },
         });
 
         return tx.comment.update({
           where: { id: commentId },
-          data: { score: { increment: -value } },
+          data: { score: { increment: -existing.value } },
           include: this.commentInclude(userId),
         });
       }
-
-      const delta = existing ? value - existing.value : value;
 
       await tx.commentVote.upsert({
         where: { commentId_userId: { commentId, userId } },
@@ -203,7 +214,7 @@ export class ReviewsService {
 
       return tx.comment.update({
         where: { id: commentId },
-        data: { score: { increment: delta } },
+        data: { score: { increment: value } },
         include: this.commentInclude(userId),
       });
     });

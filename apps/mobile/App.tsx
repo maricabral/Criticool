@@ -1034,7 +1034,7 @@ function ReviewDetailScreen({
   };
 
   const voteComment = async (comment: ReviewComment, value: -1 | 1) => {
-    if (!review || votingCommentId) {
+    if (!review || votingCommentId || comment.viewerVote === value) {
       return;
     }
 
