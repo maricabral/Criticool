@@ -1011,6 +1011,15 @@ function ReviewDetailScreen({
     void loadReview();
   }, [loadReview]);
 
+  useEffect(() => {
+    if (!replyTo) {
+      return;
+    }
+
+    const focusTimer = setTimeout(() => commentInputRef.current?.focus(), 50);
+    return () => clearTimeout(focusTimer);
+  }, [replyTo]);
+
   const postComment = async () => {
     const body = commentBody.trim();
     if (!body || !review) {
@@ -1058,6 +1067,25 @@ function ReviewDetailScreen({
         'Tap the microphone on your keyboard to dictate a comment. Native in-app transcription needs a custom development build.',
     });
   };
+
+  const startReply = (comment: ReviewComment) => {
+    setReplyTo(comment);
+  };
+
+  const composer = (
+    <CommentComposer
+      body={commentBody}
+      inputRef={commentInputRef}
+      mode={replyTo ? 'reply' : 'comment'}
+      posting={postingComment}
+      replyTo={replyTo}
+      transcribing={transcribingComment}
+      onCancelReply={() => setReplyTo(null)}
+      onChangeBody={setCommentBody}
+      onDictate={startCommentDictation}
+      onSubmit={postComment}
+    />
+  );
 
   if (!review) {
     return (
@@ -1113,51 +1141,16 @@ function ReviewDetailScreen({
           <Text style={styles.emptyTitle}>Comments</Text>
           <Text style={styles.bubble}>{review.commentCount} chats</Text>
         </View>
-        <View style={styles.commentComposer}>
-          {replyTo ? (
-            <View style={styles.replyBanner}>
-              <Text style={styles.replyBannerText}>Replying to @{replyTo.author.username}</Text>
-              <Pressable onPress={() => setReplyTo(null)}>
-                <Text style={styles.replyCancel}>Cancel</Text>
-              </Pressable>
-            </View>
-          ) : null}
-          <View style={styles.commentInputWrap}>
-            <TextInput
-              ref={commentInputRef}
-              value={commentBody}
-              onChangeText={setCommentBody}
-              placeholder={replyTo ? 'Write a reply' : 'Join the discussion'}
-              placeholderTextColor={colors.muted}
-              multiline
-              style={[styles.commentInput, styles.commentInputWithMic, webNoOutline]}
-            />
-            <Pressable
-              style={[
-                styles.commentDictationButton,
-                transcribingComment && styles.dictationButtonActive,
-              ]}
-              onPress={startCommentDictation}
-              disabled={transcribingComment}
-              hitSlop={8}
-            >
-              <Mic size={22} color={transcribingComment ? colors.surface : colors.ink} />
-            </Pressable>
-          </View>
-          <PrimaryButton
-            label={replyTo ? 'Post reply' : 'Post comment'}
-            onPress={postComment}
-            disabled={postingComment || !commentBody.trim()}
-            compact
-          />
-        </View>
+        {replyTo ? null : composer}
         {review.comments.length ? (
           <View style={styles.commentList}>
             {review.comments.map((comment) => (
               <CommentNode
                 key={comment.id}
+                activeReplyId={replyTo?.id ?? null}
                 comment={comment}
-                onReply={setReplyTo}
+                replyComposer={composer}
+                onReply={startReply}
                 onVote={voteComment}
                 votingCommentId={votingCommentId}
               />
@@ -1175,18 +1168,23 @@ function ReviewDetailScreen({
 }
 
 function CommentNode({
+  activeReplyId,
   comment,
+  replyComposer,
   onReply,
   onVote,
   votingCommentId,
 }: {
+  activeReplyId: string | null;
   comment: ReviewComment;
+  replyComposer: React.ReactNode;
   onReply: (comment: ReviewComment) => void;
   onVote: (comment: ReviewComment, value: -1 | 1) => void;
   votingCommentId: string | null;
 }) {
   const voteDisabled = votingCommentId === comment.id;
   const canReply = comment.depth < 3;
+  const showReplyComposer = activeReplyId === comment.id;
 
   return (
     <View style={[styles.commentThread, { marginLeft: Math.min(comment.depth, 3) * 18 }]}>
@@ -1223,15 +1221,82 @@ function CommentNode({
           ) : null}
         </View>
       </View>
+      {showReplyComposer ? <View style={styles.inlineReplyComposer}>{replyComposer}</View> : null}
       {comment.replies.map((reply) => (
         <CommentNode
           key={reply.id}
+          activeReplyId={activeReplyId}
           comment={reply}
+          replyComposer={replyComposer}
           onReply={onReply}
           onVote={onVote}
           votingCommentId={votingCommentId}
         />
       ))}
+    </View>
+  );
+}
+
+function CommentComposer({
+  body,
+  inputRef,
+  mode,
+  posting,
+  replyTo,
+  transcribing,
+  onCancelReply,
+  onChangeBody,
+  onDictate,
+  onSubmit,
+}: {
+  body: string;
+  inputRef: React.RefObject<TextInput | null>;
+  mode: 'comment' | 'reply';
+  posting: boolean;
+  replyTo: ReviewComment | null;
+  transcribing: boolean;
+  onCancelReply: () => void;
+  onChangeBody: (value: string) => void;
+  onDictate: () => void;
+  onSubmit: () => void;
+}) {
+  const isReply = mode === 'reply' && replyTo;
+
+  return (
+    <View style={styles.commentComposer}>
+      {isReply ? (
+        <View style={styles.replyBanner}>
+          <Text style={styles.replyBannerText}>Replying to @{replyTo.author.username}</Text>
+          <Pressable onPress={onCancelReply}>
+            <Text style={styles.replyCancel}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <View style={styles.commentInputWrap}>
+        <TextInput
+          ref={inputRef}
+          value={body}
+          onChangeText={onChangeBody}
+          placeholder={isReply ? 'Write a reply' : 'Join the discussion'}
+          placeholderTextColor={colors.muted}
+          multiline
+          style={[styles.commentInput, styles.commentInputWithMic, webNoOutline]}
+        />
+        <Pressable
+          style={[styles.commentDictationButton, transcribing && styles.dictationButtonActive]}
+          onPress={onDictate}
+          disabled={transcribing}
+          hitSlop={8}
+        >
+          <Mic size={22} color={transcribing ? colors.surface : colors.ink} />
+        </Pressable>
+      </View>
+      <PrimaryButton
+        label={isReply ? 'Post reply' : 'Post comment'}
+        onPress={onSubmit}
+        disabled={posting || !body.trim()}
+        compact
+      />
     </View>
   );
 }
@@ -2522,6 +2587,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
     gap: 8,
     padding: 8,
+  },
+  inlineReplyComposer: {
+    marginTop: 8,
   },
   commentsInline: {
     gap: 12,
