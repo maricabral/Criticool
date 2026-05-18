@@ -788,36 +788,38 @@ function ReviewCard({
       style={styles.reviewFrame}
       onPress={onPress}
     >
-      <View style={styles.reviewCardHeader}>
-        <View style={styles.reviewTitleBlock}>
-          <Text numberOfLines={1} style={styles.movieTitle}>
-            {item.movie.title}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${reviewerName}'s profile`}
-          style={styles.feedReviewerNameRow}
-          onPress={(event) => {
-            event.stopPropagation();
-            onOpenUser(item.author);
-          }}
-        >
-          <Avatar label={reviewerName} mini />
-          <View style={styles.reviewerCopy}>
-            <Text numberOfLines={1} style={styles.reviewerName}>
-              {reviewerName}
-            </Text>
-            <Text numberOfLines={1} style={styles.reviewerHandle}>
-              {reviewDate}
-            </Text>
-            {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
-          </View>
-        </Pressable>
-      </View>
       <View style={styles.reviewCardBody}>
         <Poster movie={item.movie} compact />
         <View style={styles.feedReviewCopy}>
+          <View style={styles.reviewCardHeader}>
+            <View style={styles.reviewTitleBlock}>
+              <Text numberOfLines={2} style={styles.movieTitle}>
+                {item.movie.title}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${reviewerName}'s profile`}
+              style={styles.feedReviewerNameRow}
+              onPress={(event) => {
+                event.stopPropagation();
+                onOpenUser(item.author);
+              }}
+            >
+              <Avatar label={reviewerName} mini />
+              <View style={styles.reviewerCopy}>
+                <Text numberOfLines={1} style={styles.reviewerName}>
+                  {reviewerName}
+                </Text>
+                <Text numberOfLines={1} style={styles.reviewerHandle}>
+                  {reviewDate}
+                </Text>
+                {item.containsSpoilers ? (
+                  <Text style={styles.feedSpoilerText}>Spoilers</Text>
+                ) : null}
+              </View>
+            </Pressable>
+          </View>
           <View style={styles.feedSignalBlock}>
             <View style={styles.quickTakeBlock}>
               {quickTake ? (
@@ -3179,7 +3181,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    minHeight: 178,
+    minHeight: 166,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
@@ -3193,21 +3195,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 42,
+    minHeight: 50,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
   },
   reviewCardBody: {
-    minHeight: 100,
+    minHeight: 116,
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 10,
+    gap: 12,
   },
   reviewTitleBlock: {
     flex: 1,
     minWidth: 0,
+    alignItems: 'center',
+    paddingTop: 2,
   },
   reviewerRow: {
     flex: 1,
@@ -3240,9 +3244,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   feedReviewerNameRow: {
-    width: 132,
+    width: 118,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'flex-end',
     gap: 5,
   },
@@ -3354,8 +3358,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   posterCompact: {
-    width: 72,
-    height: 100,
+    width: 78,
+    height: 112,
   },
   posterFallback: {
     alignItems: 'center',
@@ -3368,9 +3372,10 @@ const styles = StyleSheet.create({
   },
   movieTitle: {
     color: colors.ink,
-    fontSize: 19,
-    lineHeight: 21,
+    fontSize: 21,
+    lineHeight: 23,
     fontWeight: '900',
+    textAlign: 'center',
   },
   rating: {
     flexDirection: 'row',
@@ -3391,7 +3396,7 @@ const styles = StyleSheet.create({
     minHeight: 27,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     gap: 6,
   },
   quickTake: {
@@ -3399,7 +3404,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     fontWeight: '800',
-    textAlign: 'left',
+    textAlign: 'center',
   },
   quickTakeMuted: {
     color: colors.muted,
@@ -3415,14 +3420,15 @@ const styles = StyleSheet.create({
   },
   feedSignalBlock: {
     flex: 1,
-    minHeight: 58,
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   quickTakeBlock: {
     width: '100%',
     gap: 3,
+    alignItems: 'center',
   },
   feedSpoilerText: {
     color: colors.orange,
@@ -3634,6 +3640,7 @@ const styles = StyleSheet.create({
     minHeight: 22,
     flexDirection: 'row',
     alignItems: 'flex-end',
+    justifyContent: 'center',
     flexWrap: 'wrap',
     gap: 5,
   },
@@ -3641,7 +3648,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 8,
   },
   reviewCardFooter: {
     minHeight: 32,
