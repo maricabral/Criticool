@@ -83,6 +83,24 @@ async function run() {
   assert(userCRes.status === 201, `User C registered (status ${userCRes.status})`);
   const userC = { ...userCRes.data.user, tokens: userCRes.data.tokens };
 
+  // Temporary local password reset
+  console.log('\n--- Auth: Reset Password ---');
+  const resetCRes = await request('POST', '/auth/reset-password', {
+    body: { email: `carol_${suffix}@test.local`, password: 'ResetPass3!' },
+  });
+  assert(resetCRes.status === 201 || resetCRes.status === 200, `Password reset succeeds (status ${resetCRes.status})`);
+
+  const oldCLoginRes = await request('POST', '/auth/login', {
+    body: { email: `carol_${suffix}@test.local`, password: 'Password3!' },
+  });
+  assert(oldCLoginRes.status === 401, `Old password rejected after reset (status ${oldCLoginRes.status})`);
+
+  const newCLoginRes = await request('POST', '/auth/login', {
+    body: { email: `carol_${suffix}@test.local`, password: 'ResetPass3!' },
+  });
+  assert(newCLoginRes.status === 201 || newCLoginRes.status === 200, `New password login succeeds (status ${newCLoginRes.status})`);
+  userC.tokens = newCLoginRes.data.tokens;
+
   // ─── Duplicate Email ───
   console.log('\n--- Auth: Duplicate Email ---');
   const dupEmail = await request('POST', '/auth/register', {
@@ -172,6 +190,24 @@ async function run() {
   assert(
     notifARequestRes.data.items?.some?.((item) => item.type === 'friend_request_accepted' && item.actor?.id === userB.id),
     'A receives accepted friend request notification',
+  );
+
+  // Pending request cancellation
+  const pendingCancelRes = await request('POST', '/friend-requests', {
+    token: userB.tokens.accessToken,
+    body: { addresseeId: userC.id },
+  });
+  assert(pendingCancelRes.status === 201 || pendingCancelRes.status === 200, `Friend request B→C created (status ${pendingCancelRes.status})`);
+  const outgoingBeforeCancel = await request('GET', '/friend-requests/outgoing', { token: userB.tokens.accessToken });
+  const pendingCancel = outgoingBeforeCancel.data?.find?.((request) => request.addressee?.id === userC.id);
+  assert(!!pendingCancel, 'B sees outgoing pending request to C');
+
+  const cancelPendingRes = await request('DELETE', `/friend-requests/${pendingCancel?.id}`, { token: userB.tokens.accessToken });
+  assert(cancelPendingRes.status === 200, `Outgoing pending request canceled (status ${cancelPendingRes.status})`);
+  const outgoingAfterCancel = await request('GET', '/friend-requests/outgoing', { token: userB.tokens.accessToken });
+  assert(
+    !outgoingAfterCancel.data?.some?.((request) => request.id === pendingCancel?.id),
+    'Canceled pending request is removed from outgoing list',
   );
 
   // ─── Feed Visibility: Friend ───
@@ -280,6 +316,13 @@ async function run() {
   const blockRes = await request('POST', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
   assert(blockRes.status === 201 || blockRes.status === 200, `User C blocks User A (status ${blockRes.status})`);
 
+  const blockedListRes = await request('GET', '/users/blocked', { token: userC.tokens.accessToken });
+  assert(blockedListRes.status === 200, `Blocked users list loads (status ${blockedListRes.status})`);
+  assert(
+    blockedListRes.data?.some?.((item) => item.id === userA.id),
+    'Blocked user appears in blocked users list',
+  );
+
   const searchBlockedRes = await request('GET', `/users/search?q=alice_${suffix}`, { token: userC.tokens.accessToken });
   assert(
     !searchBlockedRes.data?.some?.((item) => item.id === userA.id),
@@ -288,6 +331,11 @@ async function run() {
 
   const unblockRes = await request('DELETE', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
   assert(unblockRes.status === 200, `User C unblocks User A (status ${unblockRes.status})`);
+  const blockedAfterUnblockRes = await request('GET', '/users/blocked', { token: userC.tokens.accessToken });
+  assert(
+    !blockedAfterUnblockRes.data?.some?.((item) => item.id === userA.id),
+    'Unblocked user is removed from blocked users list',
+  );
 
   // ─── Soft Delete Review ───
   console.log('\n--- Review: Soft Delete ---');

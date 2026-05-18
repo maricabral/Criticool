@@ -7,7 +7,11 @@ function createMockPrisma() {
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
       findMany: vi.fn(),
+    },
+    notification: {
+      deleteMany: vi.fn(),
     },
   };
 }
@@ -183,6 +187,35 @@ describe('FriendshipsService', () => {
       prisma.friendship.findFirst.mockResolvedValue(null);
 
       await expect(service.decline('user-b', 'fr-999')).rejects.toThrow(
+        'Friend request not found',
+      );
+    });
+  });
+
+  describe('cancel', () => {
+    it('cancels an outgoing pending request', async () => {
+      prisma.friendship.findFirst.mockResolvedValue({
+        id: 'fr-1',
+        requesterId: 'user-a',
+        addresseeId: 'user-b',
+        status: 'pending',
+      });
+      prisma.friendship.delete.mockResolvedValue({});
+      prisma.notification.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.cancel('user-a', 'fr-1');
+
+      expect(result).toEqual({ ok: true });
+      expect(prisma.friendship.delete).toHaveBeenCalledWith({ where: { id: 'fr-1' } });
+      expect(prisma.notification.deleteMany).toHaveBeenCalledWith({
+        where: { friendshipId: 'fr-1', type: 'friend_request_received' },
+      });
+    });
+
+    it('does not cancel someone else pending request', async () => {
+      prisma.friendship.findFirst.mockResolvedValue(null);
+
+      await expect(service.cancel('user-b', 'fr-1')).rejects.toThrow(
         'Friend request not found',
       );
     });

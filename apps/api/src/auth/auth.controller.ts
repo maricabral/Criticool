@@ -3,7 +3,7 @@ import { AuthGuard } from '../common/auth.guard';
 import { CurrentUser } from '../common/current-user.decorator';
 import { RequestUser } from '../common/auth-user';
 import { AuthService } from './auth.service';
-import { LoginDto, LogoutDto, RefreshDto, RegisterDto } from './dto';
+import { LoginDto, LogoutDto, RefreshDto, RegisterDto, ResetPasswordDto } from './dto';
 
 @Controller()
 export class AuthController {
@@ -35,6 +35,11 @@ export class AuthController {
   @Post('auth/logout')
   logout(@Body() dto: LogoutDto) {
     return this.auth.logout(dto.refreshToken);
+  }
+
+  @Post('auth/reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto);
   }
 
   @Get('me')

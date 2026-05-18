@@ -6,6 +6,7 @@ function createMockPrisma() {
     user: { findFirst: vi.fn() },
     friendship: { deleteMany: vi.fn() },
     block: {
+      findMany: vi.fn(),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -47,5 +48,33 @@ describe('UsersService block controls', () => {
 
   it('rejects blocking yourself', async () => {
     await expect(service.block('user-a', 'user-a')).rejects.toThrow('You cannot block yourself');
+  });
+
+  it('lists blocked users', async () => {
+    prisma.block.findMany.mockResolvedValue([
+      {
+        createdAt: new Date('2026-05-18T10:00:00Z'),
+        blocked: { id: 'user-b', username: 'bob', displayName: 'Bob', avatarUrl: null },
+      },
+    ]);
+
+    const result = await service.blocked('user-a');
+
+    expect(prisma.block.findMany).toHaveBeenCalledWith({
+      where: { blockerId: 'user-a' },
+      include: {
+        blocked: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(result).toEqual([
+      {
+        id: 'user-b',
+        username: 'bob',
+        displayName: 'Bob',
+        avatarUrl: null,
+        blockedAt: '2026-05-18T10:00:00.000Z',
+      },
+    ]);
   });
 });

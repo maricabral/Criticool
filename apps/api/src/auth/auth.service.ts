@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,7 +11,7 @@ import { User } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
-import { LoginDto, RegisterDto } from './dto';
+import { LoginDto, RegisterDto, ResetPasswordDto } from './dto';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_DAYS = 30;
@@ -118,6 +119,32 @@ export class AuthService {
       where: { refreshTokenHash: this.hashRefreshToken(refreshToken), revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    return { ok: true };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const account = await this.prisma.authAccount.findUnique({
+      where: { provider_providerUserId: { provider: 'email', providerUserId: email } },
+      include: { user: true },
+    });
+
+    if (!account || account.user.deletedAt) {
+      throw new NotFoundException('Account not found');
+    }
+
+    const passwordHash = await hash(dto.password, 12);
+    await this.prisma.$transaction([
+      this.prisma.authAccount.update({
+        where: { id: account.id },
+        data: { passwordHash },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId: account.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
     return { ok: true };
   }
 

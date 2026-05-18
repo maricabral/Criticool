@@ -36,6 +36,7 @@ import type { TextStyle } from 'react-native';
 import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
 import {
   api,
+  BlockedUserSummary,
   FriendRequest,
   FriendSummary,
   loadTokens,
@@ -338,15 +339,17 @@ function AuthScreen({
 }: {
   onAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void;
 }) {
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'reset'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const isWelcome = mode === 'welcome';
   const isRegister = mode === 'register';
+  const isReset = mode === 'reset';
 
   const submit = async () => {
     if (isWelcome) {
@@ -354,7 +357,15 @@ function AuthScreen({
     }
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
+      if (isReset) {
+        await api.resetPassword({ email, password });
+        setPassword('');
+        setMode('login');
+        setNotice('Password reset. Log in with the new password.');
+        return;
+      }
       const response = isRegister
         ? await api.register({ email, password, username, displayName })
         : await api.login({ email, password });
@@ -366,9 +377,10 @@ function AuthScreen({
     }
   };
 
-  const chooseMode = (nextMode: 'login' | 'register') => {
+  const chooseMode = (nextMode: 'login' | 'register' | 'reset') => {
     setMode(nextMode);
     setError(null);
+    setNotice(null);
   };
 
   return (
@@ -404,7 +416,9 @@ function AuthScreen({
               <View style={styles.smallLogoBacking}>
                 <Image source={welcomeLogo} style={styles.smallWelcomeLogo} resizeMode="contain" />
               </View>
-              <Text style={styles.authTitle}>{isRegister ? 'Create account' : 'Log in'}</Text>
+              <Text style={styles.authTitle}>
+                {isRegister ? 'Create account' : isReset ? 'Reset password' : 'Log in'}
+              </Text>
             </View>
             <View style={styles.form}>
               <Field
@@ -416,7 +430,7 @@ function AuthScreen({
               <Field
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Password"
+                placeholder={isReset ? 'New password' : 'Password'}
                 secureTextEntry
               />
               {isRegister ? (
@@ -434,20 +448,26 @@ function AuthScreen({
                   />
                 </>
               ) : null}
+              {notice ? <Text style={styles.noticeText}>{notice}</Text> : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <PrimaryButton
-                label={isRegister ? 'Create account' : 'Log in'}
+                label={isRegister ? 'Create account' : isReset ? 'Reset password' : 'Log in'}
                 onPress={submit}
                 disabled={busy}
               />
+              {!isRegister && !isReset ? (
+                <Pressable style={styles.authLinkRow} onPress={() => chooseMode('reset')}>
+                  <Text style={styles.authLinkText}>Reset password</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 style={styles.authLinkRow}
-                onPress={() => chooseMode(isRegister ? 'login' : 'register')}
+                onPress={() => chooseMode(isRegister || isReset ? 'login' : 'register')}
               >
                 <Text style={styles.authLinkMuted}>
-                  {isRegister ? 'Already have an account? ' : 'Need an account? '}
+                  {isRegister || isReset ? 'Already have an account? ' : 'Need an account? '}
                   <Text style={styles.authLinkText}>
-                    {isRegister ? 'Log in' : 'Create account'}
+                    {isRegister || isReset ? 'Log in' : 'Create account'}
                   </Text>
                 </Text>
               </Pressable>
@@ -1874,19 +1894,22 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendSummary[]>([]);
+  const [blocked, setBlocked] = useState<BlockedUserSummary[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
 
   const loadFriendState = useCallback(async () => {
     setLoadingRequests(true);
     try {
-      const [incomingRows, outgoingRows, friendRows] = await Promise.all([
+      const [incomingRows, outgoingRows, friendRows, blockedRows] = await Promise.all([
         api.incomingFriendRequests(tokens),
         api.outgoingFriendRequests(tokens),
         api.friends(tokens),
+        api.blockedUsers(tokens),
       ]);
       setIncoming(incomingRows);
       setOutgoing(outgoingRows);
       setFriends(friendRows);
+      setBlocked(blockedRows);
     } catch (err) {
       Alert.alert('Could not load friends', err instanceof Error ? err.message : 'Try again');
     } finally {
@@ -1947,9 +1970,34 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
       await api.blockUser(tokens, id);
       setUsers((current) => current.filter((item) => item.id !== id));
       setFriends((current) => current.filter((item) => item.id !== id));
+      setOutgoing((current) => current.filter((request) => request.addressee.id !== id));
+      setIncoming((current) => current.filter((request) => request.requester.id !== id));
       await loadFriendState();
     } catch (err) {
       Alert.alert('Could not block user', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const unblockUser = async (id: string) => {
+    try {
+      await api.unblockUser(tokens, id);
+      setBlocked((current) => current.filter((item) => item.id !== id));
+    } catch (err) {
+      Alert.alert('Could not unblock user', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const cancelRequest = async (request: FriendRequest) => {
+    try {
+      await api.cancelFriendRequest(tokens, request.id);
+      setOutgoing((current) => current.filter((item) => item.id !== request.id));
+      setUsers((current) =>
+        current.map((user) =>
+          user.id === request.addressee.id ? { ...user, friendshipStatus: null } : user,
+        ),
+      );
+    } catch (err) {
+      Alert.alert('Could not remove request', err instanceof Error ? err.message : 'Try again');
     }
   };
 
@@ -2007,27 +2055,33 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
         {query.trim().length >= 2 ? (
           <Panel>
             <Text style={styles.sectionTitle}>Find people</Text>
-            {users.map((item) => (
-              <View key={item.id} style={styles.simplePersonRow}>
-                <Avatar label={item.displayName} />
-                <Text numberOfLines={1} style={styles.friendSearchName}>
-                  @{item.username}
-                </Text>
-                <Pressable
-                  disabled={item.friendshipStatus !== null}
-                  onPress={() => void add(item.id)}
-                  style={styles.friendAddAction}
-                >
-                  <Text style={styles.pill}>{item.friendshipStatus ?? 'Add'}</Text>
-                </Pressable>
-                <Pressable style={styles.iconSmallButton} onPress={() => void reportUser(item.id)}>
-                  <Flag size={14} color={colors.ink} />
-                </Pressable>
-                <Pressable style={styles.iconSmallButton} onPress={() => void blockUser(item.id)}>
-                  <Ban size={14} color={colors.ink} />
-                </Pressable>
-              </View>
-            ))}
+            {users.map((item) => {
+              const outgoingRequest = outgoing.find((request) => request.addressee.id === item.id);
+              const canCancel = item.friendshipStatus === 'pending' ? outgoingRequest : null;
+              return (
+                <View key={item.id} style={styles.simplePersonRow}>
+                  <Avatar label={item.displayName} />
+                  <Text numberOfLines={1} style={styles.friendSearchName}>
+                    @{item.username}
+                  </Text>
+                  <Pressable
+                    disabled={item.friendshipStatus !== null && !canCancel}
+                    onPress={() => (canCancel ? void cancelRequest(canCancel) : void add(item.id))}
+                    style={styles.friendAddAction}
+                  >
+                    <Text style={styles.pill}>
+                      {canCancel ? 'Cancel' : item.friendshipStatus ?? 'Add'}
+                    </Text>
+                  </Pressable>
+                  <Pressable style={styles.iconSmallButton} onPress={() => void reportUser(item.id)}>
+                    <Flag size={14} color={colors.ink} />
+                  </Pressable>
+                  <Pressable style={styles.iconSmallButton} onPress={() => void blockUser(item.id)}>
+                    <Ban size={14} color={colors.ink} />
+                  </Pressable>
+                </View>
+              );
+            })}
             {!users.length ? <Text style={styles.mutedText}>No matches yet.</Text> : null}
           </Panel>
         ) : (
@@ -2063,7 +2117,7 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
             {outgoing.length ? (
               <Panel tint="pink">
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Suggestions</Text>
+                  <Text style={styles.sectionTitle}>Pending</Text>
                   <Text style={styles.mutedText}>pending</Text>
                 </View>
                 <View style={styles.friendGrid}>
@@ -2079,6 +2133,30 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
                       <Text numberOfLines={1} style={styles.friendHandle}>
                         @{request.addressee.username}
                       </Text>
+                      <Pressable onPress={() => void cancelRequest(request)}>
+                        <Text style={styles.commentReplyText}>Cancel</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              </Panel>
+            ) : null}
+            {blocked.length ? (
+              <Panel>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Blocked</Text>
+                  <Text style={styles.bubble}>{blocked.length}</Text>
+                </View>
+                <View style={styles.friendGrid}>
+                  {blocked.map((blockedUser) => (
+                    <View key={blockedUser.id} style={styles.friendBubble}>
+                      <Avatar label={blockedUser.displayName || blockedUser.username} large />
+                      <Text numberOfLines={1} style={styles.friendHandle}>
+                        @{blockedUser.username}
+                      </Text>
+                      <Pressable onPress={() => void unblockUser(blockedUser.id)}>
+                        <Text style={styles.commentReplyText}>Unblock</Text>
+                      </Pressable>
                     </View>
                   ))}
                 </View>
@@ -2679,6 +2757,10 @@ const styles = StyleSheet.create({
   },
   authLinkText: {
     color: colors.ink,
+    fontWeight: '900',
+  },
+  noticeText: {
+    color: colors.green,
     fontWeight: '900',
   },
   app: {

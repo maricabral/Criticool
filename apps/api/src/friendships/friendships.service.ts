@@ -125,6 +125,22 @@ export class FriendshipsService {
     );
   }
 
+  async cancel(userId: string, requestId: string) {
+    const request = await this.prisma.friendship.findFirst({
+      where: { id: requestId, requesterId: userId, status: 'pending' },
+    });
+    if (!request) {
+      throw new NotFoundException('Friend request not found');
+    }
+
+    await this.prisma.friendship.delete({ where: { id: request.id } });
+    await this.prisma.notification.deleteMany({
+      where: { friendshipId: request.id, type: 'friend_request_received' },
+    });
+
+    return { ok: true };
+  }
+
   async friends(userId: string) {
     const rows = await this.prisma.friendship.findMany({
       where: {

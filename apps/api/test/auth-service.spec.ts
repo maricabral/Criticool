@@ -10,6 +10,7 @@ function createMockPrisma() {
     },
     authAccount: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     session: {
       create: vi.fn(),
@@ -17,6 +18,7 @@ function createMockPrisma() {
       update: vi.fn(),
       updateMany: vi.fn(),
     },
+    $transaction: vi.fn((operations: unknown[]) => Promise.all(operations)),
   };
 }
 
@@ -209,6 +211,45 @@ describe('AuthService', () => {
 
     it('throws for empty refreshToken', async () => {
       await expect(service.logout('')).rejects.toThrow('refreshToken is required');
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('updates email password and revokes active sessions', async () => {
+      prisma.authAccount.findUnique.mockResolvedValue({
+        id: 'account-1',
+        userId: 'user-1',
+        user: { id: 'user-1', deletedAt: null },
+      });
+      prisma.authAccount.update.mockResolvedValue({});
+      prisma.session.updateMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.resetPassword({
+        email: 'Alice@Example.com',
+        password: 'newsecurepass123',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(prisma.authAccount.findUnique).toHaveBeenCalledWith({
+        where: { provider_providerUserId: { provider: 'email', providerUserId: 'alice@example.com' } },
+        include: { user: true },
+      });
+      expect(prisma.authAccount.update).toHaveBeenCalledWith({
+        where: { id: 'account-1' },
+        data: { passwordHash: expect.any(String) },
+      });
+      expect(prisma.session.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('throws for missing account', async () => {
+      prisma.authAccount.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.resetPassword({ email: 'missing@example.com', password: 'newsecurepass123' }),
+      ).rejects.toThrow('Account not found');
     });
   });
 });
