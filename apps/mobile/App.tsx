@@ -51,6 +51,12 @@ import { colors } from './src/theme';
 
 type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
 type ProfileUser = Pick<AuthUser, 'id' | 'username' | 'displayName' | 'avatarUrl'>;
+type AppRouteSnapshot = {
+  tab: Tab;
+  selectedReviewId: string | null;
+  selectedProfileUser: ProfileUser | null;
+  showNotifications: boolean;
+};
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
   Platform.OS === 'web'
@@ -494,16 +500,46 @@ function AppShell({
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ProfileUser | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [routeStack, setRouteStack] = useState<AppRouteSnapshot[]>([]);
+
+  const currentRoute = () => ({
+    tab,
+    selectedReviewId,
+    selectedProfileUser,
+    showNotifications,
+  });
+
+  const restoreRoute = (route: AppRouteSnapshot) => {
+    setShowNotifications(route.showNotifications);
+    setSelectedReviewId(route.selectedReviewId);
+    setSelectedProfileUser(route.selectedProfileUser);
+    setTab(route.tab);
+  };
+
+  const popRoute = () => {
+    const previousRoute = routeStack.at(-1);
+    if (!previousRoute) {
+      return false;
+    }
+    setRouteStack((current) => current.slice(0, -1));
+    restoreRoute(previousRoute);
+    return true;
+  };
 
   const openCreate = (movie?: MovieSummary) => {
     if (movie) {
       setSelectedMovie(movie);
     }
+    setRouteStack([]);
     setShowNotifications(false);
     setTab('create');
   };
 
   const openReview = (id: string) => {
+    if (!showNotifications && tab === 'profile' && selectedReviewId === id) {
+      return;
+    }
+    setRouteStack((current) => [...current, currentRoute()]);
     setShowNotifications(false);
     setSelectedReviewId(id);
     setTab('profile');
@@ -513,10 +549,38 @@ function AppShell({
     if (profileUser.id === 'deleted') {
       return;
     }
+    if (
+      !showNotifications &&
+      tab === 'profile' &&
+      !selectedReviewId &&
+      (selectedProfileUser?.id ?? user.id) === profileUser.id
+    ) {
+      return;
+    }
+    if (profileUser.id === user.id) {
+      setShowNotifications(false);
+      setSelectedReviewId(null);
+      setSelectedProfileUser(null);
+      setTab('profile');
+      return;
+    }
+    setRouteStack((current) => [...current, currentRoute()]);
     setShowNotifications(false);
     setSelectedReviewId(null);
     setSelectedProfileUser(profileUser.id === user.id ? null : profileUser);
     setTab('profile');
+  };
+
+  const closeReview = () => {
+    if (!popRoute()) {
+      setSelectedReviewId(null);
+    }
+  };
+
+  const closeProfile = () => {
+    if (!popRoute()) {
+      setSelectedProfileUser(null);
+    }
   };
 
   return (
@@ -558,7 +622,7 @@ function AppShell({
               tokens={tokens}
               currentUserId={user.id}
               reviewId={selectedReviewId}
-              onBack={() => setSelectedReviewId(null)}
+              onBack={closeReview}
               onOpenUser={openUserProfile}
             />
           ) : (
@@ -566,8 +630,8 @@ function AppShell({
               tokens={tokens}
               currentUserId={user.id}
               user={selectedProfileUser ?? user}
-              onBack={selectedProfileUser ? () => setSelectedProfileUser(null) : undefined}
-              onOpenReview={setSelectedReviewId}
+              onBack={selectedProfileUser ? closeProfile : undefined}
+              onOpenReview={openReview}
               onOpenUser={openUserProfile}
               onSignOut={onSignOut}
             />
@@ -580,6 +644,7 @@ function AppShell({
           setShowNotifications(false);
           setSelectedReviewId(null);
           setSelectedProfileUser(null);
+          setRouteStack([]);
           setTab(nextTab);
         }}
       />
