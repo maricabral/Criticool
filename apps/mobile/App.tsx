@@ -1371,9 +1371,13 @@ function ReviewDetailScreen({
       return;
     }
 
+    if (comment.viewerVote === value) {
+      return;
+    }
+
     setVotingCommentId(comment.id);
     try {
-      if (comment.viewerVote === value) {
+      if (comment.viewerVote && comment.viewerVote !== value) {
         await api.removeCommentVote(tokens, review.id, comment.id);
       } else {
         await api.voteComment(tokens, review.id, comment.id, value);
