@@ -3233,10 +3233,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   reviewCommentCluster: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 7,
+    gap: 4,
     flexShrink: 0,
   },
   feedReviewerNameRow: {
@@ -3249,7 +3249,7 @@ const styles = StyleSheet.create({
   commentParticipantRow: {
     minHeight: 22,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
   },
   framePerfRow: {
     position: 'absolute',
