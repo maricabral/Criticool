@@ -621,14 +621,16 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
         <View style={styles.feedMovieCluster}>
           <Poster movie={item.movie} compact />
           <View style={styles.reviewCopy}>
-            <View style={styles.cardRatingLine}>
-              <PopcornRating value={item.rating} large />
+            <View style={styles.feedSignalBlock}>
+              {quickTake ? (
+                <Text numberOfLines={2} style={styles.quickTake}>
+                  {quickTake}
+                </Text>
+              ) : null}
+              <View style={styles.cardRatingLine}>
+                <PopcornRating value={item.rating} large />
+              </View>
             </View>
-            {quickTake ? (
-              <Text numberOfLines={2} style={styles.quickTake}>
-                {quickTake}
-              </Text>
-            ) : null}
             {visibleTags.length ? (
               <View style={styles.cardTagRow}>
                 {visibleTags.map((tag) => (
@@ -2363,7 +2365,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    height: 156,
+    height: 148,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
@@ -2377,7 +2379,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 31,
+    minHeight: 29,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -2386,7 +2388,7 @@ const styles = StyleSheet.create({
   reviewCardBody: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     justifyContent: 'space-between',
     gap: 8,
     minHeight: 0,
@@ -2549,7 +2551,7 @@ const styles = StyleSheet.create({
   },
   posterCompact: {
     width: 58,
-    height: 76,
+    height: 72,
   },
   posterFallback: {
     alignItems: 'center',
@@ -2558,7 +2560,8 @@ const styles = StyleSheet.create({
   reviewCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 6,
+    justifyContent: 'space-between',
+    gap: 4,
   },
   movieTitle: {
     color: colors.ink,
@@ -2582,7 +2585,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   cardRatingLine: {
-    minHeight: 28,
+    minHeight: 27,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2599,6 +2602,13 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  feedSignalBlock: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
   },
   takeRow: {
     flexDirection: 'row',
@@ -2775,9 +2785,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   cardTagRow: {
-    minHeight: 24,
+    minHeight: 22,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     flexWrap: 'wrap',
     gap: 5,
   },
@@ -2785,7 +2795,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     gap: 10,
   },
   stack: {
