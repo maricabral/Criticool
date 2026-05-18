@@ -142,18 +142,29 @@ export class FriendshipsService {
   }
 
   async friends(userId: string) {
-    const rows = await this.prisma.friendship.findMany({
-      where: {
-        status: 'accepted',
-        OR: [{ requesterId: userId }, { addresseeId: userId }],
-      },
-      include: this.friendshipInclude(),
-      orderBy: { respondedAt: 'desc' },
-    });
+    const [rows, blockedRows] = await Promise.all([
+      this.prisma.friendship.findMany({
+        where: {
+          status: 'accepted',
+          OR: [{ requesterId: userId }, { addresseeId: userId }],
+        },
+        include: this.friendshipInclude(),
+        orderBy: { respondedAt: 'desc' },
+      }),
+      this.prisma.block.findMany({
+        where: {
+          OR: [{ blockerId: userId }, { blockedId: userId }],
+        },
+        select: { blockerId: true, blockedId: true },
+      }),
+    ]);
+    const blockedUserIds = new Set(
+      blockedRows.map((row) => (row.blockerId === userId ? row.blockedId : row.blockerId)),
+    );
     return rows.map((row) => {
       const friend = row.requesterId === userId ? row.addressee : row.requester;
       return { id: friend.id, username: friend.username, displayName: friend.displayName, avatarUrl: friend.avatarUrl };
-    });
+    }).filter((friend) => !blockedUserIds.has(friend.id));
   }
 
   private friendshipInclude() {

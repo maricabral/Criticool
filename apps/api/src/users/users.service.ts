@@ -64,6 +64,7 @@ export class UsersService {
     await this.prisma.$transaction([
       this.prisma.friendship.deleteMany({
         where: {
+          status: { in: ['pending', 'declined'] },
           OR: [
             { requesterId: userId, addresseeId: targetUserId },
             { requesterId: targetUserId, addresseeId: userId },

@@ -313,6 +313,24 @@ async function run() {
   });
   assert(reportUserRes.status === 201 || reportUserRes.status === 200, `User report created (status ${reportUserRes.status})`);
 
+  const friendBlockRes = await request('POST', `/users/${userA.id}/block`, { token: userB.tokens.accessToken });
+  assert(friendBlockRes.status === 201 || friendBlockRes.status === 200, `User B blocks friend User A (status ${friendBlockRes.status})`);
+
+  const friendListWhileBlockedRes = await request('GET', '/friends', { token: userB.tokens.accessToken });
+  assert(
+    !friendListWhileBlockedRes.data?.some?.((item) => item.id === userA.id),
+    'Blocked friend is hidden from friend list while blocked',
+  );
+
+  const friendUnblockRes = await request('DELETE', `/users/${userA.id}/block`, { token: userB.tokens.accessToken });
+  assert(friendUnblockRes.status === 200, `User B unblocks friend User A (status ${friendUnblockRes.status})`);
+
+  const friendListAfterUnblockRes = await request('GET', '/friends', { token: userB.tokens.accessToken });
+  assert(
+    friendListAfterUnblockRes.data?.some?.((item) => item.id === userA.id),
+    'Unblocked friend returns to friend list',
+  );
+
   const blockRes = await request('POST', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
   assert(blockRes.status === 201 || blockRes.status === 200, `User C blocks User A (status ${blockRes.status})`);
 

@@ -1982,6 +1982,7 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
     try {
       await api.unblockUser(tokens, id);
       setBlocked((current) => current.filter((item) => item.id !== id));
+      await loadFriendState();
     } catch (err) {
       Alert.alert('Could not unblock user', err instanceof Error ? err.message : 'Try again');
     }

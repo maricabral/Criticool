@@ -23,7 +23,7 @@ describe('UsersService block controls', () => {
     service = new UsersService(prisma as never);
   });
 
-  it('blocks a user and removes friendship state', async () => {
+  it('blocks a user and keeps accepted friendship state restorable', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 'user-b' });
     prisma.friendship.deleteMany.mockResolvedValue({ count: 1 });
     prisma.block.upsert.mockResolvedValue({});
@@ -33,6 +33,7 @@ describe('UsersService block controls', () => {
     expect(result).toEqual({ ok: true });
     expect(prisma.friendship.deleteMany).toHaveBeenCalledWith({
       where: {
+        status: { in: ['pending', 'declined'] },
         OR: [
           { requesterId: 'user-a', addresseeId: 'user-b' },
           { requesterId: 'user-b', addresseeId: 'user-a' },

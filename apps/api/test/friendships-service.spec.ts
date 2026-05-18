@@ -10,6 +10,9 @@ function createMockPrisma() {
       delete: vi.fn(),
       findMany: vi.fn(),
     },
+    block: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     notification: {
       deleteMany: vi.fn(),
     },
@@ -237,6 +240,23 @@ describe('FriendshipsService', () => {
       expect(result).toEqual([
         { id: 'user-b', username: 'bob', displayName: 'Bob', avatarUrl: null },
       ]);
+    });
+
+    it('hides blocked friendships from the friend list', async () => {
+      prisma.friendship.findMany.mockResolvedValue([
+        {
+          requesterId: 'user-a',
+          addresseeId: 'user-b',
+          requester: userA,
+          addressee: userB,
+          status: 'accepted',
+        },
+      ]);
+      prisma.block.findMany.mockResolvedValue([{ blockerId: 'user-a', blockedId: 'user-b' }]);
+
+      const result = await service.friends('user-a');
+
+      expect(result).toEqual([]);
     });
   });
 });
