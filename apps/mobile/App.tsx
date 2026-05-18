@@ -1,5 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import {
+  Ban,
+  Bell,
+  Flag,
   Home,
   LogOut,
   MessageCircle,
@@ -8,6 +11,7 @@ import {
   Popcorn,
   Search,
   Send,
+  Trash2,
   User,
   UserPlus,
   Users,
@@ -35,14 +39,16 @@ import {
   FriendRequest,
   FriendSummary,
   loadTokens,
+  NotificationItem,
   ReviewComment,
   ReviewDetail,
   saveTokens,
   setOnSessionExpired,
+  setOnTokensChanged,
 } from './src/api';
 import { colors } from './src/theme';
 
-type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
+type Tab = 'feed' | 'search' | 'create' | 'friends' | 'notifications' | 'profile';
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
   Platform.OS === 'web'
@@ -296,7 +302,13 @@ export default function App() {
     setOnSessionExpired(() => {
       void signOut();
     });
-    return () => setOnSessionExpired(null);
+    setOnTokensChanged((nextTokens) => {
+      setTokens(nextTokens);
+    });
+    return () => {
+      setOnSessionExpired(null);
+      setOnTokensChanged(null);
+    };
   });
 
   if (booting) {
@@ -494,10 +506,20 @@ function AppShell({
           />
         ) : null}
         {tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
+        {tab === 'notifications' ? (
+          <NotificationsScreen
+            tokens={tokens}
+            onOpenReview={(id) => {
+              setSelectedReviewId(id);
+              setTab('profile');
+            }}
+          />
+        ) : null}
         {tab === 'profile' ? (
           selectedReviewId ? (
             <ReviewDetailScreen
               tokens={tokens}
+              currentUserId={user.id}
               reviewId={selectedReviewId}
               onBack={() => setSelectedReviewId(null)}
             />
@@ -1130,10 +1152,12 @@ function CreateScreen({
 
 function ReviewDetailScreen({
   tokens,
+  currentUserId,
   reviewId,
   onBack,
 }: {
   tokens: AuthTokens;
+  currentUserId: string;
   reviewId: string;
   onBack: () => void;
 }) {
@@ -1141,18 +1165,22 @@ function ReviewDetailScreen({
   const [revealed, setRevealed] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const [replyTo, setReplyTo] = useState<ReviewComment | null>(null);
+  const [commentSort, setCommentSort] = useState<'best' | 'new'>('best');
   const [postingComment, setPostingComment] = useState(false);
   const [transcribingComment, setTranscribingComment] = useState(false);
   const [votingCommentId, setVotingCommentId] = useState<string | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState('');
+  const [mutatingCommentId, setMutatingCommentId] = useState<string | null>(null);
   const commentInputRef = useRef<TextInput>(null);
 
   const loadReview = useCallback(async () => {
     try {
-      setReview(await api.review(tokens, reviewId));
+      setReview(await api.review(tokens, reviewId, commentSort));
     } catch {
       onBack();
     }
-  }, [tokens, reviewId, onBack]);
+  }, [tokens, reviewId, commentSort, onBack]);
 
   useEffect(() => {
     void loadReview();
@@ -1190,13 +1218,17 @@ function ReviewDetailScreen({
   };
 
   const voteComment = async (comment: ReviewComment, value: -1 | 1) => {
-    if (!review || votingCommentId || comment.viewerVote === value) {
+    if (!review || votingCommentId || comment.deletedAt) {
       return;
     }
 
     setVotingCommentId(comment.id);
     try {
-      await api.voteComment(tokens, review.id, comment.id, value);
+      if (comment.viewerVote === value) {
+        await api.removeCommentVote(tokens, review.id, comment.id);
+      } else {
+        await api.voteComment(tokens, review.id, comment.id, value);
+      }
       await loadReview();
     } catch (err) {
       Alert.alert('Could not vote', err instanceof Error ? err.message : 'Try again');
@@ -1217,6 +1249,91 @@ function ReviewDetailScreen({
 
   const startReply = (comment: ReviewComment) => {
     setReplyTo(comment);
+  };
+
+  const startEditComment = (comment: ReviewComment) => {
+    setEditingCommentId(comment.id);
+    setEditingBody(comment.body);
+  };
+
+  const saveCommentEdit = async (comment: ReviewComment) => {
+    const body = editingBody.trim();
+    if (!review || !body) {
+      return;
+    }
+
+    setMutatingCommentId(comment.id);
+    try {
+      await api.updateComment(tokens, review.id, comment.id, body);
+      setEditingCommentId(null);
+      setEditingBody('');
+      await loadReview();
+    } catch (err) {
+      Alert.alert('Could not edit comment', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setMutatingCommentId(null);
+    }
+  };
+
+  const deleteComment = async (comment: ReviewComment) => {
+    if (!review) {
+      return;
+    }
+
+    setMutatingCommentId(comment.id);
+    try {
+      await api.deleteComment(tokens, review.id, comment.id);
+      if (replyTo?.id === comment.id) {
+        setReplyTo(null);
+      }
+      await loadReview();
+    } catch (err) {
+      Alert.alert('Could not delete comment', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setMutatingCommentId(null);
+    }
+  };
+
+  const reportReview = async () => {
+    if (!review) {
+      return;
+    }
+    try {
+      await api.report(tokens, {
+        targetType: 'review',
+        targetId: review.id,
+        reason: 'review report',
+      });
+      Alert.alert('Report sent', 'Thanks. This review was reported.');
+    } catch (err) {
+      Alert.alert('Could not report review', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const reportComment = async (comment: ReviewComment) => {
+    try {
+      await api.report(tokens, {
+        targetType: 'comment',
+        targetId: comment.id,
+        reason: 'comment report',
+      });
+      Alert.alert('Report sent', 'Thanks. This comment was reported.');
+    } catch (err) {
+      Alert.alert('Could not report comment', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const blockReviewAuthor = async () => {
+    if (!review || review.author.id === currentUserId) {
+      return;
+    }
+    try {
+      await api.blockUser(tokens, review.author.id);
+      Alert.alert('User blocked', `@${review.author.username} will be hidden from your app.`);
+      onBack();
+    } catch (err) {
+      Alert.alert('Could not block user', err instanceof Error ? err.message : 'Try again');
+    }
   };
 
   const composer = (
@@ -1270,6 +1387,18 @@ function ReviewDetailScreen({
       <View style={styles.detailInline}>
         {review.quickTake ? <Text style={styles.detailTitle}>{review.quickTake}</Text> : null}
         {review.tags?.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
+        {review.author.id !== currentUserId ? (
+          <View style={styles.actionRow}>
+            <Pressable style={styles.secondaryButton} onPress={reportReview}>
+              <Flag size={14} color={colors.ink} />
+              <Text style={styles.secondaryButtonText}>Report</Text>
+            </Pressable>
+            <Pressable style={styles.secondaryButton} onPress={blockReviewAuthor}>
+              <Ban size={14} color={colors.ink} />
+              <Text style={styles.secondaryButtonText}>Block</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {showBody ? (
           <>
             {review.containsSpoilers ? (
@@ -1288,6 +1417,27 @@ function ReviewDetailScreen({
           <Text style={styles.emptyTitle}>Comments</Text>
           <Text style={styles.bubble}>{review.commentCount} chats</Text>
         </View>
+        <View style={styles.segmentedControl}>
+          {(['best', 'new'] as const).map((sort) => (
+            <Pressable
+              key={sort}
+              style={[
+                styles.segmentedButton,
+                commentSort === sort && styles.segmentedButtonActive,
+              ]}
+              onPress={() => setCommentSort(sort)}
+            >
+              <Text
+                style={[
+                  styles.segmentedButtonText,
+                  commentSort === sort && styles.segmentedButtonTextActive,
+                ]}
+              >
+                {sort === 'best' ? 'Best' : 'New'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         {replyTo ? null : composer}
         {review.comments.length ? (
           <View style={styles.commentList}>
@@ -1297,8 +1447,21 @@ function ReviewDetailScreen({
                 activeReplyId={replyTo?.id ?? null}
                 comment={comment}
                 replyComposer={composer}
+                currentUserId={currentUserId}
+                editingCommentId={editingCommentId}
+                editingBody={editingBody}
+                mutatingCommentId={mutatingCommentId}
                 onReply={startReply}
                 onVote={voteComment}
+                onStartEdit={startEditComment}
+                onCancelEdit={() => {
+                  setEditingCommentId(null);
+                  setEditingBody('');
+                }}
+                onChangeEditBody={setEditingBody}
+                onSaveEdit={saveCommentEdit}
+                onDelete={deleteComment}
+                onReport={reportComment}
                 votingCommentId={votingCommentId}
               />
             ))}
@@ -1318,20 +1481,44 @@ function CommentNode({
   activeReplyId,
   comment,
   replyComposer,
+  currentUserId,
+  editingCommentId,
+  editingBody,
+  mutatingCommentId,
   onReply,
   onVote,
+  onStartEdit,
+  onCancelEdit,
+  onChangeEditBody,
+  onSaveEdit,
+  onDelete,
+  onReport,
   votingCommentId,
 }: {
   activeReplyId: string | null;
   comment: ReviewComment;
   replyComposer: React.ReactNode;
+  currentUserId: string;
+  editingCommentId: string | null;
+  editingBody: string;
+  mutatingCommentId: string | null;
   onReply: (comment: ReviewComment) => void;
   onVote: (comment: ReviewComment, value: -1 | 1) => void;
+  onStartEdit: (comment: ReviewComment) => void;
+  onCancelEdit: () => void;
+  onChangeEditBody: (body: string) => void;
+  onSaveEdit: (comment: ReviewComment) => void;
+  onDelete: (comment: ReviewComment) => void;
+  onReport: (comment: ReviewComment) => void;
   votingCommentId: string | null;
 }) {
   const voteDisabled = votingCommentId === comment.id;
-  const canReply = comment.depth < 3;
+  const isDeleted = Boolean(comment.deletedAt);
+  const canReply = comment.depth < 3 && !isDeleted;
+  const canEdit = comment.author.id === currentUserId && !isDeleted;
   const showReplyComposer = activeReplyId === comment.id;
+  const isEditing = editingCommentId === comment.id;
+  const isMutating = mutatingCommentId === comment.id;
   const isRootComment = comment.depth === 0;
 
   return (
@@ -1339,7 +1526,11 @@ function CommentNode({
       <View style={[styles.commentCard, comment.depth > 0 && styles.commentReplyCard]}>
         <View style={styles.commentCardBody}>
           <View style={styles.voteColumn}>
-            <Pressable disabled={voteDisabled} onPress={() => onVote(comment, 1)} hitSlop={8}>
+            <Pressable
+              disabled={voteDisabled || isDeleted}
+              onPress={() => onVote(comment, 1)}
+              hitSlop={8}
+            >
               <Text
                 style={[styles.voteButton, comment.viewerVote === 1 && styles.voteButtonActive]}
               >
@@ -1347,7 +1538,11 @@ function CommentNode({
               </Text>
             </Pressable>
             <Text style={styles.voteScore}>{comment.score}</Text>
-            <Pressable disabled={voteDisabled} onPress={() => onVote(comment, -1)} hitSlop={8}>
+            <Pressable
+              disabled={voteDisabled || isDeleted}
+              onPress={() => onVote(comment, -1)}
+              hitSlop={8}
+            >
               <Text
                 style={[styles.voteButton, comment.viewerVote === -1 && styles.voteButtonActive]}
               >
@@ -1365,12 +1560,64 @@ function CommentNode({
                 </Text>
               </View>
             </View>
-            <Text style={styles.bodyText}>{comment.body}</Text>
-            {canReply ? (
-              <Pressable style={styles.commentReplyButton} onPress={() => onReply(comment)}>
-                <Send size={14} color={colors.ink} />
-                <Text style={styles.commentReplyText}>Reply</Text>
-              </Pressable>
+            {isEditing ? (
+              <View style={styles.commentEditBox}>
+                <TextInput
+                  value={editingBody}
+                  onChangeText={onChangeEditBody}
+                  multiline
+                  style={[styles.commentInput, webNoOutline]}
+                />
+                <View style={styles.actionRow}>
+                  <Pressable
+                    style={styles.acceptButton}
+                    disabled={isMutating || !editingBody.trim()}
+                    onPress={() => onSaveEdit(comment)}
+                  >
+                    <Text style={styles.acceptButtonText}>Save</Text>
+                  </Pressable>
+                  <Pressable style={styles.declineButton} onPress={onCancelEdit}>
+                    <Text style={styles.declineButtonText}>Cancel</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Text style={[styles.bodyText, isDeleted && styles.deletedCommentText]}>
+                {comment.body}
+              </Text>
+            )}
+            {!isEditing ? (
+              <View style={styles.commentActionRow}>
+                {canReply ? (
+                  <Pressable style={styles.commentReplyButton} onPress={() => onReply(comment)}>
+                    <Send size={14} color={colors.ink} />
+                    <Text style={styles.commentReplyText}>Reply</Text>
+                  </Pressable>
+                ) : null}
+                {canEdit ? (
+                  <>
+                    <Pressable
+                      style={styles.commentReplyButton}
+                      onPress={() => onStartEdit(comment)}
+                    >
+                      <Text style={styles.commentReplyText}>Edit</Text>
+                    </Pressable>
+                    <Pressable
+                      disabled={isMutating}
+                      style={styles.commentReplyButton}
+                      onPress={() => onDelete(comment)}
+                    >
+                      <Trash2 size={14} color={colors.ink} />
+                      <Text style={styles.commentReplyText}>Delete</Text>
+                    </Pressable>
+                  </>
+                ) : !isDeleted ? (
+                  <Pressable style={styles.commentReplyButton} onPress={() => onReport(comment)}>
+                    <Flag size={14} color={colors.ink} />
+                    <Text style={styles.commentReplyText}>Report</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : null}
           </View>
         </View>
@@ -1382,8 +1629,18 @@ function CommentNode({
           activeReplyId={activeReplyId}
           comment={reply}
           replyComposer={replyComposer}
+          currentUserId={currentUserId}
+          editingCommentId={editingCommentId}
+          editingBody={editingBody}
+          mutatingCommentId={mutatingCommentId}
           onReply={onReply}
           onVote={onVote}
+          onStartEdit={onStartEdit}
+          onCancelEdit={onCancelEdit}
+          onChangeEditBody={onChangeEditBody}
+          onSaveEdit={onSaveEdit}
+          onDelete={onDelete}
+          onReport={onReport}
           votingCommentId={votingCommentId}
         />
       ))}
@@ -1455,10 +1712,136 @@ function CommentComposer({
   );
 }
 
+function NotificationsScreen({
+  tokens,
+  onOpenReview,
+}: {
+  tokens: AuthTokens;
+  onOpenReview: (id: string) => void;
+}) {
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.notifications(tokens);
+      setItems(response.items);
+      setUnreadCount(response.unreadCount);
+    } catch (err) {
+      Alert.alert('Could not load alerts', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setLoading(false);
+    }
+  }, [tokens]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const markRead = async (notification: NotificationItem) => {
+    try {
+      await api.markNotificationRead(tokens, notification.id);
+      setItems((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item,
+        ),
+      );
+      setUnreadCount((current) => Math.max(0, current - (notification.readAt ? 0 : 1)));
+      if (notification.reviewId) {
+        onOpenReview(notification.reviewId);
+      }
+    } catch (err) {
+      Alert.alert('Could not update alert', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await api.markAllNotificationsRead(tokens);
+      const readAt = new Date().toISOString();
+      setItems((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })));
+      setUnreadCount(0);
+    } catch (err) {
+      Alert.alert('Could not update alerts', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  return (
+    <View style={styles.screen}>
+      <Header
+        title="Alerts"
+        right={
+          unreadCount ? (
+            <PrimaryButton label="Read all" onPress={markAllRead} compact />
+          ) : loading ? (
+            <ActivityIndicator color={colors.pink} />
+          ) : undefined
+        }
+      />
+      <ScrollView contentContainerStyle={styles.stack}>
+        {items.length ? (
+          items.map((notification) => (
+            <Pressable
+              key={notification.id}
+              style={[
+                styles.notificationRow,
+                !notification.readAt && styles.notificationRowUnread,
+              ]}
+              onPress={() => void markRead(notification)}
+            >
+              <Avatar
+                label={
+                  notification.actor?.displayName ||
+                  notification.actor?.username ||
+                  notification.type
+                }
+                mini
+              />
+              <View style={styles.reviewCopy}>
+                <Text style={styles.author}>{notificationTitle(notification)}</Text>
+                <Text style={styles.commentMeta}>
+                  {new Date(notification.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+              {!notification.readAt ? <View style={styles.unreadDot} /> : null}
+            </Pressable>
+          ))
+        ) : (
+          <View style={styles.emptyProfileState}>
+            <Bell size={28} color={colors.ink} />
+            <Text style={styles.emptyTitle}>No alerts yet</Text>
+            <Text style={styles.mutedText}>Friend requests and replies will land here.</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function notificationTitle(notification: NotificationItem) {
+  const actor = notification.actor?.displayName || notification.actor?.username || 'Someone';
+  const messages: Record<NotificationItem['type'], string> = {
+    friend_request_received: `${actor} sent you a friend request`,
+    friend_request_accepted: `${actor} accepted your friend request`,
+    review_commented: `${actor} commented on your review`,
+    comment_replied: `${actor} replied to your comment`,
+    comment_voted: `${actor} voted on your comment`,
+  };
+  return messages[notification.type];
+}
+
 function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<
-    Array<{ id: string; username: string; displayName: string; friendshipStatus: string | null }>
+    Array<{
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+      friendshipStatus: string | null;
+    }>
   >([]);
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
@@ -1531,6 +1914,26 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
     }
   };
 
+  const blockUser = async (id: string) => {
+    try {
+      await api.blockUser(tokens, id);
+      setUsers((current) => current.filter((item) => item.id !== id));
+      setFriends((current) => current.filter((item) => item.id !== id));
+      await loadFriendState();
+    } catch (err) {
+      Alert.alert('Could not block user', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const reportUser = async (id: string) => {
+    try {
+      await api.report(tokens, { targetType: 'user', targetId: id, reason: 'user report' });
+      Alert.alert('Report sent', 'Thanks. This user was reported.');
+    } catch (err) {
+      Alert.alert('Could not report user', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <Header
@@ -1589,6 +1992,12 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
                 >
                   <Text style={styles.pill}>{item.friendshipStatus ?? 'Add'}</Text>
                 </Pressable>
+                <Pressable style={styles.iconSmallButton} onPress={() => void reportUser(item.id)}>
+                  <Flag size={14} color={colors.ink} />
+                </Pressable>
+                <Pressable style={styles.iconSmallButton} onPress={() => void blockUser(item.id)}>
+                  <Ban size={14} color={colors.ink} />
+                </Pressable>
               </View>
             ))}
             {!users.length ? <Text style={styles.mutedText}>No matches yet.</Text> : null}
@@ -1608,6 +2017,14 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
                       <Text numberOfLines={1} style={styles.friendHandle}>
                         @{friend.username}
                       </Text>
+                      <View style={styles.friendMiniActions}>
+                        <Pressable onPress={() => void reportUser(friend.id)}>
+                          <Text style={styles.commentReplyText}>Report</Text>
+                        </Pressable>
+                        <Pressable onPress={() => void blockUser(friend.id)}>
+                          <Text style={styles.commentReplyText}>Block</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -1972,6 +2389,7 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
       { id: 'search' as const, label: 'Search', icon: Search },
       { id: 'create' as const, label: 'Post', icon: Plus },
       { id: 'friends' as const, label: 'Friends', icon: Users },
+      { id: 'notifications' as const, label: 'Alerts', icon: Bell },
       { id: 'profile' as const, label: 'Me', icon: User },
     ],
     [],
@@ -2701,6 +3119,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  segmentedControl: {
+    minHeight: 38,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  segmentedButton: {
+    flex: 1,
+    minHeight: 34,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  segmentedButtonActive: {
+    backgroundColor: colors.pink,
+  },
+  segmentedButtonText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  segmentedButtonTextActive: {
+    color: colors.surface,
+  },
   posterRow: {
     gap: 14,
     paddingRight: 12,
@@ -2964,6 +3408,18 @@ const styles = StyleSheet.create({
   commentCard: {
     gap: 10,
   },
+  commentActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  commentEditBox: {
+    gap: 8,
+  },
+  deletedCommentText: {
+    color: colors.muted,
+    fontStyle: 'italic',
+  },
   commentReplyCard: {
     borderTopWidth: 2,
     borderTopColor: colors.ink,
@@ -3092,6 +3548,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
     backgroundColor: colors.yellow,
     paddingHorizontal: 12,
   },
@@ -3350,6 +3808,16 @@ const styles = StyleSheet.create({
   friendAddAction: {
     marginLeft: 'auto',
   },
+  iconSmallButton: {
+    width: 32,
+    height: 32,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
   friendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -3388,6 +3856,32 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 12,
     fontWeight: '900',
+  },
+  friendMiniActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  notificationRow: {
+    minHeight: 74,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    padding: 10,
+  },
+  notificationRowUnread: {
+    backgroundColor: colors.cream,
+  },
+  unreadDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.pink,
   },
   pendingList: {
     flexDirection: 'row',

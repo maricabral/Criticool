@@ -4,11 +4,32 @@ Date: 2026-05-18
 
 ## Summary
 
-Phase 2 has not started yet. The current codebase has a strong Phase 1 implementation and also includes some Phase 2-adjacent discussion work earlier than planned, but Phase 1 is not fully complete against its own acceptance criteria.
+Phase 2 core implementation is now rolled into the codebase. The current codebase has the Phase 1 correctness fixes plus the Phase 2 social/discussion foundation: mobile session refresh, comment edit/delete, vote removal, notifications, block/report endpoints, and focused backend plus smoke coverage.
 
 Recommended Phase 2 theme:
 
 > Finish the Phase 1 contract, then make CritiCool dependable as a private social review app: sessions stay valid, deleted content behaves correctly, comments feel real, friends get notified, and privacy rules are tested end to end.
+
+## Implementation Status
+
+Implemented in this rollout:
+
+- Mobile token refresh now persists rotated tokens and updates in-memory app state.
+- Mobile logout continues to call the server before clearing local state.
+- Feed and review detail visible comment counts use non-deleted comments.
+- Comment edit, soft-delete, sorting, and explicit vote removal endpoints exist.
+- Review detail mobile UI exposes comment sorting, edit/delete, report, block, and vote toggle/remove actions.
+- Notifications schema, API, and mobile alerts screen exist for friend requests, accepted requests, review comments, replies, and comment votes.
+- Block endpoints and report endpoint exist, with mobile entry points from friends/search and review detail.
+- Backend tests now cover the new Phase 2 services and regression cases.
+- `scripts/qa-smoke.mjs` now verifies the social loop, notifications, comment mutation, vote removal, reports, blocks, soft delete, and review recreation against a running API.
+
+Still deferred from this plan:
+
+- Rich movie detail screen/modal.
+- Deeper profile expansion beyond current review/friend summary.
+- Native push notifications.
+- Admin moderation dashboard.
 
 ## Phase 1 Audit
 

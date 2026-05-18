@@ -5,11 +5,13 @@ import type {
   AuthUser,
   FeedResponse,
   MovieSummary,
+  NotificationsResponse,
+  NotificationItem,
   ReviewComment,
   ReviewDetail,
 } from '@criticool/shared';
 
-export type { ReviewComment, ReviewDetail };
+export type { NotificationItem, ReviewComment, ReviewDetail };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 const TOKENS_KEY = 'criticool.tokens';
@@ -44,9 +46,14 @@ export async function saveTokens(tokens: AuthTokens | null) {
 }
 
 let onSessionExpired: (() => void) | null = null;
+let onTokensChanged: ((tokens: AuthTokens) => void) | null = null;
 
 export function setOnSessionExpired(handler: (() => void) | null) {
   onSessionExpired = handler;
+}
+
+export function setOnTokensChanged(handler: ((tokens: AuthTokens) => void) | null) {
+  onTokensChanged = handler;
 }
 
 let refreshPromise: Promise<AuthTokens | null> | null = null;
@@ -68,6 +75,7 @@ async function refreshAccessToken(tokens: AuthTokens): Promise<AuthTokens | null
       refreshToken: data.tokens.refreshToken,
     };
     await saveTokens(newTokens);
+    onTokensChanged?.(newTokens);
     return newTokens;
   } catch {
     return null;
@@ -166,7 +174,11 @@ export const api = {
       containsSpoilers: boolean;
     },
   ) => apiRequest<ReviewDetail>('/reviews', { method: 'POST', tokens, body: JSON.stringify(body) }),
-  review: (tokens: AuthTokens, id: string) => apiRequest<ReviewDetail>(`/reviews/${id}`, { tokens }),
+  review: (tokens: AuthTokens, id: string, commentSort?: 'best' | 'new') =>
+    apiRequest<ReviewDetail>(
+      `/reviews/${id}${commentSort ? `?commentSort=${encodeURIComponent(commentSort)}` : ''}`,
+      { tokens },
+    ),
   createComment: (
     tokens: AuthTokens,
     reviewId: string,
@@ -183,6 +195,44 @@ export const api = {
       tokens,
       body: JSON.stringify({ value }),
     }),
+  removeCommentVote: (tokens: AuthTokens, reviewId: string, commentId: string) =>
+    apiRequest<ReviewComment>(`/reviews/${reviewId}/comments/${commentId}/votes`, {
+      method: 'DELETE',
+      tokens,
+    }),
+  updateComment: (tokens: AuthTokens, reviewId: string, commentId: string, body: string) =>
+    apiRequest<ReviewComment>(`/reviews/${reviewId}/comments/${commentId}`, {
+      method: 'PATCH',
+      tokens,
+      body: JSON.stringify({ body }),
+    }),
+  deleteComment: (tokens: AuthTokens, reviewId: string, commentId: string) =>
+    apiRequest<{ ok: boolean }>(`/reviews/${reviewId}/comments/${commentId}`, {
+      method: 'DELETE',
+      tokens,
+    }),
+  notifications: (tokens: AuthTokens) =>
+    apiRequest<NotificationsResponse>('/notifications', { tokens }),
+  markNotificationRead: (tokens: AuthTokens, id: string) =>
+    apiRequest<NotificationItem>(`/notifications/${id}/read`, { method: 'POST', tokens }),
+  markAllNotificationsRead: (tokens: AuthTokens) =>
+    apiRequest<{ ok: boolean; count: number }>('/notifications/read-all', {
+      method: 'POST',
+      tokens,
+    }),
+  blockUser: (tokens: AuthTokens, id: string) =>
+    apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST', tokens }),
+  unblockUser: (tokens: AuthTokens, id: string) =>
+    apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'DELETE', tokens }),
+  report: (
+    tokens: AuthTokens,
+    body: {
+      targetType: 'user' | 'review' | 'comment';
+      targetId: string;
+      reason: string;
+      details?: string;
+    },
+  ) => apiRequest<{ id: string }>('/reports', { method: 'POST', tokens, body: JSON.stringify(body) }),
   searchUsers: (tokens: AuthTokens, query: string) =>
     apiRequest<
       Array<{

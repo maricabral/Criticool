@@ -1,8 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../common/auth.guard';
 import { RequestUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
-import { UserSearchQueryDto } from './dto';
+import { UserIdParamDto, UserSearchQueryDto } from './dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -13,5 +13,15 @@ export class UsersController {
   @Get('search')
   search(@CurrentUser() user: RequestUser, @Query() query: UserSearchQueryDto) {
     return this.users.search(user.id, query.q);
+  }
+
+  @Post(':id/block')
+  block(@CurrentUser() user: RequestUser, @Param() params: UserIdParamDto) {
+    return this.users.block(user.id, params.id);
+  }
+
+  @Delete(':id/block')
+  unblock(@CurrentUser() user: RequestUser, @Param() params: UserIdParamDto) {
+    return this.users.unblock(user.id, params.id);
   }
 }

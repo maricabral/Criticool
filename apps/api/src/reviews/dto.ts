@@ -23,6 +23,12 @@ export class CommentIdParamDto extends ReviewIdParamDto {
   commentId: string;
 }
 
+export class ReviewCommentsQueryDto {
+  @IsOptional()
+  @IsIn(['best', 'new'])
+  commentSort?: 'best' | 'new';
+}
+
 export class CreateReviewDto {
   @IsString()
   movieId: string;
@@ -103,6 +109,12 @@ export class CreateCommentDto {
   @IsOptional()
   @IsString()
   parentCommentId?: string;
+}
+
+export class UpdateCommentDto {
+  @IsString()
+  @Length(1, 2000)
+  body: string;
 }
 
 export class VoteCommentDto {

@@ -19,18 +19,26 @@ function createMockVisibility() {
   };
 }
 
+function createMockNotifications() {
+  return {
+    create: vi.fn().mockResolvedValue(null),
+  };
+}
+
 const userA = { id: 'user-a', username: 'alice', displayName: 'Alice', avatarUrl: null };
 const userB = { id: 'user-b', username: 'bob', displayName: 'Bob', avatarUrl: null };
 
 describe('FriendshipsService', () => {
   let prisma: ReturnType<typeof createMockPrisma>;
   let visibility: ReturnType<typeof createMockVisibility>;
+  let notifications: ReturnType<typeof createMockNotifications>;
   let service: FriendshipsService;
 
   beforeEach(() => {
     prisma = createMockPrisma();
     visibility = createMockVisibility();
-    service = new FriendshipsService(prisma as never, visibility as never);
+    notifications = createMockNotifications();
+    service = new FriendshipsService(prisma as never, visibility as never, notifications as never);
   });
 
   describe('createRequest', () => {
@@ -48,6 +56,13 @@ describe('FriendshipsService', () => {
       const result = await service.createRequest('user-a', 'user-b');
       expect(result.status).toBe('pending');
       expect(result.requester.id).toBe('user-a');
+      expect(notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: 'user-b',
+          actorId: 'user-a',
+          type: 'friend_request_received',
+        }),
+      );
     });
 
     it('rejects self-request', async () => {
@@ -111,6 +126,7 @@ describe('FriendshipsService', () => {
     it('accepts a pending request', async () => {
       prisma.friendship.findFirst.mockResolvedValue({
         id: 'fr-1',
+        requesterId: 'user-a',
         addresseeId: 'user-b',
         status: 'pending',
       });
@@ -125,6 +141,13 @@ describe('FriendshipsService', () => {
 
       const result = await service.accept('user-b', 'fr-1');
       expect(result.status).toBe('accepted');
+      expect(notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: 'user-a',
+          actorId: 'user-b',
+          type: 'friend_request_accepted',
+        }),
+      );
     });
 
     it('throws NotFoundException for non-existent request', async () => {

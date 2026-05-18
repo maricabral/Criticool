@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma.service';
 import { VisibilityService } from '../visibility/visibility.service';
 
@@ -8,6 +9,7 @@ export class FriendshipsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly visibility: VisibilityService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   async createRequest(requesterId: string, addresseeId: string) {
@@ -29,13 +31,18 @@ export class FriendshipsService {
     });
     if (existing) {
       if (existing.status === 'declined') {
-        return this.present(
-          await this.prisma.friendship.update({
-            where: { id: existing.id },
-            data: { requesterId, addresseeId, status: 'pending', respondedAt: null },
-            include: this.friendshipInclude(),
-          }),
-        );
+        const request = await this.prisma.friendship.update({
+          where: { id: existing.id },
+          data: { requesterId, addresseeId, status: 'pending', respondedAt: null },
+          include: this.friendshipInclude(),
+        });
+        await this.notifications?.create({
+          recipientId: addresseeId,
+          actorId: requesterId,
+          type: 'friend_request_received',
+          friendshipId: request.id,
+        });
+        return this.present(request);
       }
       return this.present(existing);
     }
@@ -44,6 +51,12 @@ export class FriendshipsService {
       const request = await this.prisma.friendship.create({
         data: { requesterId, addresseeId },
         include: this.friendshipInclude(),
+      });
+      await this.notifications?.create({
+        recipientId: addresseeId,
+        actorId: requesterId,
+        type: 'friend_request_received',
+        friendshipId: request.id,
       });
       return this.present(request);
     } catch (error) {
@@ -82,13 +95,18 @@ export class FriendshipsService {
     if (!request) {
       throw new NotFoundException('Friend request not found');
     }
-    return this.present(
-      await this.prisma.friendship.update({
-        where: { id: request.id },
-        data: { status: 'accepted', respondedAt: new Date() },
-        include: this.friendshipInclude(),
-      }),
-    );
+    const accepted = await this.prisma.friendship.update({
+      where: { id: request.id },
+      data: { status: 'accepted', respondedAt: new Date() },
+      include: this.friendshipInclude(),
+    });
+    await this.notifications?.create({
+      recipientId: request.requesterId,
+      actorId: userId,
+      type: 'friend_request_accepted',
+      friendshipId: request.id,
+    });
+    return this.present(accepted);
   }
 
   async decline(userId: string, requestId: string) {

@@ -130,10 +130,21 @@ describe('FeedService', () => {
     });
 
     it('paginates with cursor', async () => {
-      prisma.review.findMany.mockResolvedValue([]);
+      prisma.review.findMany.mockResolvedValue(
+        Array.from({ length: 21 }, (_, index) =>
+          makeReview({
+            id: `review-${index + 1}`,
+            createdAt: new Date(`2026-05-17T10:${String(59 - index).padStart(2, '0')}:00Z`),
+          }),
+        ),
+      );
 
-      await service.feed('user-1');
-      expect(result => result.nextCursor).toBeDefined;
+      const result = await service.feed('user-1');
+      expect(result.items).toHaveLength(20);
+      expect(result.nextCursor).toBeTruthy();
+      expect(prisma.review.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 21 }),
+      );
     });
   });
 

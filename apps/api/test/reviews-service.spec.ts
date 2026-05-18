@@ -29,6 +29,7 @@ describe('ReviewsService voteComment', () => {
       comment: {
         findFirst: vi.fn().mockResolvedValue({
           id: 'comment-id',
+          userId: 'author-id',
           review: {
             userId: 'review-author-id',
             visibility: 'friends',
@@ -52,6 +53,7 @@ describe('ReviewsService voteComment', () => {
         findUnique: vi.fn().mockResolvedValue({ value: 1 }),
         delete: vi.fn(),
         upsert: vi.fn(),
+        update: vi.fn(),
       },
       comment: {
         findUnique: vi.fn().mockResolvedValue(returnedComment),
@@ -69,13 +71,14 @@ describe('ReviewsService voteComment', () => {
     expect(result.viewerVote).toBe(1);
   });
 
-  it('resets an existing opposite-direction vote without applying the requested vote', async () => {
-    const returnedComment = comment(0);
+  it('updates an existing opposite-direction vote directly', async () => {
+    const returnedComment = comment(-1, -1);
     const tx = {
       commentVote: {
         findUnique: vi.fn().mockResolvedValue({ value: 1 }),
-        delete: vi.fn().mockResolvedValue({}),
+        delete: vi.fn(),
         upsert: vi.fn(),
+        update: vi.fn().mockResolvedValue({}),
       },
       comment: {
         findUnique: vi.fn(),
@@ -86,18 +89,20 @@ describe('ReviewsService voteComment', () => {
 
     const result = await service.voteComment('viewer-id', 'review-id', 'comment-id', -1);
 
-    expect(tx.commentVote.delete).toHaveBeenCalledWith({
+    expect(tx.commentVote.update).toHaveBeenCalledWith({
       where: { commentId_userId: { commentId: 'comment-id', userId: 'viewer-id' } },
+      data: { value: -1 },
     });
+    expect(tx.commentVote.delete).not.toHaveBeenCalled();
     expect(tx.commentVote.upsert).not.toHaveBeenCalled();
     expect(tx.comment.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'comment-id' },
-        data: { score: { increment: -1 } },
+        data: { score: { increment: -2 } },
       }),
     );
-    expect(result.score).toBe(0);
-    expect(result.viewerVote).toBe(0);
+    expect(result.score).toBe(-1);
+    expect(result.viewerVote).toBe(-1);
   });
 
   it('creates a vote when the viewer has no existing vote', async () => {
@@ -107,6 +112,7 @@ describe('ReviewsService voteComment', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         delete: vi.fn(),
         upsert: vi.fn().mockResolvedValue({}),
+        update: vi.fn(),
       },
       comment: {
         findUnique: vi.fn(),
@@ -131,5 +137,34 @@ describe('ReviewsService voteComment', () => {
     );
     expect(result.score).toBe(-1);
     expect(result.viewerVote).toBe(-1);
+  });
+
+  it('removes an existing vote and adjusts score', async () => {
+    const returnedComment = comment(0);
+    const tx = {
+      commentVote: {
+        findUnique: vi.fn().mockResolvedValue({ value: 1 }),
+        delete: vi.fn().mockResolvedValue({}),
+      },
+      comment: {
+        findUnique: vi.fn(),
+        update: vi.fn().mockResolvedValue(returnedComment),
+      },
+    };
+    const service = serviceWithTransaction(tx);
+
+    const result = await service.removeCommentVote('viewer-id', 'review-id', 'comment-id');
+
+    expect(tx.commentVote.delete).toHaveBeenCalledWith({
+      where: { commentId_userId: { commentId: 'comment-id', userId: 'viewer-id' } },
+    });
+    expect(tx.comment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'comment-id' },
+        data: { score: { increment: -1 } },
+      }),
+    );
+    expect(result.score).toBe(0);
+    expect(result.viewerVote).toBe(0);
   });
 });

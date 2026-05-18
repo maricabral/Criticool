@@ -63,6 +63,7 @@ export type ReviewComment = {
   depth: number;
   score: number;
   viewerVote: -1 | 0 | 1;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
   author: {
@@ -93,4 +94,30 @@ export type ReviewDetail = {
   };
   movie: MovieSummary;
   comments: ReviewComment[];
+};
+
+export type NotificationItem = {
+  id: string;
+  type:
+    | 'friend_request_received'
+    | 'friend_request_accepted'
+    | 'review_commented'
+    | 'comment_replied'
+    | 'comment_voted';
+  reviewId: string | null;
+  commentId: string | null;
+  friendshipId: string | null;
+  readAt: string | null;
+  createdAt: string;
+  actor: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  } | null;
+};
+
+export type NotificationsResponse = {
+  items: NotificationItem[];
+  unreadCount: number;
 };

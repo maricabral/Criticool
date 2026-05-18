@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, ReviewVisibility } from '@prisma/client';
 import { movieSummary } from '../common/movie-presenter';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma.service';
 import { VisibilityService } from '../visibility/visibility.service';
 import { CreateCommentDto, CreateReviewDto, UpdateReviewDto } from './dto';
@@ -19,6 +20,7 @@ type PresentedComment = {
   depth: number;
   score: number;
   viewerVote: number;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
   author: {
@@ -35,6 +37,7 @@ export class ReviewsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly visibility: VisibilityService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   async create(userId: string, dto: CreateReviewDto) {
@@ -66,8 +69,8 @@ export class ReviewsService {
     }
   }
 
-  async get(viewerId: string, reviewId: string) {
-    const review = await this.findReviewOrThrow(reviewId, viewerId);
+  async get(viewerId: string, reviewId: string, commentSort: 'best' | 'new' = 'best') {
+    const review = await this.findReviewOrThrow(reviewId, viewerId, commentSort);
     const canSee = await this.visibility.canSeeReview({
       viewerId,
       authorId: review.userId,
@@ -77,7 +80,7 @@ export class ReviewsService {
     if (!canSee) {
       throw new NotFoundException('Review not found');
     }
-    return this.presentReview(review);
+    return this.presentReview(review, await this.blockedUserIds(viewerId));
   }
 
   async update(userId: string, reviewId: string, dto: UpdateReviewDto) {
@@ -137,7 +140,7 @@ export class ReviewsService {
             reviewId,
             deletedAt: null,
           },
-          select: { id: true, depth: true },
+          select: { id: true, depth: true, userId: true },
         })
       : null;
 
@@ -159,6 +162,27 @@ export class ReviewsService {
       include: this.commentInclude(userId),
     });
 
+    const notifiedUserIds = new Set<string>();
+    if (parent && parent.userId !== userId) {
+      await this.notifications?.create({
+        recipientId: parent.userId,
+        actorId: userId,
+        type: 'comment_replied',
+        reviewId,
+        commentId: comment.id,
+      });
+      notifiedUserIds.add(parent.userId);
+    }
+    if (review.userId !== userId && !notifiedUserIds.has(review.userId)) {
+      await this.notifications?.create({
+        recipientId: review.userId,
+        actorId: userId,
+        type: 'review_commented',
+        reviewId,
+        commentId: comment.id,
+      });
+    }
+
     return this.presentComment(comment);
   }
 
@@ -176,6 +200,7 @@ export class ReviewsService {
 
     await this.ensureCanSeeReview(userId, comment.review);
 
+    let changed = false;
     const updated = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.commentVote.findUnique({
         where: { commentId_userId: { commentId, userId } },
@@ -195,13 +220,15 @@ export class ReviewsService {
       }
 
       if (existing) {
-        await tx.commentVote.delete({
+        await tx.commentVote.update({
           where: { commentId_userId: { commentId, userId } },
+          data: { value },
         });
+        changed = true;
 
         return tx.comment.update({
           where: { id: commentId },
-          data: { score: { increment: -existing.value } },
+          data: { score: { increment: value - existing.value } },
           include: this.commentInclude(userId),
         });
       }
@@ -211,6 +238,7 @@ export class ReviewsService {
         create: { commentId, userId, value },
         update: { value },
       });
+      changed = true;
 
       return tx.comment.update({
         where: { id: commentId },
@@ -219,13 +247,121 @@ export class ReviewsService {
       });
     });
 
+    if (changed && comment.userId !== userId) {
+      await this.notifications?.create({
+        recipientId: comment.userId,
+        actorId: userId,
+        type: 'comment_voted',
+        reviewId,
+        commentId,
+      });
+    }
+
     return this.presentComment(updated);
   }
 
-  private async findReviewOrThrow(id: string, viewerId?: string) {
+  async removeCommentVote(userId: string, reviewId: string, commentId: string) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, reviewId, deletedAt: null },
+      include: {
+        review: true,
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    await this.ensureCanSeeReview(userId, comment.review);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.commentVote.findUnique({
+        where: { commentId_userId: { commentId, userId } },
+      });
+
+      if (!existing) {
+        const unchanged = await tx.comment.findUnique({
+          where: { id: commentId },
+          include: this.commentInclude(userId),
+        });
+
+        if (!unchanged) {
+          throw new NotFoundException('Comment not found');
+        }
+
+        return unchanged;
+      }
+
+      await tx.commentVote.delete({
+        where: { commentId_userId: { commentId, userId } },
+      });
+
+      return tx.comment.update({
+        where: { id: commentId },
+        data: { score: { increment: -existing.value } },
+        include: this.commentInclude(userId),
+      });
+    });
+
+    return this.presentComment(updated);
+  }
+
+  async updateComment(userId: string, reviewId: string, commentId: string, body: string) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, reviewId, deletedAt: null },
+      include: { review: true },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+    if (comment.userId !== userId) {
+      throw new ForbiddenException('You can only edit your own comments');
+    }
+    await this.ensureCanSeeReview(userId, comment.review);
+
+    const cleaned = this.cleanText(body, 2000);
+    if (!cleaned) {
+      throw new BadRequestException('Comment body is required');
+    }
+
+    const updated = await this.prisma.comment.update({
+      where: { id: commentId },
+      data: { body: cleaned },
+      include: this.commentInclude(userId),
+    });
+
+    return this.presentComment(updated);
+  }
+
+  async deleteComment(userId: string, reviewId: string, commentId: string) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, reviewId, deletedAt: null },
+      include: { review: true },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+    if (comment.userId !== userId) {
+      throw new ForbiddenException('You can only delete your own comments');
+    }
+    await this.ensureCanSeeReview(userId, comment.review);
+
+    await this.prisma.comment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date(), body: '' },
+    });
+
+    return { ok: true };
+  }
+
+  private async findReviewOrThrow(
+    id: string,
+    viewerId?: string,
+    commentSort: 'best' | 'new' = 'best',
+  ) {
     const review = await this.prisma.review.findUnique({
       where: { id },
-      include: this.reviewInclude(viewerId),
+      include: this.reviewInclude(viewerId, commentSort),
     });
     if (!review) {
       throw new NotFoundException('Review not found');
@@ -233,13 +369,15 @@ export class ReviewsService {
     return review;
   }
 
-  private reviewInclude(viewerId?: string) {
+  private reviewInclude(viewerId?: string, commentSort: 'best' | 'new' = 'best') {
     return {
       user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
       movie: true,
       comments: {
-        where: { deletedAt: null },
-        orderBy: [{ score: 'desc' }, { createdAt: 'asc' }],
+        orderBy:
+          commentSort === 'new'
+            ? [{ createdAt: 'desc' }]
+            : [{ score: 'desc' }, { createdAt: 'asc' }],
         include: this.commentInclude(viewerId),
       },
       _count: { select: { comments: { where: { deletedAt: null } } } },
@@ -259,7 +397,9 @@ export class ReviewsService {
     review: Prisma.ReviewGetPayload<{
       include: ReturnType<ReviewsService['reviewInclude']>;
     }>,
+    hiddenUserIds: Set<string> = new Set(),
   ) {
+    const comments = review.comments.filter((comment) => !hiddenUserIds.has(comment.userId));
     return {
       id: review.id,
       createdAt: review.createdAt.toISOString(),
@@ -270,10 +410,10 @@ export class ReviewsService {
       tags: review.tags,
       containsSpoilers: review.containsSpoilers,
       visibility: review.visibility,
-      commentCount: review.comments.length,
+      commentCount: review._count.comments,
       author: review.user,
       movie: movieSummary(review.movie),
-      comments: this.presentCommentTree(review.comments),
+      comments: this.presentCommentTree(comments),
     };
   }
 
@@ -306,7 +446,21 @@ export class ReviewsService {
       roots.push(presented);
     }
 
-    return roots;
+    return roots
+      .map((comment) => this.pruneDeletedCommentLeaf(comment))
+      .filter((comment): comment is PresentedComment => Boolean(comment));
+  }
+
+  private pruneDeletedCommentLeaf(comment: PresentedComment): PresentedComment | null {
+    comment.replies = comment.replies
+      .map((reply) => this.pruneDeletedCommentLeaf(reply))
+      .filter((reply): reply is PresentedComment => Boolean(reply));
+
+    if (comment.deletedAt && !comment.replies.length) {
+      return null;
+    }
+
+    return comment;
   }
 
   private presentComment(
@@ -318,13 +472,21 @@ export class ReviewsService {
       id: comment.id,
       reviewId: comment.reviewId,
       parentCommentId: comment.parentCommentId,
-      body: comment.body,
+      body: comment.deletedAt ? 'Deleted comment' : comment.body,
       depth: comment.depth,
       score: comment.score,
       viewerVote: comment.votes[0]?.value ?? 0,
+      deletedAt: comment.deletedAt?.toISOString() ?? null,
       createdAt: comment.createdAt.toISOString(),
       updatedAt: comment.updatedAt.toISOString(),
-      author: comment.user,
+      author: comment.deletedAt
+        ? {
+            id: 'deleted',
+            username: 'deleted',
+            displayName: 'Deleted user',
+            avatarUrl: null,
+          }
+        : comment.user,
       replies: [],
     };
   }
@@ -346,6 +508,19 @@ export class ReviewsService {
     if (!canSee) {
       throw new NotFoundException('Review not found');
     }
+  }
+
+  private async blockedUserIds(userId: string) {
+    const rows = await this.prisma.block.findMany({
+      where: {
+        OR: [{ blockerId: userId }, { blockedId: userId }],
+      },
+      select: { blockerId: true, blockedId: true },
+    });
+
+    return new Set(
+      rows.map((row) => (row.blockerId === userId ? row.blockedId : row.blockerId)),
+    );
   }
 
   private cleanText(value?: string | null, maxLength?: number) {

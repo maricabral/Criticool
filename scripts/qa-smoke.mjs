@@ -153,6 +153,13 @@ async function run() {
   });
   assert(frReqRes.status === 201 || frReqRes.status === 200, `Friend request A→B created (status ${frReqRes.status})`);
 
+  const notifBRequestRes = await request('GET', '/notifications', { token: userB.tokens.accessToken });
+  assert(notifBRequestRes.status === 200, 'B can load notifications');
+  assert(
+    notifBRequestRes.data.items?.some?.((item) => item.type === 'friend_request_received' && item.actor?.id === userA.id),
+    'B receives friend request notification',
+  );
+
   const incomingRes = await request('GET', '/friend-requests/incoming', { token: userB.tokens.accessToken });
   assert(incomingRes.status === 200, 'B sees incoming requests');
   const pendingReq = incomingRes.data?.find?.(r => r.requester?.id === userA.id);
@@ -160,6 +167,12 @@ async function run() {
 
   const acceptRes = await request('POST', `/friend-requests/${pendingReq?.id}/accept`, { token: userB.tokens.accessToken });
   assert(acceptRes.status === 201 || acceptRes.status === 200, `Friend request accepted (status ${acceptRes.status})`);
+
+  const notifARequestRes = await request('GET', '/notifications', { token: userA.tokens.accessToken });
+  assert(
+    notifARequestRes.data.items?.some?.((item) => item.type === 'friend_request_accepted' && item.actor?.id === userB.id),
+    'A receives accepted friend request notification',
+  );
 
   // ─── Feed Visibility: Friend ───
   console.log('\n--- Feed: Friend Visibility ---');
@@ -192,6 +205,19 @@ async function run() {
   assert(commentRes.status === 201 || commentRes.status === 200, `Comment created (status ${commentRes.status})`);
   const commentId = commentRes.data?.id;
 
+  const notifACommentRes = await request('GET', '/notifications', { token: userA.tokens.accessToken });
+  assert(
+    notifACommentRes.data.items?.some?.((item) => item.type === 'review_commented' && item.commentId === commentId),
+    'Review author receives comment notification',
+  );
+
+  const editCommentRes = await request('PATCH', `/reviews/${reviewId}/comments/${commentId}`, {
+    token: userB.tokens.accessToken,
+    body: { body: 'Totally agree, edited!' },
+  });
+  assert(editCommentRes.status === 200, `Comment edited (status ${editCommentRes.status})`);
+  assert(editCommentRes.data?.body === 'Totally agree, edited!', 'Edited comment returns new body');
+
   // Reply
   const replyRes = await request('POST', `/reviews/${reviewId}/comments`, {
     token: userA.tokens.accessToken,
@@ -199,6 +225,13 @@ async function run() {
   });
   assert(replyRes.status === 201 || replyRes.status === 200, `Reply created (status ${replyRes.status})`);
   assert(replyRes.data?.depth === 1, 'Reply has depth 1');
+  const replyId = replyRes.data?.id;
+
+  const notifBReplyRes = await request('GET', '/notifications', { token: userB.tokens.accessToken });
+  assert(
+    notifBReplyRes.data.items?.some?.((item) => item.type === 'comment_replied' && item.commentId === replyId),
+    'Parent comment author receives reply notification',
+  );
 
   // ─── Comment Vote ───
   console.log('\n--- Comment Votes ---');
@@ -208,6 +241,53 @@ async function run() {
   });
   assert(voteRes.status === 201 || voteRes.status === 200, `Vote created (status ${voteRes.status})`);
   assert(voteRes.data?.score >= 1, 'Comment score increased');
+
+  const notifBVoteRes = await request('GET', '/notifications', { token: userB.tokens.accessToken });
+  assert(
+    notifBVoteRes.data.items?.some?.((item) => item.type === 'comment_voted' && item.commentId === commentId),
+    'Comment author receives vote notification',
+  );
+
+  const removeVoteRes = await request('DELETE', `/reviews/${reviewId}/comments/${commentId}/votes`, {
+    token: userA.tokens.accessToken,
+  });
+  assert(removeVoteRes.status === 200, `Vote removed (status ${removeVoteRes.status})`);
+  assert(removeVoteRes.data?.viewerVote === 0, 'Vote removal clears viewer vote');
+
+  const deleteCommentRes = await request('DELETE', `/reviews/${reviewId}/comments/${commentId}`, {
+    token: userB.tokens.accessToken,
+  });
+  assert(deleteCommentRes.status === 200, `Comment soft-deleted (status ${deleteCommentRes.status})`);
+
+  const detailAfterCommentDelete = await request('GET', `/reviews/${reviewId}?commentSort=new`, { token: userA.tokens.accessToken });
+  assert(detailAfterCommentDelete.status === 200, 'Review detail supports comment sorting query');
+  assert(detailAfterCommentDelete.data.commentCount === 1, 'Deleted comment excluded from visible comment count');
+
+  // Reports and Blocks
+  console.log('\n--- Reports & Blocks ---');
+  const reportReviewRes = await request('POST', '/reports', {
+    token: userB.tokens.accessToken,
+    body: { targetType: 'review', targetId: reviewId, reason: 'test review report' },
+  });
+  assert(reportReviewRes.status === 201 || reportReviewRes.status === 200, `Review report created (status ${reportReviewRes.status})`);
+
+  const reportUserRes = await request('POST', '/reports', {
+    token: userC.tokens.accessToken,
+    body: { targetType: 'user', targetId: userA.id, reason: 'test user report' },
+  });
+  assert(reportUserRes.status === 201 || reportUserRes.status === 200, `User report created (status ${reportUserRes.status})`);
+
+  const blockRes = await request('POST', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
+  assert(blockRes.status === 201 || blockRes.status === 200, `User C blocks User A (status ${blockRes.status})`);
+
+  const searchBlockedRes = await request('GET', `/users/search?q=alice_${suffix}`, { token: userC.tokens.accessToken });
+  assert(
+    !searchBlockedRes.data?.some?.((item) => item.id === userA.id),
+    'Blocked user is hidden from user search',
+  );
+
+  const unblockRes = await request('DELETE', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
+  assert(unblockRes.status === 200, `User C unblocks User A (status ${unblockRes.status})`);
 
   // ─── Soft Delete Review ───
   console.log('\n--- Review: Soft Delete ---');

@@ -12,8 +12,9 @@ function createMockPrisma() {
       update: vi.fn(),
     },
     reviewRevision: { create: vi.fn() },
-    comment: { findFirst: vi.fn(), create: vi.fn() },
-    commentVote: { findUnique: vi.fn(), upsert: vi.fn(), delete: vi.fn() },
+    comment: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    commentVote: { findUnique: vi.fn(), upsert: vi.fn(), delete: vi.fn(), update: vi.fn() },
+    block: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(mockTx)),
   };
 }
@@ -75,6 +76,21 @@ const baseReview = {
   comments: [],
   _count: { comments: 0 },
   revisions: [],
+};
+
+const baseComment = {
+  id: 'comment-1',
+  reviewId: 'review-1',
+  parentCommentId: null,
+  userId: 'user-1',
+  body: 'Original comment',
+  depth: 0,
+  score: 0,
+  createdAt: new Date('2026-05-17T11:00:00Z'),
+  updatedAt: new Date('2026-05-17T11:00:00Z'),
+  deletedAt: null,
+  user: { id: 'user-1', username: 'alice', displayName: 'Alice', avatarUrl: null },
+  votes: [],
 };
 
 describe('ReviewsService', () => {
@@ -197,6 +213,59 @@ describe('ReviewsService', () => {
       visibility.canSeeReview.mockResolvedValue(false);
 
       await expect(service.get('user-2', 'review-1')).rejects.toThrow('Review not found');
+    });
+
+    it('requests new comment sorting when asked', async () => {
+      prisma.review.findUnique.mockResolvedValue(baseReview);
+      visibility.canSeeReview.mockResolvedValue(true);
+
+      await service.get('user-2', 'review-1', 'new');
+
+      expect(prisma.review.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            comments: expect.objectContaining({ orderBy: [{ createdAt: 'desc' }] }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('comments', () => {
+    it('edits an owned comment', async () => {
+      prisma.comment.findFirst.mockResolvedValue({
+        ...baseComment,
+        review: baseReview,
+      });
+      prisma.comment.update.mockResolvedValue({ ...baseComment, body: 'Edited comment' });
+
+      const result = await service.updateComment('user-1', 'review-1', 'comment-1', ' Edited comment ');
+
+      expect(prisma.comment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'comment-1' },
+          data: { body: 'Edited comment' },
+        }),
+      );
+      expect(result.body).toBe('Edited comment');
+    });
+
+    it('soft-deletes an owned comment', async () => {
+      prisma.comment.findFirst.mockResolvedValue({
+        ...baseComment,
+        review: baseReview,
+      });
+      prisma.comment.update.mockResolvedValue({});
+
+      const result = await service.deleteComment('user-1', 'review-1', 'comment-1');
+
+      expect(result).toEqual({ ok: true });
+      expect(prisma.comment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'comment-1' },
+          data: expect.objectContaining({ body: '' }),
+        }),
+      );
     });
   });
 });

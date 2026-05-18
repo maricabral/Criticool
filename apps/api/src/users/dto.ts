@@ -5,3 +5,8 @@ export class UserSearchQueryDto {
   @Length(2, 32)
   q: string;
 }
+
+export class UserIdParamDto {
+  @IsString()
+  id: string;
+}

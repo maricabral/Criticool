@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
@@ -46,5 +46,45 @@ export class UsersService {
       friendshipStatus:
         user.requestedFriendships[0]?.status ?? user.receivedFriendships[0]?.status ?? null,
     }));
+  }
+
+  async block(userId: string, targetUserId: string) {
+    if (userId === targetUserId) {
+      throw new BadRequestException('You cannot block yourself');
+    }
+
+    const target = await this.prisma.user.findFirst({
+      where: { id: targetUserId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.friendship.deleteMany({
+        where: {
+          OR: [
+            { requesterId: userId, addresseeId: targetUserId },
+            { requesterId: targetUserId, addresseeId: userId },
+          ],
+        },
+      }),
+      this.prisma.block.upsert({
+        where: { blockerId_blockedId: { blockerId: userId, blockedId: targetUserId } },
+        create: { blockerId: userId, blockedId: targetUserId },
+        update: {},
+      }),
+    ]);
+
+    return { ok: true };
+  }
+
+  async unblock(userId: string, targetUserId: string) {
+    await this.prisma.block.deleteMany({
+      where: { blockerId: userId, blockedId: targetUserId },
+    });
+
+    return { ok: true };
   }
 }
