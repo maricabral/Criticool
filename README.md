@@ -1,6 +1,22 @@
 # CritiCool
 
-Private-first social movie reviews. Phase 1 proves the core loop: register, find a movie, write a review, become friends, and see friends' reviews in a feed.
+Private-first social movie reviews. CritiCool starts with movies and a friends-only feed, then opens each review into a threaded discussion space.
+
+Phase 2 is now the working baseline: session refresh, logout, active-review uniqueness, comment edit/delete/sort/vote removal, notifications, reports, blocks, focused backend tests, and a repeatable API smoke script are in place.
+
+## Current Status
+
+- Phase 1 core loop: register, find/import a movie, post a review, become friends, and see friend reviews in the feed.
+- Phase 2 social layer: review detail comments, replies, comment voting, notifications, report/block entry points, and mobile review-detail controls.
+- Verified locally with `npm test` and `npm run build --workspaces --if-present`.
+- Known Phase 2 follow-up: blocked-user comments are hidden from review detail rows, but feed/review comment counts and feed participant avatars should also exclude blocked comment authors.
+
+## Project Plans
+
+- Product plan: `resources/plans/CRITICOOL_PRODUCT_PLAN.md`
+- Phase 1 plan: `resources/plans/CRITICOOL_PHASE_1.md`
+- Phase 2 plan and audit: `resources/plans/CRITICOOL_PHASE_2_PLAN.md`
+- Phase 3 plan: `resources/plans/CRITICOOL_PHASE_3_PLAN.md`
 
 ## Stack
 
@@ -42,8 +58,15 @@ Expo reads `EXPO_PUBLIC_API_URL` from `apps/mobile/.env`. For a physical phone, 
 
 - `npm run build` builds packages that expose a build script.
 - `npm test` runs workspace tests.
+- `npm run qa:smoke` runs the API smoke flow against `http://localhost:3000` by default.
 - `npm run prisma:generate` generates the Prisma client.
 - `npm run prisma:migrate` applies local migrations.
+
+Smoke QA requires the API and database to be running. To target a different API URL:
+
+```bash
+npm run qa:smoke -- http://localhost:3000
+```
 
 No secrets should be committed. Keep real values only in `.env` files.
 
