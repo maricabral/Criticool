@@ -2020,7 +2020,6 @@ function Avatar({
     styles.avatarPink,
     styles.avatarYellow,
     styles.avatarGreen,
-    styles.avatarCream,
   ];
   const toneIndex =
     label.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % toneStyles.length;
@@ -2494,9 +2493,6 @@ const styles = StyleSheet.create({
   avatarGreen: {
     backgroundColor: colors.green,
   },
-  avatarCream: {
-    backgroundColor: colors.cream,
-  },
   avatarLarge: {
     width: 88,
     height: 88,
@@ -2550,8 +2546,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   posterCompact: {
-    width: 58,
-    height: 72,
+    width: 64,
+    height: 88,
   },
   posterFallback: {
     alignItems: 'center',
@@ -2608,7 +2604,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 8,
   },
   takeRow: {
     flexDirection: 'row',
