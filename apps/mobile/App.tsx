@@ -594,7 +594,7 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 }
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
-  const quickTake = item.containsSpoilers ? null : item.quickTake?.trim();
+  const quickTake = item.quickTake?.trim();
   const visibleTags = item.tags?.slice(0, 3) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
   const commentParticipants = item.commentParticipants ?? [];
@@ -2064,7 +2064,7 @@ function PopcornRating({ value, large }: { value: number; large?: boolean }) {
   return (
     <View style={styles.popcornRating} accessibilityLabel={`${value.toFixed(1)} out of 5`}>
       {Array.from({ length: count }).map((_, index) => (
-        <Popcorn key={index} size={large ? 20 : 15} color={colors.ink} strokeWidth={2.7} />
+        <Popcorn key={index} size={large ? 23 : 15} color={colors.ink} strokeWidth={2.8} />
       ))}
     </View>
   );
@@ -2558,7 +2558,7 @@ const styles = StyleSheet.create({
   reviewCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 5,
+    gap: 6,
   },
   movieTitle: {
     color: colors.ink,
@@ -2576,27 +2576,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   popcornRating: {
-    minHeight: 22,
+    minHeight: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   cardRatingLine: {
-    minHeight: 22,
+    minHeight: 28,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   feedSpoilerText: {
-    color: colors.pink,
+    color: colors.orange,
     fontSize: 12,
     fontWeight: '900',
   },
   quickTake: {
     color: colors.ink,
-    fontSize: 13,
-    lineHeight: 16,
-    fontWeight: '700',
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   takeRow: {
     flexDirection: 'row',
@@ -3130,7 +3132,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   toggleTrackOn: {
-    backgroundColor: colors.pink,
+    backgroundColor: colors.orange,
   },
   toggleKnob: {
     width: 18,
@@ -3165,7 +3167,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   detailSpoilerText: {
-    color: colors.pink,
+    color: colors.orange,
     fontWeight: '900',
   },
   detailSafeText: {
