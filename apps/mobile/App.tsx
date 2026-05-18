@@ -811,6 +811,7 @@ function ReviewCard({
             <Text numberOfLines={1} style={styles.reviewerHandle}>
               {reviewDate}
             </Text>
+            {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
           </View>
         </Pressable>
       </View>
@@ -819,7 +820,6 @@ function ReviewCard({
         <View style={styles.feedReviewCopy}>
           <View style={styles.feedSignalBlock}>
             <View style={styles.quickTakeBlock}>
-              {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
               {quickTake ? (
                 <Text numberOfLines={2} style={styles.quickTake}>
                   {quickTake}
@@ -853,20 +853,15 @@ function ReviewCard({
             <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
           </View>
           {commentParticipants.length ? (
-            <View style={styles.commentParticipantCluster}>
-              <Text style={styles.commentParticipantLabel}>
-                {commentParticipants.length} in chat
-              </Text>
-              <View style={styles.commentParticipantRow}>
-                {commentParticipants.map((participant) => (
-                  <Avatar
-                    key={participant.id}
-                    label={participant.displayName || participant.username}
-                    micro
-                    onPress={() => onOpenUser(participant)}
-                  />
-                ))}
-              </View>
+            <View style={styles.commentParticipantRow}>
+              {commentParticipants.map((participant) => (
+                <Avatar
+                  key={participant.id}
+                  label={participant.displayName || participant.username}
+                  micro
+                  onPress={() => onOpenUser(participant)}
+                />
+              ))}
             </View>
           ) : null}
         </View>
@@ -3184,7 +3179,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    minHeight: 166,
+    minHeight: 178,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
@@ -3198,14 +3193,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 34,
+    minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
   },
   reviewCardBody: {
-    minHeight: 88,
+    minHeight: 100,
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 10,
@@ -3250,18 +3245,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 5,
-  },
-  commentParticipantCluster: {
-    minHeight: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  commentParticipantLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: '900',
   },
   commentParticipantRow: {
     minHeight: 22,
@@ -3371,8 +3354,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   posterCompact: {
-    width: 64,
-    height: 88,
+    width: 72,
+    height: 100,
   },
   posterFallback: {
     alignItems: 'center',
