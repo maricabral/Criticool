@@ -178,6 +178,38 @@ function appendTranscript(
   });
 }
 
+function useBuzzMovies(tokens: AuthTokens) {
+  const [movies, setMovies] = useState(BUZZ_MOVIES);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      BUZZ_MOVIES.map(async (movie) => {
+        try {
+          const response = await api.searchMovies(tokens, movie.title);
+          return (
+            response.items.find((item) => item.tmdbId === movie.tmdbId) ??
+            response.items[0] ??
+            movie
+          );
+        } catch {
+          return movie;
+        }
+      }),
+    ).then((rows) => {
+      if (!cancelled) {
+        setMovies(rows);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tokens]);
+
+  return movies;
+}
+
 function startDictation({
   onTranscript,
   onEnd,
@@ -642,6 +674,7 @@ function SearchScreen({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MovieSummary[]>([]);
   const [busy, setBusy] = useState(false);
+  const buzzMovies = useBuzzMovies(tokens);
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -692,7 +725,7 @@ function SearchScreen({
                 <Text style={styles.sectionTitle}>Buzz movies</Text>
                 <Text style={styles.mutedText}>popular now</Text>
               </View>
-              <MoviePosterRow movies={BUZZ_MOVIES} onPress={selectMovie} />
+              <MoviePosterRow movies={buzzMovies} onPress={selectMovie} />
             </Panel>
             <Panel tint="cyan">
               <View style={styles.sectionHeader}>
@@ -701,14 +734,10 @@ function SearchScreen({
               </View>
               <View style={styles.genreGrid}>
                 {GENRE_BROWSE.map((genre) => (
-                  <Pressable
-                    key={genre.title}
-                    style={styles.genreTile}
-                    onPress={() => setQuery(genre.title)}
-                  >
+                  <View key={genre.title} style={styles.genreTile}>
                     <Text style={styles.genreTitle}>{genre.title}</Text>
                     <Text style={styles.mutedText}>{genre.subtitle}</Text>
-                  </Pressable>
+                  </View>
                 ))}
               </View>
             </Panel>
@@ -758,6 +787,7 @@ function CreateScreen({
   const [busy, setBusy] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const bodyInputRef = useRef<TextInput>(null);
+  const buzzMovies = useBuzzMovies(tokens);
 
   const visibleTagCategories = useMemo(() => {
     const needle = tagQuery.trim().toLowerCase();
@@ -927,7 +957,7 @@ function CreateScreen({
                   <Text style={styles.sectionTitle}>Buzz movies to review</Text>
                   <Text style={styles.mutedText}>quick start</Text>
                 </View>
-                <MoviePosterRow movies={BUZZ_MOVIES.slice(0, 3)} onPress={selectMovie} />
+                <MoviePosterRow movies={buzzMovies.slice(0, 3)} onPress={selectMovie} />
               </Panel>
               <Panel tint="cyan">
                 <Text style={styles.sectionTitle}>Prompt ideas</Text>
@@ -1988,11 +2018,11 @@ function Avatar({
     styles.avatarPink,
     styles.avatarYellow,
     styles.avatarGreen,
-    styles.avatarOrange,
+    styles.avatarCream,
   ];
   const toneIndex =
     label.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % toneStyles.length;
-  const lightText = toneIndex === 0 || toneIndex === 1 || toneIndex === 4;
+  const lightText = toneIndex === 0 || toneIndex === 1;
 
   return (
     <View
@@ -2333,13 +2363,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    height: 150,
+    height: 156,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
     backgroundColor: colors.cream,
     padding: 10,
-    gap: 8,
+    gap: 7,
     overflow: 'hidden',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
@@ -2347,7 +2377,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 27,
+    minHeight: 31,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -2390,10 +2420,11 @@ const styles = StyleSheet.create({
   },
   reviewCommentCluster: {
     width: 48,
-    minHeight: 86,
+    alignSelf: 'stretch',
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
-    gap: 3,
+    gap: 5,
+    paddingBottom: 5,
   },
   reviewTopMeta: {
     width: 100,
@@ -2412,6 +2443,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingRight: 2,
+    marginBottom: 2,
   },
   framePerfRow: {
     position: 'absolute',
@@ -2460,8 +2492,8 @@ const styles = StyleSheet.create({
   avatarGreen: {
     backgroundColor: colors.green,
   },
-  avatarOrange: {
-    backgroundColor: colors.orange,
+  avatarCream: {
+    backgroundColor: colors.cream,
   },
   avatarLarge: {
     width: 88,
@@ -2517,7 +2549,7 @@ const styles = StyleSheet.create({
   },
   posterCompact: {
     width: 58,
-    height: 80,
+    height: 76,
   },
   posterFallback: {
     alignItems: 'center',
@@ -2556,7 +2588,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   feedSpoilerText: {
-    color: colors.orange,
+    color: colors.pink,
     fontSize: 12,
     fontWeight: '900',
   },
@@ -2610,8 +2642,10 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     borderRadius: 16,
     backgroundColor: colors.surface,
-    padding: 12,
-    gap: 10,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
+    gap: 12,
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
     shadowRadius: 0,
@@ -2646,12 +2680,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   posterRow: {
-    gap: 10,
-    paddingRight: 8,
+    gap: 14,
+    paddingRight: 12,
   },
   miniMovie: {
     width: 82,
-    gap: 6,
+    gap: 7,
   },
   miniMovieTitle: {
     color: colors.ink,
@@ -2663,10 +2697,11 @@ const styles = StyleSheet.create({
   genreGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'space-between',
+    rowGap: 10,
   },
   genreTile: {
-    width: '48%',
+    width: '47.5%',
     minHeight: 64,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -3095,7 +3130,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   toggleTrackOn: {
-    backgroundColor: colors.orange,
+    backgroundColor: colors.pink,
   },
   toggleKnob: {
     width: 18,
@@ -3130,7 +3165,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   detailSpoilerText: {
-    color: colors.orange,
+    color: colors.pink,
     fontWeight: '900',
   },
   detailSafeText: {
