@@ -217,12 +217,22 @@ async function run() {
   const bSeesReview = feedBRes.data.items?.some?.(item => item.reviewId === reviewId);
   assert(bSeesReview, "User B (friend) sees User A's review in feed");
 
+  const profileBSeesARes = await request('GET', `/feed/users/${userA.id}`, { token: userB.tokens.accessToken });
+  assert(profileBSeesARes.status === 200, `User B opens User A review page (status ${profileBSeesARes.status})`);
+  assert(
+    profileBSeesARes.data.items?.some?.((item) => item.reviewId === reviewId),
+    "User B sees User A's review on User A's page",
+  );
+
   // ─── Feed Visibility: Stranger ───
   console.log('\n--- Feed: Stranger Exclusion ---');
   const feedCRes = await request('GET', '/feed', { token: userC.tokens.accessToken });
   assert(feedCRes.status === 200, `User C feed loads (status ${feedCRes.status})`);
   const cSeesReview = feedCRes.data.items?.some?.(item => item.reviewId === reviewId);
   assert(!cSeesReview, "User C (stranger) does NOT see User A's review");
+
+  const profileCSeesARes = await request('GET', `/feed/users/${userA.id}`, { token: userC.tokens.accessToken });
+  assert(profileCSeesARes.status === 404, `Stranger cannot open User A review page (status ${profileCSeesARes.status})`);
 
   // ─── Review Detail Visibility ───
   console.log('\n--- Review Detail: Visibility ---');

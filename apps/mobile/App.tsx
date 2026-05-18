@@ -50,6 +50,7 @@ import {
 import { colors } from './src/theme';
 
 type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
+type ProfileUser = Pick<AuthUser, 'id' | 'username' | 'displayName' | 'avatarUrl'>;
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
   Platform.OS === 'web'
@@ -491,6 +492,7 @@ function AppShell({
   const [tab, setTab] = useState<Tab>('feed');
   const [selectedMovie, setSelectedMovie] = useState<MovieSummary | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ProfileUser | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
 
   const openCreate = (movie?: MovieSummary) => {
@@ -501,6 +503,22 @@ function AppShell({
     setTab('create');
   };
 
+  const openReview = (id: string) => {
+    setShowNotifications(false);
+    setSelectedReviewId(id);
+    setTab('profile');
+  };
+
+  const openUserProfile = (profileUser: ProfileUser) => {
+    if (profileUser.id === 'deleted') {
+      return;
+    }
+    setShowNotifications(false);
+    setSelectedReviewId(null);
+    setSelectedProfileUser(profileUser.id === user.id ? null : profileUser);
+    setTab('profile');
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -509,21 +527,16 @@ function AppShell({
           <NotificationsScreen
             tokens={tokens}
             onBack={() => setShowNotifications(false)}
-            onOpenReview={(id) => {
-              setShowNotifications(false);
-              setSelectedReviewId(id);
-              setTab('profile');
-            }}
+            onOpenReview={openReview}
+            onOpenUser={openUserProfile}
           />
         ) : tab === 'feed' ? (
           <FeedScreen
             tokens={tokens}
             onCreate={() => openCreate()}
             onOpenNotifications={() => setShowNotifications(true)}
-            onOpenReview={(id) => {
-              setSelectedReviewId(id);
-              setTab('profile');
-            }}
+            onOpenReview={openReview}
+            onOpenUser={openUserProfile}
           />
         ) : null}
         {tab === 'search' ? <SearchScreen tokens={tokens} onReviewMovie={openCreate} /> : null}
@@ -538,7 +551,7 @@ function AppShell({
             }}
           />
         ) : null}
-        {tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
+        {tab === 'friends' ? <FriendsScreen tokens={tokens} onOpenUser={openUserProfile} /> : null}
         {tab === 'profile' ? (
           selectedReviewId ? (
             <ReviewDetailScreen
@@ -546,12 +559,16 @@ function AppShell({
               currentUserId={user.id}
               reviewId={selectedReviewId}
               onBack={() => setSelectedReviewId(null)}
+              onOpenUser={openUserProfile}
             />
           ) : (
             <ProfileScreen
               tokens={tokens}
-              user={user}
+              currentUserId={user.id}
+              user={selectedProfileUser ?? user}
+              onBack={selectedProfileUser ? () => setSelectedProfileUser(null) : undefined}
               onOpenReview={setSelectedReviewId}
+              onOpenUser={openUserProfile}
               onSignOut={onSignOut}
             />
           )
@@ -561,6 +578,8 @@ function AppShell({
         current={tab}
         onChange={(nextTab) => {
           setShowNotifications(false);
+          setSelectedReviewId(null);
+          setSelectedProfileUser(null);
           setTab(nextTab);
         }}
       />
@@ -573,11 +592,13 @@ function FeedScreen({
   onCreate,
   onOpenNotifications,
   onOpenReview,
+  onOpenUser,
 }: {
   tokens: AuthTokens;
   onCreate: () => void;
   onOpenNotifications: () => void;
   onOpenReview: (id: string) => void;
+  onOpenUser: (user: ProfileUser) => void;
 }) {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -640,7 +661,11 @@ function FeedScreen({
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
           onEndReached={loadMore}
           renderItem={({ item }) => (
-            <ReviewCard item={item} onPress={() => onOpenReview(item.reviewId)} />
+            <ReviewCard
+              item={item}
+              onPress={() => onOpenReview(item.reviewId)}
+              onOpenUser={onOpenUser}
+            />
           )}
         />
       ) : (
@@ -670,7 +695,15 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
+function ReviewCard({
+  item,
+  onPress,
+  onOpenUser,
+}: {
+  item: FeedItem;
+  onPress: () => void;
+  onOpenUser: (user: ProfileUser) => void;
+}) {
   const quickTake = item.quickTake?.trim();
   const visibleTags = item.tags?.slice(0, 3) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
@@ -685,12 +718,20 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
           </Text>
         </View>
         <View style={styles.reviewTopMeta}>
-          <View style={styles.feedReviewerNameRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${reviewerName}'s profile`}
+            style={styles.feedReviewerNameRow}
+            onPress={(event) => {
+              event.stopPropagation();
+              onOpenUser(item.author);
+            }}
+          >
             <Avatar label={reviewerName} mini />
             <Text numberOfLines={1} style={styles.reviewerName}>
               {reviewerName}
             </Text>
-          </View>
+          </Pressable>
           {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
         </View>
       </View>
@@ -731,6 +772,7 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
                   key={participant.id}
                   label={participant.displayName || participant.username}
                   micro
+                  onPress={() => onOpenUser(participant)}
                 />
               ))}
             </View>
@@ -1195,11 +1237,13 @@ function ReviewDetailScreen({
   currentUserId,
   reviewId,
   onBack,
+  onOpenUser,
 }: {
   tokens: AuthTokens;
   currentUserId: string;
   reviewId: string;
   onBack: () => void;
+  onOpenUser: (user: ProfileUser) => void;
 }) {
   const [review, setReview] = useState<ReviewDetail | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -1415,10 +1459,15 @@ function ReviewDetailScreen({
         </Text>
         <Poster movie={review.movie} compact />
         <View style={[styles.reviewCopy, styles.detailHeaderCopy]}>
-          <View style={styles.authorRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${review.author.displayName || review.author.username}'s profile`}
+            style={styles.authorRow}
+            onPress={() => onOpenUser(review.author)}
+          >
             <Avatar label={review.author.displayName || review.author.username} mini />
             <Text style={styles.author}>@{review.author.username}</Text>
-          </View>
+          </Pressable>
           <Text numberOfLines={2} style={styles.detailMovieTitle}>
             {review.movie.title}
           </Text>
@@ -1505,6 +1554,7 @@ function ReviewDetailScreen({
                 onSaveEdit={saveCommentEdit}
                 onDelete={deleteComment}
                 onReport={reportComment}
+                onOpenUser={onOpenUser}
                 votingCommentId={votingCommentId}
               />
             ))}
@@ -1536,6 +1586,7 @@ function CommentNode({
   onSaveEdit,
   onDelete,
   onReport,
+  onOpenUser,
   votingCommentId,
 }: {
   activeReplyId: string | null;
@@ -1553,6 +1604,7 @@ function CommentNode({
   onSaveEdit: (comment: ReviewComment) => void;
   onDelete: (comment: ReviewComment) => void;
   onReport: (comment: ReviewComment) => void;
+  onOpenUser: (user: ProfileUser) => void;
   votingCommentId: string | null;
 }) {
   const voteDisabled = votingCommentId === comment.id;
@@ -1597,12 +1649,18 @@ function CommentNode({
             </Pressable>
           </View>
           <View style={styles.commentCopy}>
-            <View style={styles.commentAuthorRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${comment.author.displayName || comment.author.username}'s profile`}
+              disabled={isDeleted}
+              style={styles.commentAuthorRow}
+              onPress={() => onOpenUser(comment.author)}
+            >
               <Avatar label={comment.author.displayName || comment.author.username} mini />
               <View style={styles.reviewCopy}>
                 <Text style={styles.author}>@{comment.author.username}</Text>
               </View>
-            </View>
+            </Pressable>
             {isEditing ? (
               <View style={styles.commentEditBox}>
                 <TextInput
@@ -1684,6 +1742,7 @@ function CommentNode({
           onSaveEdit={onSaveEdit}
           onDelete={onDelete}
           onReport={onReport}
+          onOpenUser={onOpenUser}
           votingCommentId={votingCommentId}
         />
       ))}
@@ -1759,10 +1818,12 @@ function NotificationsScreen({
   tokens,
   onBack,
   onOpenReview,
+  onOpenUser,
 }: {
   tokens: AuthTokens;
   onBack: () => void;
   onOpenReview: (id: string) => void;
+  onOpenUser: (user: ProfileUser) => void;
 }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -1846,6 +1907,9 @@ function NotificationsScreen({
                   notification.type
                 }
                 mini
+                onPress={
+                  notification.actor ? () => onOpenUser(notification.actor as ProfileUser) : undefined
+                }
               />
               <View style={styles.reviewCopy}>
                 <Text style={styles.author}>{notificationTitle(notification)}</Text>
@@ -1880,7 +1944,13 @@ function notificationTitle(notification: NotificationItem) {
   return messages[notification.type];
 }
 
-function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
+function FriendsScreen({
+  tokens,
+  onOpenUser,
+}: {
+  tokens: AuthTokens;
+  onOpenUser: (user: ProfileUser) => void;
+}) {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<
     Array<{
@@ -2061,7 +2131,12 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
               const canCancel = item.friendshipStatus === 'pending' ? outgoingRequest : null;
               return (
                 <View key={item.id} style={styles.simplePersonRow}>
-                  <Avatar label={item.displayName} />
+                  <Avatar
+                    label={item.displayName}
+                    onPress={
+                      item.friendshipStatus === 'accepted' ? () => onOpenUser(item) : undefined
+                    }
+                  />
                   <Text numberOfLines={1} style={styles.friendSearchName}>
                     @{item.username}
                   </Text>
@@ -2096,7 +2171,11 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
                 <View style={styles.friendGrid}>
                   {friends.map((friend) => (
                     <View key={friend.id} style={styles.friendBubble}>
-                      <Avatar label={friend.displayName || friend.username} large />
+                      <Avatar
+                        label={friend.displayName || friend.username}
+                        large
+                        onPress={() => onOpenUser(friend)}
+                      />
                       <Text numberOfLines={1} style={styles.friendHandle}>
                         @{friend.username}
                       </Text>
@@ -2172,13 +2251,19 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
 
 function ProfileScreen({
   tokens,
+  currentUserId,
   user,
+  onBack,
   onOpenReview,
+  onOpenUser,
   onSignOut,
 }: {
   tokens: AuthTokens;
-  user: AuthUser;
+  currentUserId: string;
+  user: ProfileUser;
+  onBack?: () => void;
   onOpenReview: (id: string) => void;
+  onOpenUser: (user: ProfileUser) => void;
   onSignOut: () => void;
 }) {
   const [reviews, setReviews] = useState<FeedItem[]>([]);
@@ -2189,16 +2274,23 @@ function ProfileScreen({
   const [reviewLoadError, setReviewLoadError] = useState<string | null>(null);
   const [reviewQuery, setReviewQuery] = useState('');
   const [friendCount, setFriendCount] = useState<number | null>(null);
+  const isCurrentUser = user.id === currentUserId;
 
   const loadReviews = useCallback(
     async (nextCursor?: string | null) => {
       setReviewLoadError(null);
-      const response = await api.myReviews(tokens, nextCursor);
+      const response = isCurrentUser
+        ? await api.myReviews(tokens, nextCursor)
+        : await api.userReviews(tokens, user.id, nextCursor);
       setReviews((current) => (nextCursor ? [...current, ...response.items] : response.items));
       setCursor(response.nextCursor);
     },
-    [tokens],
+    [isCurrentUser, tokens, user.id],
   );
+
+  useEffect(() => {
+    setReviewQuery('');
+  }, [user.id]);
 
   useEffect(() => {
     void (async () => {
@@ -2214,11 +2306,15 @@ function ProfileScreen({
   }, [loadReviews]);
 
   useEffect(() => {
+    if (!isCurrentUser) {
+      setFriendCount(null);
+      return;
+    }
     void api
       .friends(tokens)
       .then((rows) => setFriendCount(rows.length))
       .catch(() => setFriendCount(null));
-  }, [tokens]);
+  }, [isCurrentUser, tokens]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -2297,7 +2393,13 @@ function ProfileScreen({
     >
       <Header
         title={`@${user.username}`}
-        right={<IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />}
+        right={
+          isCurrentUser ? (
+            <IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />
+          ) : (
+            <PrimaryButton label="Back" onPress={onBack ?? (() => undefined)} compact />
+          )
+        }
       />
       <View style={styles.profileBlock}>
         <Avatar label={user.displayName} large />
@@ -2309,10 +2411,19 @@ function ProfileScreen({
             <Text style={styles.profileInlineText}>
               {loading || reviewLoadError ? '-' : reviews.length} reviews
             </Text>
-            <Text style={styles.profileInlineText}>|</Text>
-            <Text style={styles.profileInlineText}>
-              {friendCount === null ? '-' : friendCount} friends
-            </Text>
+            {isCurrentUser ? (
+              <>
+                <Text style={styles.profileInlineText}>|</Text>
+                <Text style={styles.profileInlineText}>
+                  {friendCount === null ? '-' : friendCount} friends
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.profileInlineText}>|</Text>
+                <Text style={styles.profileInlineText}>friend</Text>
+              </>
+            )}
           </View>
           <View style={styles.profileTasteRow}>
             {tasteTags.map((tag) => (
@@ -2336,7 +2447,7 @@ function ProfileScreen({
           <Field
             value={reviewQuery}
             onChangeText={setReviewQuery}
-            placeholder="Search my reviews"
+            placeholder={isCurrentUser ? 'Search my reviews' : `Search @${user.username} reviews`}
             autoCapitalize="none"
             icon={<Search size={18} color={colors.muted} />}
           />
@@ -2353,6 +2464,7 @@ function ProfileScreen({
               key={review.reviewId}
               item={review}
               onPress={() => onOpenReview(review.reviewId)}
+              onOpenUser={onOpenUser}
             />
           ))
         )}
@@ -2367,7 +2479,11 @@ function ProfileScreen({
           <View style={styles.emptyProfileState}>
             <Popcorn size={30} color={colors.ink} />
             <Text style={styles.emptyTitle}>No reviews yet</Text>
-            <Text style={styles.mutedText}>Your movie takes will appear here after you post.</Text>
+            <Text style={styles.mutedText}>
+              {isCurrentUser
+                ? 'Your movie takes will appear here after you post.'
+                : `@${user.username} has not posted reviews yet.`}
+            </Text>
           </View>
         ) : null}
         {cursor && !reviewLoadError ? (
@@ -2546,11 +2662,13 @@ function Avatar({
   large,
   mini,
   micro,
+  onPress,
 }: {
   label: string;
   large?: boolean;
   mini?: boolean;
   micro?: boolean;
+  onPress?: () => void;
 }) {
   const toneStyles = [
     styles.avatarCyan,
@@ -2562,16 +2680,14 @@ function Avatar({
     label.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % toneStyles.length;
   const lightText = toneIndex === 0 || toneIndex === 1;
 
-  return (
-    <View
-      style={[
-        styles.avatar,
-        toneStyles[toneIndex],
-        large && styles.avatarLarge,
-        mini && styles.avatarMini,
-        micro && styles.avatarMicro,
-      ]}
-    >
+  const avatarStyle = [
+    styles.avatar,
+    toneStyles[toneIndex],
+    large && styles.avatarLarge,
+    mini && styles.avatarMini,
+    micro && styles.avatarMicro,
+  ];
+  const avatarText = (
       <Text
         style={[
           styles.avatarText,
@@ -2583,6 +2699,28 @@ function Avatar({
       >
         {label.slice(0, 1).toUpperCase()}
       </Text>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${label}'s profile`}
+        hitSlop={6}
+        onPress={(event) => {
+          event.stopPropagation();
+          onPress();
+        }}
+        style={({ pressed }) => [...avatarStyle, pressed && styles.avatarPressed]}
+      >
+        {avatarText}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={avatarStyle}>
+      {avatarText}
     </View>
   );
 }
@@ -3025,6 +3163,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.cyan,
+  },
+  avatarPressed: {
+    opacity: 0.72,
   },
   avatarCyan: {
     backgroundColor: colors.cyan,

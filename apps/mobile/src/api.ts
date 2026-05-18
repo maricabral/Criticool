@@ -165,6 +165,13 @@ export const api = {
     apiRequest<FeedResponse>(`/feed/me${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
       tokens,
     }),
+  userReviews: (tokens: AuthTokens, userId: string, cursor?: string | null) =>
+    apiRequest<FeedResponse>(
+      `/feed/users/${encodeURIComponent(userId)}${
+        cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+      }`,
+      { tokens },
+    ),
   searchMovies: (tokens: AuthTokens, query: string) =>
     apiRequest<{ items: MovieSummary[]; source: string }>(
       `/movies/search?q=${encodeURIComponent(query)}`,
