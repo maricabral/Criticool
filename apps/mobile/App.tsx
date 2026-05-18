@@ -2370,7 +2370,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.cream,
     padding: 10,
-    gap: 7,
+    gap: 4,
     overflow: 'hidden',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
@@ -2378,7 +2378,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 29,
+    minHeight: 24,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -2603,8 +2603,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 8,
+    paddingTop: 5,
   },
   takeRow: {
     flexDirection: 'row',
