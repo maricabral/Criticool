@@ -712,9 +712,9 @@ function FeedScreen({
           <View style={styles.headerActionRow}>
             <IconButton
               icon={<Bell size={20} color={colors.ink} />}
+              accessibilityLabel="Open notifications"
               onPress={onOpenNotifications}
             />
-            <IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />
           </View>
         }
       />
@@ -773,46 +773,66 @@ function ReviewCard({
   const visibleTags = item.tags?.slice(0, 3) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
   const commentParticipants = item.commentParticipants ?? [];
+  const ratingLabel = Number.isInteger(item.rating)
+    ? item.rating.toFixed(0)
+    : item.rating.toFixed(1);
+  const reviewDate = new Date(item.createdAt).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
 
   return (
-    <Pressable style={styles.reviewFrame} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${reviewerName}'s review of ${item.movie.title}`}
+      style={styles.reviewFrame}
+      onPress={onPress}
+    >
       <View style={styles.reviewCardHeader}>
         <View style={styles.reviewTitleBlock}>
           <Text numberOfLines={1} style={styles.movieTitle}>
             {item.movie.title}
           </Text>
         </View>
-        <View style={styles.reviewTopMeta}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${reviewerName}'s profile`}
-            style={styles.feedReviewerNameRow}
-            onPress={(event) => {
-              event.stopPropagation();
-              onOpenUser(item.author);
-            }}
-          >
-            <Avatar label={reviewerName} mini />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${reviewerName}'s profile`}
+          style={styles.feedReviewerNameRow}
+          onPress={(event) => {
+            event.stopPropagation();
+            onOpenUser(item.author);
+          }}
+        >
+          <Avatar label={reviewerName} mini />
+          <View style={styles.reviewerCopy}>
             <Text numberOfLines={1} style={styles.reviewerName}>
               {reviewerName}
             </Text>
-          </Pressable>
-          {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
-        </View>
+            <Text numberOfLines={1} style={styles.reviewerHandle}>
+              {reviewDate}
+            </Text>
+          </View>
+        </Pressable>
       </View>
       <View style={styles.reviewCardBody}>
-        <View style={styles.feedPosterSlot}>
-          <Poster movie={item.movie} compact />
-        </View>
+        <Poster movie={item.movie} compact />
         <View style={styles.feedReviewCopy}>
           <View style={styles.feedSignalBlock}>
-            {quickTake ? (
-              <Text numberOfLines={2} style={styles.quickTake}>
-                {quickTake}
-              </Text>
-            ) : null}
+            <View style={styles.quickTakeBlock}>
+              {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
+              {quickTake ? (
+                <Text numberOfLines={2} style={styles.quickTake}>
+                  {quickTake}
+                </Text>
+              ) : (
+                <Text numberOfLines={1} style={styles.quickTakeMuted}>
+                  Rated this movie
+                </Text>
+              )}
+            </View>
             <View style={styles.cardRatingLine}>
               <PopcornRating value={item.rating} large />
+              <Text style={styles.ratingScaleText}>{ratingLabel}/5</Text>
             </View>
           </View>
           {visibleTags.length ? (
@@ -825,21 +845,28 @@ function ReviewCard({
             </View>
           ) : null}
         </View>
+      </View>
+      <View style={styles.reviewCardFooter}>
         <View style={styles.reviewCommentCluster}>
-          <View style={styles.commentBubble}>
+          <View style={styles.commentBubble} accessibilityLabel={`${item.commentCount} comments`}>
             <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
             <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
           </View>
           {commentParticipants.length ? (
-            <View style={styles.commentParticipantRow}>
-              {commentParticipants.map((participant) => (
-                <Avatar
-                  key={participant.id}
-                  label={participant.displayName || participant.username}
-                  micro
-                  onPress={() => onOpenUser(participant)}
-                />
-              ))}
+            <View style={styles.commentParticipantCluster}>
+              <Text style={styles.commentParticipantLabel}>
+                {commentParticipants.length} in chat
+              </Text>
+              <View style={styles.commentParticipantRow}>
+                {commentParticipants.map((participant) => (
+                  <Avatar
+                    key={participant.id}
+                    label={participant.displayName || participant.username}
+                    micro
+                    onPress={() => onOpenUser(participant)}
+                  />
+                ))}
+              </View>
             </View>
           ) : null}
         </View>
@@ -2464,7 +2491,11 @@ function ProfileScreen({
         title={`@${user.username}`}
         right={
           isCurrentUser ? (
-            <IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />
+            <IconButton
+              icon={<LogOut size={20} color={colors.ink} />}
+              accessibilityLabel="Log out"
+              onPress={onSignOut}
+            />
           ) : (
             <PrimaryButton label="Back" onPress={onBack ?? (() => undefined)} compact />
           )
@@ -2666,9 +2697,22 @@ function PrimaryButton({
   );
 }
 
-function IconButton({ icon, onPress }: { icon: React.ReactNode; onPress: () => void }) {
+function IconButton({
+  icon,
+  accessibilityLabel,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
   return (
-    <Pressable style={styles.iconButton} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={styles.iconButton}
+      onPress={onPress}
+    >
       {icon}
     </Pressable>
   );
@@ -2691,17 +2735,33 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
         const Icon = tab.icon;
         const active = current === tab.id;
         return (
-          <Pressable key={tab.id} style={styles.tab} onPress={() => onChange(tab.id)}>
+          <Pressable
+            key={tab.id}
+            style={[styles.tab, tab.id === 'create' && styles.tabCreate]}
+            onPress={() => onChange(tab.id)}
+          >
             <View
               style={[
                 styles.tabIcon,
+                tab.id === 'create' && styles.tabIconCreate,
                 active && styles.tabIconActive,
                 active && tab.id === 'create' && styles.tabIconCreateActive,
               ]}
             >
-              <Icon size={16} color={active ? colors.surface : colors.muted} />
+              <Icon
+                size={tab.id === 'create' ? 18 : 16}
+                color={active || tab.id === 'create' ? colors.surface : colors.muted}
+              />
             </View>
-            <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
+            <Text
+              style={[
+                styles.tabText,
+                tab.id === 'create' && styles.tabTextCreate,
+                active && styles.tabTextActive,
+              ]}
+            >
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -2808,8 +2868,15 @@ function PopcornRating({ value, large }: { value: number; large?: boolean }) {
 
   return (
     <View style={styles.popcornRating} accessibilityLabel={`${value.toFixed(1)} out of 5`}>
-      {Array.from({ length: count }).map((_, index) => (
-        <Popcorn key={index} size={large ? 23 : 15} color={colors.ink} strokeWidth={2.8} />
+      {Array.from({ length: 5 }).map((_, index) => (
+        <Popcorn
+          key={index}
+          size={large ? 21 : 15}
+          color={index < count ? colors.ink : colors.muted}
+          fill={index < count ? colors.yellow : 'transparent'}
+          opacity={index < count ? 1 : 0.36}
+          strokeWidth={2.8}
+        />
       ))}
     </View>
   );
@@ -3117,13 +3184,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    height: 148,
+    minHeight: 166,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
     backgroundColor: colors.cream,
     padding: 10,
-    gap: 4,
+    gap: 8,
     overflow: 'hidden',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
@@ -3131,16 +3198,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 24,
+    minHeight: 34,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 10,
   },
   reviewCardBody: {
-    flex: 1,
-    minHeight: 0,
-    position: 'relative',
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 10,
   },
   reviewTitleBlock: {
     flex: 1,
@@ -3159,44 +3227,46 @@ const styles = StyleSheet.create({
   },
   reviewerName: {
     color: colors.ink,
-    fontSize: 11,
-    lineHeight: 13,
+    fontSize: 12,
+    lineHeight: 14,
     fontWeight: '900',
   },
   reviewerHandle: {
     color: colors.muted,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 10,
+    lineHeight: 12,
     fontWeight: '800',
   },
   reviewCommentCluster: {
-    position: 'absolute',
-    right: 0,
-    bottom: 6,
-    width: 48,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 5,
-  },
-  reviewTopMeta: {
-    width: 100,
-    height: 30,
-    alignItems: 'flex-end',
-    position: 'relative',
-    gap: 1,
+    gap: 7,
+    flexShrink: 0,
   },
   feedReviewerNameRow: {
-    maxWidth: '100%',
+    width: 132,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 5,
   },
+  commentParticipantCluster: {
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  commentParticipantLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '900',
+  },
   commentParticipantRow: {
-    minHeight: 18,
+    minHeight: 22,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingRight: 2,
   },
   framePerfRow: {
     position: 'absolute',
@@ -3332,36 +3402,50 @@ const styles = StyleSheet.create({
     minHeight: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 2,
   },
   cardRatingLine: {
     minHeight: 27,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  feedSpoilerText: {
-    position: 'absolute',
-    top: 31,
-    right: 0,
-    color: colors.orange,
-    fontSize: 12,
-    fontWeight: '900',
+    justifyContent: 'flex-start',
+    gap: 6,
   },
   quickTake: {
     color: colors.ink,
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: '800',
-    textAlign: 'center',
+    textAlign: 'left',
+  },
+  quickTakeMuted: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
+  },
+  ratingScaleText: {
+    color: colors.ink,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '900',
   },
   feedSignalBlock: {
+    flex: 1,
     minHeight: 58,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: 8,
-    paddingTop: 0,
+  },
+  quickTakeBlock: {
+    width: '100%',
+    gap: 3,
+  },
+  feedSpoilerText: {
+    color: colors.orange,
+    fontSize: 12,
+    lineHeight: 14,
+    fontWeight: '900',
   },
   takeRow: {
     flexDirection: 'row',
@@ -3382,8 +3466,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   commentBubble: {
-    minHeight: 24,
-    minWidth: 38,
+    minHeight: 32,
+    minWidth: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3391,8 +3475,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.ink,
     borderRadius: 999,
-    paddingHorizontal: 7,
-    backgroundColor: colors.surface,
+    paddingHorizontal: 9,
+    backgroundColor: colors.yellow,
   },
   commentBubbleText: {
     color: colors.ink,
@@ -3570,20 +3654,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 5,
   },
-  feedPosterSlot: {
-    position: 'absolute',
-    left: 0,
-    bottom: 6,
-    width: 64,
-    height: 88,
-  },
   feedReviewCopy: {
-    position: 'absolute',
-    left: 76,
-    right: 58,
-    top: 4,
-    bottom: 6,
+    flex: 1,
+    minWidth: 0,
     justifyContent: 'space-between',
+    gap: 6,
+  },
+  reviewCardFooter: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
   },
   stack: {
     gap: 12,
@@ -4262,6 +4344,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
+  tabCreate: {
+    marginTop: -8,
+  },
   tabIcon: {
     width: 28,
     height: 28,
@@ -4270,6 +4355,17 @@ const styles = StyleSheet.create({
     borderColor: colors.muted,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabIconCreate: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderColor: colors.ink,
+    backgroundColor: colors.pink,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.16,
+    shadowRadius: 0,
+    shadowOffset: { width: 2, height: 3 },
   },
   tabIconActive: {
     borderColor: colors.pink,
@@ -4283,6 +4379,9 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     fontWeight: '900',
+  },
+  tabTextCreate: {
+    color: colors.ink,
   },
   tabTextActive: {
     color: colors.pink,
