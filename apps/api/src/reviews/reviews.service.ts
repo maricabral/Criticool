@@ -220,15 +220,14 @@ export class ReviewsService {
       }
 
       if (existing) {
-        await tx.commentVote.update({
+        await tx.commentVote.delete({
           where: { commentId_userId: { commentId, userId } },
-          data: { value },
         });
         changed = true;
 
         return tx.comment.update({
           where: { id: commentId },
-          data: { score: { increment: value - existing.value } },
+          data: { score: { increment: -existing.value } },
           include: this.commentInclude(userId),
         });
       }

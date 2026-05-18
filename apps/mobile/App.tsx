@@ -652,12 +652,19 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const quickTake = item.quickTake?.trim();
-  const visibleTags = item.tags?.slice(0, 3) ?? [];
+  const visibleTags = item.tags?.slice(0, 2) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
   const commentParticipants = item.commentParticipants ?? [];
+  const reviewDate = new Date(item.createdAt).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
 
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
+      <View style={styles.feedPosterSlot}>
+        <Poster movie={item.movie} feed />
+      </View>
       <View style={styles.reviewCardHeader}>
         <View style={styles.reviewTitleBlock}>
           <Text numberOfLines={1} style={styles.movieTitle}>
@@ -665,6 +672,9 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
           </Text>
         </View>
         <View style={styles.reviewTopMeta}>
+          <Text numberOfLines={1} style={styles.feedReviewDate}>
+            {reviewDate}
+          </Text>
           <View style={styles.feedReviewerNameRow}>
             <Avatar label={reviewerName} mini />
             <Text numberOfLines={1} style={styles.reviewerName}>
@@ -675,27 +685,37 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
         </View>
       </View>
       <View style={styles.reviewCardBody}>
-        <View style={styles.feedPosterSlot}>
-          <Poster movie={item.movie} compact />
-        </View>
         <View style={styles.feedReviewCopy}>
           <View style={styles.feedSignalBlock}>
-            {quickTake ? (
-              <Text numberOfLines={2} style={styles.quickTake}>
-                {quickTake}
-              </Text>
-            ) : null}
-            <View style={styles.cardRatingLine}>
-              <PopcornRating value={item.rating} large />
+            <View style={styles.feedRatingLane}>
+              {quickTake ? (
+                <Text numberOfLines={2} style={styles.quickTake}>
+                  {quickTake}
+                </Text>
+              ) : null}
+              <View style={styles.cardRatingLine}>
+                <PopcornRating value={item.rating} large />
+              </View>
             </View>
           </View>
           {visibleTags.length ? (
-            <View style={styles.cardTagRow}>
-              {visibleTags.map((tag) => (
-                <Text key={tag} numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
-                  {tag}
-                </Text>
-              ))}
+            <View style={styles.feedTagLane}>
+              <View style={styles.cardTagRow}>
+                {visibleTags.map((tag) => (
+                  <Text
+                    key={tag}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={[
+                      styles.tagPill,
+                      styles.cardTagPill,
+                      visibleTags.length > 1 ? styles.cardTagPillPair : styles.cardTagPillSolo,
+                    ]}
+                  >
+                    {tag}
+                  </Text>
+                ))}
+              </View>
             </View>
           ) : null}
         </View>
@@ -1242,9 +1262,13 @@ function ReviewDetailScreen({
       return;
     }
 
+    if (comment.viewerVote === value) {
+      return;
+    }
+
     setVotingCommentId(comment.id);
     try {
-      if (comment.viewerVote === value) {
+      if (comment.viewerVote && comment.viewerVote !== value) {
         await api.removeCommentVote(tokens, review.id, comment.id);
       } else {
         await api.voteComment(tokens, review.id, comment.id, value);
@@ -2445,18 +2469,33 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
   );
 }
 
-function Poster({ movie, compact }: { movie: MovieSummary; compact?: boolean }) {
+function Poster({
+  movie,
+  compact,
+  feed,
+}: {
+  movie: MovieSummary;
+  compact?: boolean;
+  feed?: boolean;
+}) {
   if (movie.posterUrl) {
     return (
       <Image
         source={{ uri: movie.posterUrl }}
-        style={[styles.poster, compact && styles.posterCompact]}
+        style={[styles.poster, compact && styles.posterCompact, feed && styles.feedPosterImage]}
         resizeMode="cover"
       />
     );
   }
   return (
-    <View style={[styles.poster, compact && styles.posterCompact, styles.posterFallback]}>
+    <View
+      style={[
+        styles.poster,
+        compact && styles.posterCompact,
+        feed && styles.feedPosterImage,
+        styles.posterFallback,
+      ]}
+    >
       <Popcorn size={24} color={colors.ink} />
     </View>
   );
@@ -2518,13 +2557,26 @@ function Rating({ value, size = 18 }: { value: number; size?: number }) {
 }
 
 function PopcornRating({ value, large }: { value: number; large?: boolean }) {
-  const count = Math.max(0, Math.min(5, Math.round(value)));
+  const score = Math.max(0, Math.min(5, value));
+  const count = Math.max(0, Math.min(5, Math.round(score)));
+  const scoreLabel = Number.isInteger(score) ? score.toFixed(0) : score.toFixed(1);
+  const size = large ? 27 : 15;
 
   return (
-    <View style={styles.popcornRating} accessibilityLabel={`${value.toFixed(1)} out of 5`}>
-      {Array.from({ length: count }).map((_, index) => (
-        <Popcorn key={index} size={large ? 23 : 15} color={colors.ink} strokeWidth={2.8} />
-      ))}
+    <View style={styles.popcornRating} accessibilityLabel={`${scoreLabel} out of 5`}>
+      {Array.from({ length: 5 }).map((_, index) => {
+        const active = index < count;
+        return (
+          <Popcorn
+            key={index}
+            size={size}
+            color={active ? colors.ink : colors.muted}
+            fill={active ? colors.yellow : 'transparent'}
+            strokeWidth={active ? 2.8 : 2.2}
+          />
+        );
+      })}
+      <Text style={styles.popcornRatingText}>{scoreLabel}/5</Text>
     </View>
   );
 }
@@ -2827,7 +2879,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    height: 148,
+    height: 186,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
@@ -2835,22 +2887,25 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 4,
     overflow: 'hidden',
+    position: 'relative',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
     shadowRadius: 0,
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 24,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
+    marginLeft: 106,
   },
   reviewCardBody: {
     flex: 1,
     minHeight: 0,
     position: 'relative',
+    marginLeft: 106,
   },
   reviewTitleBlock: {
     flex: 1,
@@ -2882,21 +2937,27 @@ const styles = StyleSheet.create({
   reviewCommentCluster: {
     position: 'absolute',
     right: 0,
-    bottom: 6,
-    width: 48,
+    bottom: 8,
+    width: 52,
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
     gap: 5,
   },
   reviewTopMeta: {
-    width: 100,
-    height: 30,
+    width: 90,
+    minHeight: 60,
     alignItems: 'flex-end',
-    position: 'relative',
     gap: 1,
+  },
+  feedReviewDate: {
+    color: colors.muted,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '900',
   },
   feedReviewerNameRow: {
     maxWidth: '100%',
+    minHeight: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
@@ -3011,6 +3072,14 @@ const styles = StyleSheet.create({
     width: 64,
     height: 88,
   },
+  feedPosterImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: colors.ink,
+  },
   posterFallback: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -3036,39 +3105,57 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   popcornRating: {
-    minHeight: 26,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  cardRatingLine: {
-    minHeight: 27,
+    minHeight: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
+  },
+  popcornRatingText: {
+    marginLeft: 4,
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 14,
+    fontWeight: '900',
+  },
+  cardRatingLine: {
+    width: '100%',
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
     gap: 8,
   },
   feedSpoilerText: {
-    position: 'absolute',
-    top: 31,
-    right: 0,
     color: colors.orange,
     fontSize: 12,
+    lineHeight: 13,
     fontWeight: '900',
+    marginTop: 3,
   },
   quickTake: {
+    maxWidth: '100%',
     color: colors.ink,
     fontSize: 12,
     lineHeight: 15,
     fontWeight: '800',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   feedSignalBlock: {
+    flex: 1,
+    width: '100%',
     minHeight: 58,
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     gap: 8,
     paddingTop: 0,
+    paddingRight: 56,
+  },
+  feedRatingLane: {
+    width: 176,
+    maxWidth: '100%',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   takeRow: {
     flexDirection: 'row',
@@ -3264,32 +3351,52 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardTagPill: {
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
-    paddingVertical: 3,
-    paddingHorizontal: 7,
+    alignSelf: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     fontSize: 10,
   },
+  cardTagPillSolo: {
+    maxWidth: '100%',
+  },
+  cardTagPillPair: {
+    flexShrink: 1,
+    maxWidth: '48%',
+  },
+  feedTagLane: {
+    width: '100%',
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 56,
+  },
   cardTagRow: {
-    minHeight: 22,
+    width: 176,
+    maxWidth: '100%',
+    minHeight: 32,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    flexWrap: 'wrap',
-    gap: 5,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignContent: 'center',
+    flexWrap: 'nowrap',
+    rowGap: 5,
+    columnGap: 6,
   },
   feedPosterSlot: {
     position: 'absolute',
     left: 0,
-    bottom: 6,
-    width: 64,
-    height: 88,
+    top: 0,
+    bottom: 0,
+    width: 104,
+    padding: 7,
+    paddingRight: 8,
   },
   feedReviewCopy: {
     position: 'absolute',
-    left: 76,
-    right: 58,
-    top: 4,
-    bottom: 6,
+    left: 0,
+    right: 0,
+    top: 6,
+    bottom: 8,
     justifyContent: 'space-between',
   },
   stack: {
