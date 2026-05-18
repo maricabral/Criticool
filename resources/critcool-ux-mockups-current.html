@@ -264,10 +264,10 @@
 
     .review-card {
       display: grid;
-      grid-template-columns: 62px minmax(0, 1fr) 52px;
+      grid-template-columns: 62px minmax(0, 1fr) 48px;
       grid-template-rows: auto 1fr;
-      gap: 8px 10px;
-      height: 142px;
+      gap: 8px 9px;
+      height: 150px;
       border-radius: 12px;
       background: var(--cream);
       padding: 10px;
@@ -460,9 +460,10 @@
       grid-column: 1 / 3;
       display: grid;
       grid-template-columns: 62px minmax(0, 1fr);
-      align-items: center;
+      align-items: start;
       gap: 10px;
       min-height: 0;
+      padding-top: 2px;
     }
 
     .review-card .poster {
@@ -520,7 +521,7 @@
     .review-copy {
       min-width: 0;
       display: grid;
-      gap: 6px;
+      gap: 7px;
       align-content: center;
       min-height: 80px;
     }
@@ -587,8 +588,15 @@
     }
 
     .review-card .tag-row {
-      max-height: 56px;
+      gap: 5px;
+      max-height: 58px;
       overflow: hidden;
+    }
+
+    .review-card .tag {
+      min-height: 22px;
+      padding: 3px 7px;
+      font-size: 10px;
     }
 
     .review-card .tag:nth-child(n+4) {
