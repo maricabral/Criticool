@@ -163,7 +163,7 @@ model Review {
   comments         Comment[]
   revisions        ReviewRevision[]
 
-  @@unique([userId, movieId])
+  @@index([userId, movieId])
   @@index([userId, createdAt])
   @@index([movieId, createdAt])
   @@map("reviews")

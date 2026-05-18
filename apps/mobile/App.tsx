@@ -38,6 +38,7 @@ import {
   ReviewComment,
   ReviewDetail,
   saveTokens,
+  setOnSessionExpired,
 } from './src/api';
 import { colors } from './src/theme';
 
@@ -279,10 +280,24 @@ export default function App() {
   };
 
   const signOut = async () => {
+    if (tokens) {
+      try {
+        await api.logout(tokens);
+      } catch {
+        // Clear local state even if server logout fails
+      }
+    }
     await saveTokens(null);
     setTokens(null);
     setUser(null);
   };
+
+  useEffect(() => {
+    setOnSessionExpired(() => {
+      void signOut();
+    });
+    return () => setOnSessionExpired(null);
+  });
 
   if (booting) {
     return <LoadingScreen />;

@@ -12,6 +12,7 @@
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "qa:smoke": "node scripts/qa-smoke.mjs",
     "prisma:generate": "npm run prisma:generate -w @criticool/api",
     "prisma:migrate": "npm run prisma:migrate -w @criticool/api"
   },

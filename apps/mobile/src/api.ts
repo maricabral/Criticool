@@ -43,6 +43,37 @@ export async function saveTokens(tokens: AuthTokens | null) {
   await AsyncStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
 }
 
+let onSessionExpired: (() => void) | null = null;
+
+export function setOnSessionExpired(handler: (() => void) | null) {
+  onSessionExpired = handler;
+}
+
+let refreshPromise: Promise<AuthTokens | null> | null = null;
+
+async function refreshAccessToken(tokens: AuthTokens): Promise<AuthTokens | null> {
+  try {
+    const headers = new Headers();
+    headers.set('Accept', 'application/json');
+    headers.set('Content-Type', 'application/json');
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+    });
+    const data = await response.json();
+    if (!response.ok) return null;
+    const newTokens: AuthTokens = {
+      accessToken: data.tokens.accessToken,
+      refreshToken: data.tokens.refreshToken,
+    };
+    await saveTokens(newTokens);
+    return newTokens;
+  } catch {
+    return null;
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit & { tokens?: AuthTokens | null } = {},
@@ -59,6 +90,39 @@ export async function apiRequest<T>(
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
+
+  if (response.status === 401 && options.tokens?.refreshToken) {
+    // Deduplicate concurrent refresh attempts
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken(options.tokens).finally(() => {
+        refreshPromise = null;
+      });
+    }
+    const newTokens = await refreshPromise;
+    if (newTokens) {
+      // Retry the original request with new access token
+      const retryHeaders = new Headers(options.headers);
+      retryHeaders.set('Accept', 'application/json');
+      if (options.body && !retryHeaders.has('Content-Type')) {
+        retryHeaders.set('Content-Type', 'application/json');
+      }
+      retryHeaders.set('Authorization', `Bearer ${newTokens.accessToken}`);
+      const retryResponse = await fetch(`${API_URL}${path}`, { ...options, headers: retryHeaders });
+      const retryText = await retryResponse.text();
+      const retryData = retryText ? JSON.parse(retryText) : null;
+      if (!retryResponse.ok) {
+        if (retryResponse.status === 401) {
+          onSessionExpired?.();
+        }
+        throw new Error(retryData?.message ?? `Request failed with ${retryResponse.status}`);
+      }
+      return retryData as T;
+    }
+    // Refresh failed — session expired
+    onSessionExpired?.();
+    throw new Error('Session expired');
+  }
+
   if (!response.ok) {
     throw new Error(data?.message ?? `Request failed with ${response.status}`);
   }
@@ -70,6 +134,11 @@ export const api = {
     apiRequest<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body: { email: string; password: string }) =>
     apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+  logout: (tokens: AuthTokens) =>
+    apiRequest<{ ok: boolean }>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+    }),
   me: (tokens: AuthTokens) => apiRequest<AuthUser>('/me', { tokens }),
   feed: (tokens: AuthTokens, cursor?: string | null) =>
     apiRequest<FeedResponse>(`/feed${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {

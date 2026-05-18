@@ -242,7 +242,7 @@ export class ReviewsService {
         orderBy: [{ score: 'desc' }, { createdAt: 'asc' }],
         include: this.commentInclude(viewerId),
       },
-      _count: { select: { comments: true } },
+      _count: { select: { comments: { where: { deletedAt: null } } } },
     } satisfies Prisma.ReviewInclude;
   }
 
