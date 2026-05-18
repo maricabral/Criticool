@@ -46,12 +46,3 @@ export class LogoutDto {
   @IsNotEmpty()
   refreshToken: string;
 }
-
-export class ResetPasswordDto {
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @Length(8, 128)
-  password: string;
-}

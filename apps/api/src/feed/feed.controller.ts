@@ -1,8 +1,7 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../common/auth.guard';
 import { RequestUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
-import { UserIdParamDto } from '../users/dto';
 import { FeedQueryDto } from './dto';
 import { FeedService } from './feed.service';
 
@@ -19,14 +18,5 @@ export class FeedController {
   @Get('me')
   myReviews(@CurrentUser() user: RequestUser, @Query() query: FeedQueryDto) {
     return this.feedService.userReviews(user.id, query.cursor);
-  }
-
-  @Get('users/:id')
-  userReviews(
-    @CurrentUser() user: RequestUser,
-    @Param() params: UserIdParamDto,
-    @Query() query: FeedQueryDto,
-  ) {
-    return this.feedService.userReviewsForViewer(user.id, params.id, query.cursor);
   }
 }

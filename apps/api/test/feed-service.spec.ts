@@ -4,7 +4,6 @@ import { FeedService } from '../src/feed/feed.service';
 function createMockPrisma() {
   return {
     block: { findMany: vi.fn().mockResolvedValue([]) },
-    user: { findFirst: vi.fn() },
     review: { findMany: vi.fn() },
   };
 }
@@ -12,8 +11,6 @@ function createMockPrisma() {
 function createMockVisibility() {
   return {
     acceptedFriendIds: vi.fn().mockResolvedValue([]),
-    areFriends: vi.fn().mockResolvedValue(false),
-    isBlockedEitherWay: vi.fn().mockResolvedValue(false),
   };
 }
 
@@ -159,33 +156,6 @@ describe('FeedService', () => {
       expect(result.items).toHaveLength(1);
       const queryWhere = prisma.review.findMany.mock.calls[0][0].where;
       expect(queryWhere.userId).toBe('user-1');
-    });
-  });
-
-  describe('userReviewsForViewer', () => {
-    it('returns a friend profile with friends-only reviews', async () => {
-      prisma.user.findFirst.mockResolvedValue({ id: 'user-2' });
-      visibility.areFriends.mockResolvedValue(true);
-      prisma.review.findMany.mockResolvedValue([
-        makeReview({ id: 'review-2', userId: 'user-2' }),
-      ]);
-
-      const result = await service.userReviewsForViewer('user-1', 'user-2');
-
-      expect(result.items).toHaveLength(1);
-      const queryWhere = prisma.review.findMany.mock.calls[0][0].where;
-      expect(queryWhere.userId).toBe('user-2');
-      expect(queryWhere.visibility).toBe('friends');
-    });
-
-    it('rejects blocked or non-friend profiles', async () => {
-      prisma.user.findFirst.mockResolvedValue({ id: 'user-2' });
-      visibility.areFriends.mockResolvedValue(false);
-
-      await expect(service.userReviewsForViewer('user-1', 'user-2')).rejects.toThrow(
-        'User not found',
-      );
-      expect(prisma.review.findMany).not.toHaveBeenCalled();
     });
   });
 });

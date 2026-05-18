@@ -64,7 +64,6 @@ export class UsersService {
     await this.prisma.$transaction([
       this.prisma.friendship.deleteMany({
         where: {
-          status: { in: ['pending', 'declined'] },
           OR: [
             { requesterId: userId, addresseeId: targetUserId },
             { requesterId: targetUserId, addresseeId: userId },
@@ -79,24 +78,6 @@ export class UsersService {
     ]);
 
     return { ok: true };
-  }
-
-  async blocked(userId: string) {
-    const rows = await this.prisma.block.findMany({
-      where: { blockerId: userId },
-      include: {
-        blocked: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return rows.map((row) => ({
-      id: row.blocked.id,
-      username: row.blocked.username,
-      displayName: row.blocked.displayName,
-      avatarUrl: row.blocked.avatarUrl,
-      blockedAt: row.createdAt.toISOString(),
-    }));
   }
 
   async unblock(userId: string, targetUserId: string) {

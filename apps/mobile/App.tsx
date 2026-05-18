@@ -36,7 +36,6 @@ import type { TextStyle } from 'react-native';
 import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
 import {
   api,
-  BlockedUserSummary,
   FriendRequest,
   FriendSummary,
   loadTokens,
@@ -50,13 +49,6 @@ import {
 import { colors } from './src/theme';
 
 type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
-type ProfileUser = Pick<AuthUser, 'id' | 'username' | 'displayName' | 'avatarUrl'>;
-type AppRouteSnapshot = {
-  tab: Tab;
-  selectedReviewId: string | null;
-  selectedProfileUser: ProfileUser | null;
-  showNotifications: boolean;
-};
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
   Platform.OS === 'web'
@@ -346,17 +338,15 @@ function AuthScreen({
 }: {
   onAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void;
 }) {
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'reset'>('welcome');
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const isWelcome = mode === 'welcome';
   const isRegister = mode === 'register';
-  const isReset = mode === 'reset';
 
   const submit = async () => {
     if (isWelcome) {
@@ -364,15 +354,7 @@ function AuthScreen({
     }
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
-      if (isReset) {
-        await api.resetPassword({ email, password });
-        setPassword('');
-        setMode('login');
-        setNotice('Password reset. Log in with the new password.');
-        return;
-      }
       const response = isRegister
         ? await api.register({ email, password, username, displayName })
         : await api.login({ email, password });
@@ -384,10 +366,9 @@ function AuthScreen({
     }
   };
 
-  const chooseMode = (nextMode: 'login' | 'register' | 'reset') => {
+  const chooseMode = (nextMode: 'login' | 'register') => {
     setMode(nextMode);
     setError(null);
-    setNotice(null);
   };
 
   return (
@@ -423,9 +404,7 @@ function AuthScreen({
               <View style={styles.smallLogoBacking}>
                 <Image source={welcomeLogo} style={styles.smallWelcomeLogo} resizeMode="contain" />
               </View>
-              <Text style={styles.authTitle}>
-                {isRegister ? 'Create account' : isReset ? 'Reset password' : 'Log in'}
-              </Text>
+              <Text style={styles.authTitle}>{isRegister ? 'Create account' : 'Log in'}</Text>
             </View>
             <View style={styles.form}>
               <Field
@@ -437,7 +416,7 @@ function AuthScreen({
               <Field
                 value={password}
                 onChangeText={setPassword}
-                placeholder={isReset ? 'New password' : 'Password'}
+                placeholder="Password"
                 secureTextEntry
               />
               {isRegister ? (
@@ -455,26 +434,20 @@ function AuthScreen({
                   />
                 </>
               ) : null}
-              {notice ? <Text style={styles.noticeText}>{notice}</Text> : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <PrimaryButton
-                label={isRegister ? 'Create account' : isReset ? 'Reset password' : 'Log in'}
+                label={isRegister ? 'Create account' : 'Log in'}
                 onPress={submit}
                 disabled={busy}
               />
-              {!isRegister && !isReset ? (
-                <Pressable style={styles.authLinkRow} onPress={() => chooseMode('reset')}>
-                  <Text style={styles.authLinkText}>Reset password</Text>
-                </Pressable>
-              ) : null}
               <Pressable
                 style={styles.authLinkRow}
-                onPress={() => chooseMode(isRegister || isReset ? 'login' : 'register')}
+                onPress={() => chooseMode(isRegister ? 'login' : 'register')}
               >
                 <Text style={styles.authLinkMuted}>
-                  {isRegister || isReset ? 'Already have an account? ' : 'Need an account? '}
+                  {isRegister ? 'Already have an account? ' : 'Need an account? '}
                   <Text style={styles.authLinkText}>
-                    {isRegister || isReset ? 'Log in' : 'Create account'}
+                    {isRegister ? 'Log in' : 'Create account'}
                   </Text>
                 </Text>
               </Pressable>
@@ -498,89 +471,14 @@ function AppShell({
   const [tab, setTab] = useState<Tab>('feed');
   const [selectedMovie, setSelectedMovie] = useState<MovieSummary | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
-  const [selectedProfileUser, setSelectedProfileUser] = useState<ProfileUser | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [routeStack, setRouteStack] = useState<AppRouteSnapshot[]>([]);
-
-  const currentRoute = () => ({
-    tab,
-    selectedReviewId,
-    selectedProfileUser,
-    showNotifications,
-  });
-
-  const restoreRoute = (route: AppRouteSnapshot) => {
-    setShowNotifications(route.showNotifications);
-    setSelectedReviewId(route.selectedReviewId);
-    setSelectedProfileUser(route.selectedProfileUser);
-    setTab(route.tab);
-  };
-
-  const popRoute = () => {
-    const previousRoute = routeStack.at(-1);
-    if (!previousRoute) {
-      return false;
-    }
-    setRouteStack((current) => current.slice(0, -1));
-    restoreRoute(previousRoute);
-    return true;
-  };
 
   const openCreate = (movie?: MovieSummary) => {
     if (movie) {
       setSelectedMovie(movie);
     }
-    setRouteStack([]);
     setShowNotifications(false);
     setTab('create');
-  };
-
-  const openReview = (id: string) => {
-    if (!showNotifications && tab === 'profile' && selectedReviewId === id) {
-      return;
-    }
-    setRouteStack((current) => [...current, currentRoute()]);
-    setShowNotifications(false);
-    setSelectedReviewId(id);
-    setTab('profile');
-  };
-
-  const openUserProfile = (profileUser: ProfileUser) => {
-    if (profileUser.id === 'deleted') {
-      return;
-    }
-    if (
-      !showNotifications &&
-      tab === 'profile' &&
-      !selectedReviewId &&
-      (selectedProfileUser?.id ?? user.id) === profileUser.id
-    ) {
-      return;
-    }
-    if (profileUser.id === user.id) {
-      setShowNotifications(false);
-      setSelectedReviewId(null);
-      setSelectedProfileUser(null);
-      setTab('profile');
-      return;
-    }
-    setRouteStack((current) => [...current, currentRoute()]);
-    setShowNotifications(false);
-    setSelectedReviewId(null);
-    setSelectedProfileUser(profileUser.id === user.id ? null : profileUser);
-    setTab('profile');
-  };
-
-  const closeReview = () => {
-    if (!popRoute()) {
-      setSelectedReviewId(null);
-    }
-  };
-
-  const closeProfile = () => {
-    if (!popRoute()) {
-      setSelectedProfileUser(null);
-    }
   };
 
   return (
@@ -591,16 +489,21 @@ function AppShell({
           <NotificationsScreen
             tokens={tokens}
             onBack={() => setShowNotifications(false)}
-            onOpenReview={openReview}
-            onOpenUser={openUserProfile}
+            onOpenReview={(id) => {
+              setShowNotifications(false);
+              setSelectedReviewId(id);
+              setTab('profile');
+            }}
           />
         ) : tab === 'feed' ? (
           <FeedScreen
             tokens={tokens}
             onCreate={() => openCreate()}
             onOpenNotifications={() => setShowNotifications(true)}
-            onOpenReview={openReview}
-            onOpenUser={openUserProfile}
+            onOpenReview={(id) => {
+              setSelectedReviewId(id);
+              setTab('profile');
+            }}
           />
         ) : null}
         {tab === 'search' ? <SearchScreen tokens={tokens} onReviewMovie={openCreate} /> : null}
@@ -615,24 +518,20 @@ function AppShell({
             }}
           />
         ) : null}
-        {tab === 'friends' ? <FriendsScreen tokens={tokens} onOpenUser={openUserProfile} /> : null}
+        {tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
         {tab === 'profile' ? (
           selectedReviewId ? (
             <ReviewDetailScreen
               tokens={tokens}
               currentUserId={user.id}
               reviewId={selectedReviewId}
-              onBack={closeReview}
-              onOpenUser={openUserProfile}
+              onBack={() => setSelectedReviewId(null)}
             />
           ) : (
             <ProfileScreen
               tokens={tokens}
-              currentUserId={user.id}
-              user={selectedProfileUser ?? user}
-              onBack={selectedProfileUser ? closeProfile : undefined}
-              onOpenReview={openReview}
-              onOpenUser={openUserProfile}
+              user={user}
+              onOpenReview={setSelectedReviewId}
               onSignOut={onSignOut}
             />
           )
@@ -642,9 +541,6 @@ function AppShell({
         current={tab}
         onChange={(nextTab) => {
           setShowNotifications(false);
-          setSelectedReviewId(null);
-          setSelectedProfileUser(null);
-          setRouteStack([]);
           setTab(nextTab);
         }}
       />
@@ -657,13 +553,11 @@ function FeedScreen({
   onCreate,
   onOpenNotifications,
   onOpenReview,
-  onOpenUser,
 }: {
   tokens: AuthTokens;
   onCreate: () => void;
   onOpenNotifications: () => void;
   onOpenReview: (id: string) => void;
-  onOpenUser: (user: ProfileUser) => void;
 }) {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -712,9 +606,9 @@ function FeedScreen({
           <View style={styles.headerActionRow}>
             <IconButton
               icon={<Bell size={20} color={colors.ink} />}
-              accessibilityLabel="Open notifications"
               onPress={onOpenNotifications}
             />
+            <IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />
           </View>
         }
       />
@@ -726,11 +620,7 @@ function FeedScreen({
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
           onEndReached={loadMore}
           renderItem={({ item }) => (
-            <ReviewCard
-              item={item}
-              onPress={() => onOpenReview(item.reviewId)}
-              onOpenUser={onOpenUser}
-            />
+            <ReviewCard item={item} onPress={() => onOpenReview(item.reviewId)} />
           )}
         />
       ) : (
@@ -760,81 +650,43 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function ReviewCard({
-  item,
-  onPress,
-  onOpenUser,
-}: {
-  item: FeedItem;
-  onPress: () => void;
-  onOpenUser: (user: ProfileUser) => void;
-}) {
+function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const quickTake = item.quickTake?.trim();
   const visibleTags = item.tags?.slice(0, 3) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
   const commentParticipants = item.commentParticipants ?? [];
-  const ratingLabel = Number.isInteger(item.rating)
-    ? item.rating.toFixed(0)
-    : item.rating.toFixed(1);
-  const reviewDate = new Date(item.createdAt).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${reviewerName}'s review of ${item.movie.title}`}
-      style={styles.reviewFrame}
-      onPress={onPress}
-    >
-      <View style={styles.reviewCardBody}>
-        <Poster movie={item.movie} compact />
-        <View style={styles.feedReviewCopy}>
-          <View style={styles.reviewCardHeader}>
-            <View style={styles.reviewTitleBlock}>
-              <Text numberOfLines={2} style={styles.movieTitle}>
-                {item.movie.title}
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${reviewerName}'s profile`}
-              style={styles.feedReviewerNameRow}
-              onPress={(event) => {
-                event.stopPropagation();
-                onOpenUser(item.author);
-              }}
-            >
-              <Avatar label={reviewerName} mini />
-              <View style={styles.reviewerCopy}>
-                <Text numberOfLines={1} style={styles.reviewerName}>
-                  {reviewerName}
-                </Text>
-                <Text numberOfLines={1} style={styles.reviewerHandle}>
-                  {reviewDate}
-                </Text>
-                {item.containsSpoilers ? (
-                  <Text style={styles.feedSpoilerText}>Spoilers</Text>
-                ) : null}
-              </View>
-            </Pressable>
+    <Pressable style={styles.reviewFrame} onPress={onPress}>
+      <View style={styles.reviewCardHeader}>
+        <View style={styles.reviewTitleBlock}>
+          <Text numberOfLines={1} style={styles.movieTitle}>
+            {item.movie.title}
+          </Text>
+        </View>
+        <View style={styles.reviewTopMeta}>
+          <View style={styles.feedReviewerNameRow}>
+            <Avatar label={reviewerName} mini />
+            <Text numberOfLines={1} style={styles.reviewerName}>
+              {reviewerName}
+            </Text>
           </View>
+          {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
+        </View>
+      </View>
+      <View style={styles.reviewCardBody}>
+        <View style={styles.feedPosterSlot}>
+          <Poster movie={item.movie} compact />
+        </View>
+        <View style={styles.feedReviewCopy}>
           <View style={styles.feedSignalBlock}>
-            <View style={styles.quickTakeBlock}>
-              {quickTake ? (
-                <Text numberOfLines={2} style={styles.quickTake}>
-                  {quickTake}
-                </Text>
-              ) : (
-                <Text numberOfLines={1} style={styles.quickTakeMuted}>
-                  Rated this movie
-                </Text>
-              )}
-            </View>
+            {quickTake ? (
+              <Text numberOfLines={2} style={styles.quickTake}>
+                {quickTake}
+              </Text>
+            ) : null}
             <View style={styles.cardRatingLine}>
               <PopcornRating value={item.rating} large />
-              <Text style={styles.ratingScaleText}>{ratingLabel}/5</Text>
             </View>
           </View>
           {visibleTags.length ? (
@@ -847,10 +699,8 @@ function ReviewCard({
             </View>
           ) : null}
         </View>
-      </View>
-      <View style={styles.reviewCardFooter}>
         <View style={styles.reviewCommentCluster}>
-          <View style={styles.commentBubble} accessibilityLabel={`${item.commentCount} comments`}>
+          <View style={styles.commentBubble}>
             <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
             <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
           </View>
@@ -861,7 +711,6 @@ function ReviewCard({
                   key={participant.id}
                   label={participant.displayName || participant.username}
                   micro
-                  onPress={() => onOpenUser(participant)}
                 />
               ))}
             </View>
@@ -1326,13 +1175,11 @@ function ReviewDetailScreen({
   currentUserId,
   reviewId,
   onBack,
-  onOpenUser,
 }: {
   tokens: AuthTokens;
   currentUserId: string;
   reviewId: string;
   onBack: () => void;
-  onOpenUser: (user: ProfileUser) => void;
 }) {
   const [review, setReview] = useState<ReviewDetail | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -1395,13 +1242,9 @@ function ReviewDetailScreen({
       return;
     }
 
-    if (comment.viewerVote === value) {
-      return;
-    }
-
     setVotingCommentId(comment.id);
     try {
-      if (comment.viewerVote && comment.viewerVote !== value) {
+      if (comment.viewerVote === value) {
         await api.removeCommentVote(tokens, review.id, comment.id);
       } else {
         await api.voteComment(tokens, review.id, comment.id, value);
@@ -1552,15 +1395,10 @@ function ReviewDetailScreen({
         </Text>
         <Poster movie={review.movie} compact />
         <View style={[styles.reviewCopy, styles.detailHeaderCopy]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${review.author.displayName || review.author.username}'s profile`}
-            style={styles.authorRow}
-            onPress={() => onOpenUser(review.author)}
-          >
+          <View style={styles.authorRow}>
             <Avatar label={review.author.displayName || review.author.username} mini />
             <Text style={styles.author}>@{review.author.username}</Text>
-          </Pressable>
+          </View>
           <Text numberOfLines={2} style={styles.detailMovieTitle}>
             {review.movie.title}
           </Text>
@@ -1647,7 +1485,6 @@ function ReviewDetailScreen({
                 onSaveEdit={saveCommentEdit}
                 onDelete={deleteComment}
                 onReport={reportComment}
-                onOpenUser={onOpenUser}
                 votingCommentId={votingCommentId}
               />
             ))}
@@ -1679,7 +1516,6 @@ function CommentNode({
   onSaveEdit,
   onDelete,
   onReport,
-  onOpenUser,
   votingCommentId,
 }: {
   activeReplyId: string | null;
@@ -1697,7 +1533,6 @@ function CommentNode({
   onSaveEdit: (comment: ReviewComment) => void;
   onDelete: (comment: ReviewComment) => void;
   onReport: (comment: ReviewComment) => void;
-  onOpenUser: (user: ProfileUser) => void;
   votingCommentId: string | null;
 }) {
   const voteDisabled = votingCommentId === comment.id;
@@ -1742,18 +1577,12 @@ function CommentNode({
             </Pressable>
           </View>
           <View style={styles.commentCopy}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${comment.author.displayName || comment.author.username}'s profile`}
-              disabled={isDeleted}
-              style={styles.commentAuthorRow}
-              onPress={() => onOpenUser(comment.author)}
-            >
+            <View style={styles.commentAuthorRow}>
               <Avatar label={comment.author.displayName || comment.author.username} mini />
               <View style={styles.reviewCopy}>
                 <Text style={styles.author}>@{comment.author.username}</Text>
               </View>
-            </Pressable>
+            </View>
             {isEditing ? (
               <View style={styles.commentEditBox}>
                 <TextInput
@@ -1835,7 +1664,6 @@ function CommentNode({
           onSaveEdit={onSaveEdit}
           onDelete={onDelete}
           onReport={onReport}
-          onOpenUser={onOpenUser}
           votingCommentId={votingCommentId}
         />
       ))}
@@ -1911,12 +1739,10 @@ function NotificationsScreen({
   tokens,
   onBack,
   onOpenReview,
-  onOpenUser,
 }: {
   tokens: AuthTokens;
   onBack: () => void;
   onOpenReview: (id: string) => void;
-  onOpenUser: (user: ProfileUser) => void;
 }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -2000,9 +1826,6 @@ function NotificationsScreen({
                   notification.type
                 }
                 mini
-                onPress={
-                  notification.actor ? () => onOpenUser(notification.actor as ProfileUser) : undefined
-                }
               />
               <View style={styles.reviewCopy}>
                 <Text style={styles.author}>{notificationTitle(notification)}</Text>
@@ -2037,13 +1860,7 @@ function notificationTitle(notification: NotificationItem) {
   return messages[notification.type];
 }
 
-function FriendsScreen({
-  tokens,
-  onOpenUser,
-}: {
-  tokens: AuthTokens;
-  onOpenUser: (user: ProfileUser) => void;
-}) {
+function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<
     Array<{
@@ -2057,22 +1874,19 @@ function FriendsScreen({
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendSummary[]>([]);
-  const [blocked, setBlocked] = useState<BlockedUserSummary[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
 
   const loadFriendState = useCallback(async () => {
     setLoadingRequests(true);
     try {
-      const [incomingRows, outgoingRows, friendRows, blockedRows] = await Promise.all([
+      const [incomingRows, outgoingRows, friendRows] = await Promise.all([
         api.incomingFriendRequests(tokens),
         api.outgoingFriendRequests(tokens),
         api.friends(tokens),
-        api.blockedUsers(tokens),
       ]);
       setIncoming(incomingRows);
       setOutgoing(outgoingRows);
       setFriends(friendRows);
-      setBlocked(blockedRows);
     } catch (err) {
       Alert.alert('Could not load friends', err instanceof Error ? err.message : 'Try again');
     } finally {
@@ -2133,35 +1947,9 @@ function FriendsScreen({
       await api.blockUser(tokens, id);
       setUsers((current) => current.filter((item) => item.id !== id));
       setFriends((current) => current.filter((item) => item.id !== id));
-      setOutgoing((current) => current.filter((request) => request.addressee.id !== id));
-      setIncoming((current) => current.filter((request) => request.requester.id !== id));
       await loadFriendState();
     } catch (err) {
       Alert.alert('Could not block user', err instanceof Error ? err.message : 'Try again');
-    }
-  };
-
-  const unblockUser = async (id: string) => {
-    try {
-      await api.unblockUser(tokens, id);
-      setBlocked((current) => current.filter((item) => item.id !== id));
-      await loadFriendState();
-    } catch (err) {
-      Alert.alert('Could not unblock user', err instanceof Error ? err.message : 'Try again');
-    }
-  };
-
-  const cancelRequest = async (request: FriendRequest) => {
-    try {
-      await api.cancelFriendRequest(tokens, request.id);
-      setOutgoing((current) => current.filter((item) => item.id !== request.id));
-      setUsers((current) =>
-        current.map((user) =>
-          user.id === request.addressee.id ? { ...user, friendshipStatus: null } : user,
-        ),
-      );
-    } catch (err) {
-      Alert.alert('Could not remove request', err instanceof Error ? err.message : 'Try again');
     }
   };
 
@@ -2219,38 +2007,27 @@ function FriendsScreen({
         {query.trim().length >= 2 ? (
           <Panel>
             <Text style={styles.sectionTitle}>Find people</Text>
-            {users.map((item) => {
-              const outgoingRequest = outgoing.find((request) => request.addressee.id === item.id);
-              const canCancel = item.friendshipStatus === 'pending' ? outgoingRequest : null;
-              return (
-                <View key={item.id} style={styles.simplePersonRow}>
-                  <Avatar
-                    label={item.displayName}
-                    onPress={
-                      item.friendshipStatus === 'accepted' ? () => onOpenUser(item) : undefined
-                    }
-                  />
-                  <Text numberOfLines={1} style={styles.friendSearchName}>
-                    @{item.username}
-                  </Text>
-                  <Pressable
-                    disabled={item.friendshipStatus !== null && !canCancel}
-                    onPress={() => (canCancel ? void cancelRequest(canCancel) : void add(item.id))}
-                    style={styles.friendAddAction}
-                  >
-                    <Text style={styles.pill}>
-                      {canCancel ? 'Cancel' : item.friendshipStatus ?? 'Add'}
-                    </Text>
-                  </Pressable>
-                  <Pressable style={styles.iconSmallButton} onPress={() => void reportUser(item.id)}>
-                    <Flag size={14} color={colors.ink} />
-                  </Pressable>
-                  <Pressable style={styles.iconSmallButton} onPress={() => void blockUser(item.id)}>
-                    <Ban size={14} color={colors.ink} />
-                  </Pressable>
-                </View>
-              );
-            })}
+            {users.map((item) => (
+              <View key={item.id} style={styles.simplePersonRow}>
+                <Avatar label={item.displayName} />
+                <Text numberOfLines={1} style={styles.friendSearchName}>
+                  @{item.username}
+                </Text>
+                <Pressable
+                  disabled={item.friendshipStatus !== null}
+                  onPress={() => void add(item.id)}
+                  style={styles.friendAddAction}
+                >
+                  <Text style={styles.pill}>{item.friendshipStatus ?? 'Add'}</Text>
+                </Pressable>
+                <Pressable style={styles.iconSmallButton} onPress={() => void reportUser(item.id)}>
+                  <Flag size={14} color={colors.ink} />
+                </Pressable>
+                <Pressable style={styles.iconSmallButton} onPress={() => void blockUser(item.id)}>
+                  <Ban size={14} color={colors.ink} />
+                </Pressable>
+              </View>
+            ))}
             {!users.length ? <Text style={styles.mutedText}>No matches yet.</Text> : null}
           </Panel>
         ) : (
@@ -2264,11 +2041,7 @@ function FriendsScreen({
                 <View style={styles.friendGrid}>
                   {friends.map((friend) => (
                     <View key={friend.id} style={styles.friendBubble}>
-                      <Avatar
-                        label={friend.displayName || friend.username}
-                        large
-                        onPress={() => onOpenUser(friend)}
-                      />
+                      <Avatar label={friend.displayName || friend.username} large />
                       <Text numberOfLines={1} style={styles.friendHandle}>
                         @{friend.username}
                       </Text>
@@ -2290,7 +2063,7 @@ function FriendsScreen({
             {outgoing.length ? (
               <Panel tint="pink">
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Pending</Text>
+                  <Text style={styles.sectionTitle}>Suggestions</Text>
                   <Text style={styles.mutedText}>pending</Text>
                 </View>
                 <View style={styles.friendGrid}>
@@ -2306,30 +2079,6 @@ function FriendsScreen({
                       <Text numberOfLines={1} style={styles.friendHandle}>
                         @{request.addressee.username}
                       </Text>
-                      <Pressable onPress={() => void cancelRequest(request)}>
-                        <Text style={styles.commentReplyText}>Cancel</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              </Panel>
-            ) : null}
-            {blocked.length ? (
-              <Panel>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Blocked</Text>
-                  <Text style={styles.bubble}>{blocked.length}</Text>
-                </View>
-                <View style={styles.friendGrid}>
-                  {blocked.map((blockedUser) => (
-                    <View key={blockedUser.id} style={styles.friendBubble}>
-                      <Avatar label={blockedUser.displayName || blockedUser.username} large />
-                      <Text numberOfLines={1} style={styles.friendHandle}>
-                        @{blockedUser.username}
-                      </Text>
-                      <Pressable onPress={() => void unblockUser(blockedUser.id)}>
-                        <Text style={styles.commentReplyText}>Unblock</Text>
-                      </Pressable>
                     </View>
                   ))}
                 </View>
@@ -2344,19 +2093,13 @@ function FriendsScreen({
 
 function ProfileScreen({
   tokens,
-  currentUserId,
   user,
-  onBack,
   onOpenReview,
-  onOpenUser,
   onSignOut,
 }: {
   tokens: AuthTokens;
-  currentUserId: string;
-  user: ProfileUser;
-  onBack?: () => void;
+  user: AuthUser;
   onOpenReview: (id: string) => void;
-  onOpenUser: (user: ProfileUser) => void;
   onSignOut: () => void;
 }) {
   const [reviews, setReviews] = useState<FeedItem[]>([]);
@@ -2367,23 +2110,16 @@ function ProfileScreen({
   const [reviewLoadError, setReviewLoadError] = useState<string | null>(null);
   const [reviewQuery, setReviewQuery] = useState('');
   const [friendCount, setFriendCount] = useState<number | null>(null);
-  const isCurrentUser = user.id === currentUserId;
 
   const loadReviews = useCallback(
     async (nextCursor?: string | null) => {
       setReviewLoadError(null);
-      const response = isCurrentUser
-        ? await api.myReviews(tokens, nextCursor)
-        : await api.userReviews(tokens, user.id, nextCursor);
+      const response = await api.myReviews(tokens, nextCursor);
       setReviews((current) => (nextCursor ? [...current, ...response.items] : response.items));
       setCursor(response.nextCursor);
     },
-    [isCurrentUser, tokens, user.id],
+    [tokens],
   );
-
-  useEffect(() => {
-    setReviewQuery('');
-  }, [user.id]);
 
   useEffect(() => {
     void (async () => {
@@ -2399,15 +2135,11 @@ function ProfileScreen({
   }, [loadReviews]);
 
   useEffect(() => {
-    if (!isCurrentUser) {
-      setFriendCount(null);
-      return;
-    }
     void api
       .friends(tokens)
       .then((rows) => setFriendCount(rows.length))
       .catch(() => setFriendCount(null));
-  }, [isCurrentUser, tokens]);
+  }, [tokens]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -2486,17 +2218,7 @@ function ProfileScreen({
     >
       <Header
         title={`@${user.username}`}
-        right={
-          isCurrentUser ? (
-            <IconButton
-              icon={<LogOut size={20} color={colors.ink} />}
-              accessibilityLabel="Log out"
-              onPress={onSignOut}
-            />
-          ) : (
-            <PrimaryButton label="Back" onPress={onBack ?? (() => undefined)} compact />
-          )
-        }
+        right={<IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />}
       />
       <View style={styles.profileBlock}>
         <Avatar label={user.displayName} large />
@@ -2508,19 +2230,10 @@ function ProfileScreen({
             <Text style={styles.profileInlineText}>
               {loading || reviewLoadError ? '-' : reviews.length} reviews
             </Text>
-            {isCurrentUser ? (
-              <>
-                <Text style={styles.profileInlineText}>|</Text>
-                <Text style={styles.profileInlineText}>
-                  {friendCount === null ? '-' : friendCount} friends
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.profileInlineText}>|</Text>
-                <Text style={styles.profileInlineText}>friend</Text>
-              </>
-            )}
+            <Text style={styles.profileInlineText}>|</Text>
+            <Text style={styles.profileInlineText}>
+              {friendCount === null ? '-' : friendCount} friends
+            </Text>
           </View>
           <View style={styles.profileTasteRow}>
             {tasteTags.map((tag) => (
@@ -2544,7 +2257,7 @@ function ProfileScreen({
           <Field
             value={reviewQuery}
             onChangeText={setReviewQuery}
-            placeholder={isCurrentUser ? 'Search my reviews' : `Search @${user.username} reviews`}
+            placeholder="Search my reviews"
             autoCapitalize="none"
             icon={<Search size={18} color={colors.muted} />}
           />
@@ -2561,7 +2274,6 @@ function ProfileScreen({
               key={review.reviewId}
               item={review}
               onPress={() => onOpenReview(review.reviewId)}
-              onOpenUser={onOpenUser}
             />
           ))
         )}
@@ -2576,11 +2288,7 @@ function ProfileScreen({
           <View style={styles.emptyProfileState}>
             <Popcorn size={30} color={colors.ink} />
             <Text style={styles.emptyTitle}>No reviews yet</Text>
-            <Text style={styles.mutedText}>
-              {isCurrentUser
-                ? 'Your movie takes will appear here after you post.'
-                : `@${user.username} has not posted reviews yet.`}
-            </Text>
+            <Text style={styles.mutedText}>Your movie takes will appear here after you post.</Text>
           </View>
         ) : null}
         {cursor && !reviewLoadError ? (
@@ -2694,22 +2402,9 @@ function PrimaryButton({
   );
 }
 
-function IconButton({
-  icon,
-  accessibilityLabel,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  accessibilityLabel: string;
-  onPress: () => void;
-}) {
+function IconButton({ icon, onPress }: { icon: React.ReactNode; onPress: () => void }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      style={styles.iconButton}
-      onPress={onPress}
-    >
+    <Pressable style={styles.iconButton} onPress={onPress}>
       {icon}
     </Pressable>
   );
@@ -2732,33 +2427,17 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
         const Icon = tab.icon;
         const active = current === tab.id;
         return (
-          <Pressable
-            key={tab.id}
-            style={[styles.tab, tab.id === 'create' && styles.tabCreate]}
-            onPress={() => onChange(tab.id)}
-          >
+          <Pressable key={tab.id} style={styles.tab} onPress={() => onChange(tab.id)}>
             <View
               style={[
                 styles.tabIcon,
-                tab.id === 'create' && styles.tabIconCreate,
                 active && styles.tabIconActive,
                 active && tab.id === 'create' && styles.tabIconCreateActive,
               ]}
             >
-              <Icon
-                size={tab.id === 'create' ? 18 : 16}
-                color={active || tab.id === 'create' ? colors.surface : colors.muted}
-              />
+              <Icon size={16} color={active ? colors.surface : colors.muted} />
             </View>
-            <Text
-              style={[
-                styles.tabText,
-                tab.id === 'create' && styles.tabTextCreate,
-                active && styles.tabTextActive,
-              ]}
-            >
-              {tab.label}
-            </Text>
+            <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
           </Pressable>
         );
       })}
@@ -2788,13 +2467,11 @@ function Avatar({
   large,
   mini,
   micro,
-  onPress,
 }: {
   label: string;
   large?: boolean;
   mini?: boolean;
   micro?: boolean;
-  onPress?: () => void;
 }) {
   const toneStyles = [
     styles.avatarCyan,
@@ -2806,14 +2483,16 @@ function Avatar({
     label.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % toneStyles.length;
   const lightText = toneIndex === 0 || toneIndex === 1;
 
-  const avatarStyle = [
-    styles.avatar,
-    toneStyles[toneIndex],
-    large && styles.avatarLarge,
-    mini && styles.avatarMini,
-    micro && styles.avatarMicro,
-  ];
-  const avatarText = (
+  return (
+    <View
+      style={[
+        styles.avatar,
+        toneStyles[toneIndex],
+        large && styles.avatarLarge,
+        mini && styles.avatarMini,
+        micro && styles.avatarMicro,
+      ]}
+    >
       <Text
         style={[
           styles.avatarText,
@@ -2825,28 +2504,6 @@ function Avatar({
       >
         {label.slice(0, 1).toUpperCase()}
       </Text>
-  );
-
-  if (onPress) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${label}'s profile`}
-        hitSlop={6}
-        onPress={(event) => {
-          event.stopPropagation();
-          onPress();
-        }}
-        style={({ pressed }) => [...avatarStyle, pressed && styles.avatarPressed]}
-      >
-        {avatarText}
-      </Pressable>
-    );
-  }
-
-  return (
-    <View style={avatarStyle}>
-      {avatarText}
     </View>
   );
 }
@@ -2865,15 +2522,8 @@ function PopcornRating({ value, large }: { value: number; large?: boolean }) {
 
   return (
     <View style={styles.popcornRating} accessibilityLabel={`${value.toFixed(1)} out of 5`}>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <Popcorn
-          key={index}
-          size={large ? 21 : 15}
-          color={index < count ? colors.ink : colors.muted}
-          fill={index < count ? colors.yellow : 'transparent'}
-          opacity={index < count ? 1 : 0.36}
-          strokeWidth={2.8}
-        />
+      {Array.from({ length: count }).map((_, index) => (
+        <Popcorn key={index} size={large ? 23 : 15} color={colors.ink} strokeWidth={2.8} />
       ))}
     </View>
   );
@@ -3031,10 +2681,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '900',
   },
-  noticeText: {
-    color: colors.green,
-    fontWeight: '900',
-  },
   app: {
     flex: 1,
     paddingBottom: 72,
@@ -3181,13 +2827,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    minHeight: 166,
+    height: 148,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
     backgroundColor: colors.cream,
     padding: 10,
-    gap: 8,
+    gap: 4,
     overflow: 'hidden',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
@@ -3195,23 +2841,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 50,
+    minHeight: 24,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
   },
   reviewCardBody: {
-    minHeight: 116,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 12,
+    flex: 1,
+    minHeight: 0,
+    position: 'relative',
   },
   reviewTitleBlock: {
     flex: 1,
     minWidth: 0,
-    alignItems: 'center',
-    paddingTop: 2,
   },
   reviewerRow: {
     flex: 1,
@@ -3226,34 +2869,44 @@ const styles = StyleSheet.create({
   },
   reviewerName: {
     color: colors.ink,
-    fontSize: 12,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 13,
     fontWeight: '900',
   },
   reviewerHandle: {
     color: colors.muted,
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '800',
   },
   reviewCommentCluster: {
-    flexDirection: 'column',
-    alignItems: 'center',
+    position: 'absolute',
+    right: 0,
+    bottom: 6,
+    width: 48,
+    alignItems: 'flex-end',
     justifyContent: 'flex-end',
-    gap: 4,
-    flexShrink: 0,
+    gap: 5,
+  },
+  reviewTopMeta: {
+    width: 100,
+    height: 30,
+    alignItems: 'flex-end',
+    position: 'relative',
+    gap: 1,
   },
   feedReviewerNameRow: {
-    width: 118,
+    maxWidth: '100%',
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 5,
   },
   commentParticipantRow: {
-    minHeight: 22,
+    minHeight: 18,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    paddingRight: 2,
   },
   framePerfRow: {
     position: 'absolute',
@@ -3289,9 +2942,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.cyan,
-  },
-  avatarPressed: {
-    opacity: 0.72,
   },
   avatarCyan: {
     backgroundColor: colors.cyan,
@@ -3358,8 +3008,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   posterCompact: {
-    width: 78,
-    height: 112,
+    width: 64,
+    height: 88,
   },
   posterFallback: {
     alignItems: 'center',
@@ -3372,10 +3022,9 @@ const styles = StyleSheet.create({
   },
   movieTitle: {
     color: colors.ink,
-    fontSize: 21,
-    lineHeight: 23,
+    fontSize: 19,
+    lineHeight: 21,
     fontWeight: '900',
-    textAlign: 'center',
   },
   rating: {
     flexDirection: 'row',
@@ -3390,51 +3039,36 @@ const styles = StyleSheet.create({
     minHeight: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   cardRatingLine: {
     minHeight: 27,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  feedSpoilerText: {
+    position: 'absolute',
+    top: 31,
+    right: 0,
+    color: colors.orange,
+    fontSize: 12,
+    fontWeight: '900',
   },
   quickTake: {
     color: colors.ink,
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 12,
+    lineHeight: 15,
     fontWeight: '800',
     textAlign: 'center',
   },
-  quickTakeMuted: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '800',
-  },
-  ratingScaleText: {
-    color: colors.ink,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '900',
-  },
   feedSignalBlock: {
-    flex: 1,
-    minHeight: 56,
+    minHeight: 58,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 8,
-  },
-  quickTakeBlock: {
-    width: '100%',
-    gap: 3,
-    alignItems: 'center',
-  },
-  feedSpoilerText: {
-    color: colors.orange,
-    fontSize: 12,
-    lineHeight: 14,
-    fontWeight: '900',
+    paddingTop: 0,
   },
   takeRow: {
     flexDirection: 'row',
@@ -3455,8 +3089,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   commentBubble: {
-    minHeight: 32,
-    minWidth: 46,
+    minHeight: 24,
+    minWidth: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3464,8 +3098,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.ink,
     borderRadius: 999,
-    paddingHorizontal: 9,
-    backgroundColor: colors.yellow,
+    paddingHorizontal: 7,
+    backgroundColor: colors.surface,
   },
   commentBubbleText: {
     color: colors.ink,
@@ -3640,22 +3274,23 @@ const styles = StyleSheet.create({
     minHeight: 22,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'center',
     flexWrap: 'wrap',
     gap: 5,
   },
-  feedReviewCopy: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: 'space-between',
-    gap: 8,
+  feedPosterSlot: {
+    position: 'absolute',
+    left: 0,
+    bottom: 6,
+    width: 64,
+    height: 88,
   },
-  reviewCardFooter: {
-    minHeight: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 8,
+  feedReviewCopy: {
+    position: 'absolute',
+    left: 76,
+    right: 58,
+    top: 4,
+    bottom: 6,
+    justifyContent: 'space-between',
   },
   stack: {
     gap: 12,
@@ -4334,9 +3969,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
-  tabCreate: {
-    marginTop: -8,
-  },
   tabIcon: {
     width: 28,
     height: 28,
@@ -4345,17 +3977,6 @@ const styles = StyleSheet.create({
     borderColor: colors.muted,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  tabIconCreate: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderColor: colors.ink,
-    backgroundColor: colors.pink,
-    shadowColor: colors.ink,
-    shadowOpacity: 0.16,
-    shadowRadius: 0,
-    shadowOffset: { width: 2, height: 3 },
   },
   tabIconActive: {
     borderColor: colors.pink,
@@ -4369,9 +3990,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     fontWeight: '900',
-  },
-  tabTextCreate: {
-    color: colors.ink,
   },
   tabTextActive: {
     color: colors.pink,

@@ -32,10 +32,6 @@ export type FriendSummary = {
   avatarUrl: string | null;
 };
 
-export type BlockedUserSummary = FriendSummary & {
-  blockedAt: string;
-};
-
 export async function loadTokens() {
   const value = await AsyncStorage.getItem(TOKENS_KEY);
   return value ? (JSON.parse(value) as AuthTokens) : null;
@@ -146,11 +142,6 @@ export const api = {
     apiRequest<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body: { email: string; password: string }) =>
     apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
-  resetPassword: (body: { email: string; password: string }) =>
-    apiRequest<{ ok: boolean }>('/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
   logout: (tokens: AuthTokens) =>
     apiRequest<{ ok: boolean }>('/auth/logout', {
       method: 'POST',
@@ -165,13 +156,6 @@ export const api = {
     apiRequest<FeedResponse>(`/feed/me${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
       tokens,
     }),
-  userReviews: (tokens: AuthTokens, userId: string, cursor?: string | null) =>
-    apiRequest<FeedResponse>(
-      `/feed/users/${encodeURIComponent(userId)}${
-        cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
-      }`,
-      { tokens },
-    ),
   searchMovies: (tokens: AuthTokens, query: string) =>
     apiRequest<{ items: MovieSummary[]; source: string }>(
       `/movies/search?q=${encodeURIComponent(query)}`,
@@ -240,7 +224,6 @@ export const api = {
     apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST', tokens }),
   unblockUser: (tokens: AuthTokens, id: string) =>
     apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'DELETE', tokens }),
-  blockedUsers: (tokens: AuthTokens) => apiRequest<BlockedUserSummary[]>('/users/blocked', { tokens }),
   report: (
     tokens: AuthTokens,
     body: {
@@ -274,7 +257,5 @@ export const api = {
     apiRequest<FriendRequest>(`/friend-requests/${id}/accept`, { method: 'POST', tokens }),
   declineFriendRequest: (tokens: AuthTokens, id: string) =>
     apiRequest<FriendRequest>(`/friend-requests/${id}/decline`, { method: 'POST', tokens }),
-  cancelFriendRequest: (tokens: AuthTokens, id: string) =>
-    apiRequest<{ ok: boolean }>(`/friend-requests/${id}`, { method: 'DELETE', tokens }),
   friends: (tokens: AuthTokens) => apiRequest<FriendSummary[]>('/friends', { tokens }),
 };

@@ -7,14 +7,7 @@ function createMockPrisma() {
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
-      delete: vi.fn(),
       findMany: vi.fn(),
-    },
-    block: {
-      findMany: vi.fn().mockResolvedValue([]),
-    },
-    notification: {
-      deleteMany: vi.fn(),
     },
   };
 }
@@ -195,35 +188,6 @@ describe('FriendshipsService', () => {
     });
   });
 
-  describe('cancel', () => {
-    it('cancels an outgoing pending request', async () => {
-      prisma.friendship.findFirst.mockResolvedValue({
-        id: 'fr-1',
-        requesterId: 'user-a',
-        addresseeId: 'user-b',
-        status: 'pending',
-      });
-      prisma.friendship.delete.mockResolvedValue({});
-      prisma.notification.deleteMany.mockResolvedValue({ count: 1 });
-
-      const result = await service.cancel('user-a', 'fr-1');
-
-      expect(result).toEqual({ ok: true });
-      expect(prisma.friendship.delete).toHaveBeenCalledWith({ where: { id: 'fr-1' } });
-      expect(prisma.notification.deleteMany).toHaveBeenCalledWith({
-        where: { friendshipId: 'fr-1', type: 'friend_request_received' },
-      });
-    });
-
-    it('does not cancel someone else pending request', async () => {
-      prisma.friendship.findFirst.mockResolvedValue(null);
-
-      await expect(service.cancel('user-b', 'fr-1')).rejects.toThrow(
-        'Friend request not found',
-      );
-    });
-  });
-
   describe('friends', () => {
     it('returns friend list from accepted friendships', async () => {
       prisma.friendship.findMany.mockResolvedValue([
@@ -240,23 +204,6 @@ describe('FriendshipsService', () => {
       expect(result).toEqual([
         { id: 'user-b', username: 'bob', displayName: 'Bob', avatarUrl: null },
       ]);
-    });
-
-    it('hides blocked friendships from the friend list', async () => {
-      prisma.friendship.findMany.mockResolvedValue([
-        {
-          requesterId: 'user-a',
-          addresseeId: 'user-b',
-          requester: userA,
-          addressee: userB,
-          status: 'accepted',
-        },
-      ]);
-      prisma.block.findMany.mockResolvedValue([{ blockerId: 'user-a', blockedId: 'user-b' }]);
-
-      const result = await service.friends('user-a');
-
-      expect(result).toEqual([]);
     });
   });
 });

@@ -15,11 +15,6 @@ export class UsersController {
     return this.users.search(user.id, query.q);
   }
 
-  @Get('blocked')
-  blocked(@CurrentUser() user: RequestUser) {
-    return this.users.blocked(user.id);
-  }
-
   @Post(':id/block')
   block(@CurrentUser() user: RequestUser, @Param() params: UserIdParamDto) {
     return this.users.block(user.id, params.id);

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { decodeCursor, encodeCursor } from '../common/ids';
 import { movieSummary } from '../common/movie-presenter';
@@ -67,39 +67,9 @@ export class FeedService {
   }
 
   async userReviews(userId: string, cursor?: string) {
-    return this.reviewsByUser(userId, cursor);
-  }
-
-  async userReviewsForViewer(viewerId: string, targetUserId: string, cursor?: string) {
-    if (viewerId === targetUserId) {
-      return this.userReviews(targetUserId, cursor);
-    }
-
-    const [target, areFriends, isBlocked] = await Promise.all([
-      this.prisma.user.findFirst({
-        where: { id: targetUserId, deletedAt: null },
-        select: { id: true },
-      }),
-      this.visibility.areFriends(viewerId, targetUserId),
-      this.visibility.isBlockedEitherWay(viewerId, targetUserId),
-    ]);
-
-    if (!target || !areFriends || isBlocked) {
-      throw new NotFoundException('User not found');
-    }
-
-    return this.reviewsByUser(targetUserId, cursor, { visibility: 'friends' });
-  }
-
-  private async reviewsByUser(
-    userId: string,
-    cursor?: string,
-    whereInput: Prisma.ReviewWhereInput = {},
-  ) {
     const parsedCursor = decodeCursor(cursor);
     const reviews = await this.prisma.review.findMany({
       where: {
-        ...whereInput,
         userId,
         deletedAt: null,
         OR: parsedCursor

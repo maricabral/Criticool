@@ -83,24 +83,6 @@ async function run() {
   assert(userCRes.status === 201, `User C registered (status ${userCRes.status})`);
   const userC = { ...userCRes.data.user, tokens: userCRes.data.tokens };
 
-  // Temporary local password reset
-  console.log('\n--- Auth: Reset Password ---');
-  const resetCRes = await request('POST', '/auth/reset-password', {
-    body: { email: `carol_${suffix}@test.local`, password: 'ResetPass3!' },
-  });
-  assert(resetCRes.status === 201 || resetCRes.status === 200, `Password reset succeeds (status ${resetCRes.status})`);
-
-  const oldCLoginRes = await request('POST', '/auth/login', {
-    body: { email: `carol_${suffix}@test.local`, password: 'Password3!' },
-  });
-  assert(oldCLoginRes.status === 401, `Old password rejected after reset (status ${oldCLoginRes.status})`);
-
-  const newCLoginRes = await request('POST', '/auth/login', {
-    body: { email: `carol_${suffix}@test.local`, password: 'ResetPass3!' },
-  });
-  assert(newCLoginRes.status === 201 || newCLoginRes.status === 200, `New password login succeeds (status ${newCLoginRes.status})`);
-  userC.tokens = newCLoginRes.data.tokens;
-
   // ─── Duplicate Email ───
   console.log('\n--- Auth: Duplicate Email ---');
   const dupEmail = await request('POST', '/auth/register', {
@@ -192,24 +174,6 @@ async function run() {
     'A receives accepted friend request notification',
   );
 
-  // Pending request cancellation
-  const pendingCancelRes = await request('POST', '/friend-requests', {
-    token: userB.tokens.accessToken,
-    body: { addresseeId: userC.id },
-  });
-  assert(pendingCancelRes.status === 201 || pendingCancelRes.status === 200, `Friend request B→C created (status ${pendingCancelRes.status})`);
-  const outgoingBeforeCancel = await request('GET', '/friend-requests/outgoing', { token: userB.tokens.accessToken });
-  const pendingCancel = outgoingBeforeCancel.data?.find?.((request) => request.addressee?.id === userC.id);
-  assert(!!pendingCancel, 'B sees outgoing pending request to C');
-
-  const cancelPendingRes = await request('DELETE', `/friend-requests/${pendingCancel?.id}`, { token: userB.tokens.accessToken });
-  assert(cancelPendingRes.status === 200, `Outgoing pending request canceled (status ${cancelPendingRes.status})`);
-  const outgoingAfterCancel = await request('GET', '/friend-requests/outgoing', { token: userB.tokens.accessToken });
-  assert(
-    !outgoingAfterCancel.data?.some?.((request) => request.id === pendingCancel?.id),
-    'Canceled pending request is removed from outgoing list',
-  );
-
   // ─── Feed Visibility: Friend ───
   console.log('\n--- Feed: Friend Visibility ---');
   const feedBRes = await request('GET', '/feed', { token: userB.tokens.accessToken });
@@ -217,22 +181,12 @@ async function run() {
   const bSeesReview = feedBRes.data.items?.some?.(item => item.reviewId === reviewId);
   assert(bSeesReview, "User B (friend) sees User A's review in feed");
 
-  const profileBSeesARes = await request('GET', `/feed/users/${userA.id}`, { token: userB.tokens.accessToken });
-  assert(profileBSeesARes.status === 200, `User B opens User A review page (status ${profileBSeesARes.status})`);
-  assert(
-    profileBSeesARes.data.items?.some?.((item) => item.reviewId === reviewId),
-    "User B sees User A's review on User A's page",
-  );
-
   // ─── Feed Visibility: Stranger ───
   console.log('\n--- Feed: Stranger Exclusion ---');
   const feedCRes = await request('GET', '/feed', { token: userC.tokens.accessToken });
   assert(feedCRes.status === 200, `User C feed loads (status ${feedCRes.status})`);
   const cSeesReview = feedCRes.data.items?.some?.(item => item.reviewId === reviewId);
   assert(!cSeesReview, "User C (stranger) does NOT see User A's review");
-
-  const profileCSeesARes = await request('GET', `/feed/users/${userA.id}`, { token: userC.tokens.accessToken });
-  assert(profileCSeesARes.status === 404, `Stranger cannot open User A review page (status ${profileCSeesARes.status})`);
 
   // ─── Review Detail Visibility ───
   console.log('\n--- Review Detail: Visibility ---');
@@ -323,33 +277,8 @@ async function run() {
   });
   assert(reportUserRes.status === 201 || reportUserRes.status === 200, `User report created (status ${reportUserRes.status})`);
 
-  const friendBlockRes = await request('POST', `/users/${userA.id}/block`, { token: userB.tokens.accessToken });
-  assert(friendBlockRes.status === 201 || friendBlockRes.status === 200, `User B blocks friend User A (status ${friendBlockRes.status})`);
-
-  const friendListWhileBlockedRes = await request('GET', '/friends', { token: userB.tokens.accessToken });
-  assert(
-    !friendListWhileBlockedRes.data?.some?.((item) => item.id === userA.id),
-    'Blocked friend is hidden from friend list while blocked',
-  );
-
-  const friendUnblockRes = await request('DELETE', `/users/${userA.id}/block`, { token: userB.tokens.accessToken });
-  assert(friendUnblockRes.status === 200, `User B unblocks friend User A (status ${friendUnblockRes.status})`);
-
-  const friendListAfterUnblockRes = await request('GET', '/friends', { token: userB.tokens.accessToken });
-  assert(
-    friendListAfterUnblockRes.data?.some?.((item) => item.id === userA.id),
-    'Unblocked friend returns to friend list',
-  );
-
   const blockRes = await request('POST', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
   assert(blockRes.status === 201 || blockRes.status === 200, `User C blocks User A (status ${blockRes.status})`);
-
-  const blockedListRes = await request('GET', '/users/blocked', { token: userC.tokens.accessToken });
-  assert(blockedListRes.status === 200, `Blocked users list loads (status ${blockedListRes.status})`);
-  assert(
-    blockedListRes.data?.some?.((item) => item.id === userA.id),
-    'Blocked user appears in blocked users list',
-  );
 
   const searchBlockedRes = await request('GET', `/users/search?q=alice_${suffix}`, { token: userC.tokens.accessToken });
   assert(
@@ -359,11 +288,6 @@ async function run() {
 
   const unblockRes = await request('DELETE', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
   assert(unblockRes.status === 200, `User C unblocks User A (status ${unblockRes.status})`);
-  const blockedAfterUnblockRes = await request('GET', '/users/blocked', { token: userC.tokens.accessToken });
-  assert(
-    !blockedAfterUnblockRes.data?.some?.((item) => item.id === userA.id),
-    'Unblocked user is removed from blocked users list',
-  );
 
   // ─── Soft Delete Review ───
   console.log('\n--- Review: Soft Delete ---');
