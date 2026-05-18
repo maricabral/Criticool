@@ -67,19 +67,43 @@ const REVIEW_TAG_CATEGORIES = [
   },
   {
     title: 'Craft',
-    tags: ['great performances', 'sharp writing', 'beautifully shot', 'strong soundtrack', 'style over story'],
+    tags: [
+      'great performances',
+      'sharp writing',
+      'beautifully shot',
+      'strong soundtrack',
+      'style over story',
+    ],
   },
   {
     title: 'Audience',
-    tags: ['for film nerds', 'crowd pleaser', 'not for everyone', 'good starter pick', 'best with snacks'],
+    tags: [
+      'for film nerds',
+      'crowd pleaser',
+      'not for everyone',
+      'good starter pick',
+      'best with snacks',
+    ],
   },
   {
     title: 'Content Notes',
-    tags: ['bring tissues', 'intense scenes', 'check the runtime', 'volume down', 'kids may hate it'],
+    tags: [
+      'bring tissues',
+      'intense scenes',
+      'check the runtime',
+      'volume down',
+      'kids may hate it',
+    ],
   },
   {
     title: 'Wildcards',
-    tags: ['therapy invoice', 'brain off bliss', 'chaos cinema', 'trash treasure', 'secretly perfect'],
+    tags: [
+      'therapy invoice',
+      'brain off bliss',
+      'chaos cinema',
+      'trash treasure',
+      'secretly perfect',
+    ],
   },
 ];
 const FEATURED_REVIEW_TAGS = [
@@ -91,6 +115,46 @@ const FEATURED_REVIEW_TAGS = [
   'bring tissues',
   'slow burn',
   'best with snacks',
+];
+const BUZZ_MOVIES: MovieSummary[] = [
+  {
+    tmdbId: 558449,
+    title: 'Gladiator II',
+    releaseYear: 2024,
+    overview: null,
+    posterUrl: null,
+    backdropUrl: null,
+  },
+  {
+    tmdbId: 11846,
+    title: 'Beethoven',
+    releaseYear: 1992,
+    overview: null,
+    posterUrl: null,
+    backdropUrl: null,
+  },
+  {
+    tmdbId: 350,
+    title: 'The Devil Wears Prada',
+    releaseYear: 2006,
+    overview: null,
+    posterUrl: null,
+    backdropUrl: null,
+  },
+  {
+    tmdbId: 704,
+    title: "A Hard Day's Night",
+    releaseYear: 1964,
+    overview: null,
+    posterUrl: null,
+    backdropUrl: null,
+  },
+];
+const GENRE_BROWSE = [
+  { title: 'Comedy', subtitle: 'easy watches' },
+  { title: 'Horror', subtitle: 'late night' },
+  { title: 'Drama', subtitle: 'big feelings' },
+  { title: 'Sci-fi', subtitle: 'weird worlds' },
 ];
 
 type SpeechRecognitionInstance = {
@@ -112,36 +176,6 @@ function appendTranscript(
     const trimmed = current.trim();
     return trimmed ? `${trimmed}\n\n${transcript}` : transcript;
   });
-}
-
-function formatRelativeTime(value: string) {
-  const then = new Date(value).getTime();
-  if (!Number.isFinite(then)) {
-    return null;
-  }
-
-  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (seconds < 60) {
-    return 'now';
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h`;
-  }
-
-  const days = Math.floor(hours / 24);
-  if (days < 7) {
-    return `${days}d`;
-  }
-
-  const weeks = Math.floor(days / 7);
-  return `${weeks}w`;
 }
 
 function startDictation({
@@ -517,13 +551,11 @@ function FeedScreen({
 function EmptyFeed({ onCreate }: { onCreate: () => void }) {
   return (
     <View style={styles.empty}>
-      <View style={styles.ticketRail}>
-        <View style={styles.ticketFrame}>
-          <Popcorn size={34} color={colors.ink} />
-          <Text style={styles.emptyTitle}>No friend reviews yet.</Text>
-          <Text style={styles.mutedText}>Find friends or post your first movie take.</Text>
-          <PrimaryButton label="Review a movie" onPress={onCreate} />
-        </View>
+      <View style={styles.emptyPanel}>
+        <Image source={welcomeLogo} style={styles.emptyMascot} resizeMode="contain" />
+        <Text style={styles.emptyTitle}>No friend reviews yet.</Text>
+        <Text style={styles.mutedText}>Find friends or post your first movie take.</Text>
+        <PrimaryButton label="Review a movie" onPress={onCreate} />
       </View>
     </View>
   );
@@ -531,31 +563,57 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const quickTake = item.containsSpoilers ? null : item.quickTake?.trim();
-  const visibleTags = item.tags?.slice(0, 2) ?? [];
-  const timeAgo = formatRelativeTime(item.createdAt);
+  const visibleTags = item.tags?.slice(0, 3) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
   const commentParticipants = item.commentParticipants ?? [];
 
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
       <View style={styles.reviewCardHeader}>
-        <View style={styles.reviewerRow}>
-          <Avatar label={reviewerName} mini />
-          <View style={styles.reviewerCopy}>
+        <View style={styles.reviewTitleBlock}>
+          <Text numberOfLines={1} style={styles.movieTitle}>
+            {item.movie.title}
+          </Text>
+        </View>
+        <View style={styles.reviewTopMeta}>
+          <View style={styles.feedReviewerNameRow}>
+            <Avatar label={reviewerName} mini />
             <Text numberOfLines={1} style={styles.reviewerName}>
               {reviewerName}
             </Text>
-            <Text numberOfLines={1} style={styles.reviewerHandle}>
-              @{item.author.username}
-              {timeAgo ? ` - ${timeAgo}` : ''}
-            </Text>
+          </View>
+          {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
+        </View>
+      </View>
+      <View style={styles.reviewCardBody}>
+        <View style={styles.feedMovieCluster}>
+          <Poster movie={item.movie} compact />
+          <View style={styles.reviewCopy}>
+            <View style={styles.cardRatingLine}>
+              <PopcornRating value={item.rating} large />
+            </View>
+            {quickTake ? (
+              <Text numberOfLines={2} style={styles.quickTake}>
+                {quickTake}
+              </Text>
+            ) : null}
+            {visibleTags.length ? (
+              <View style={styles.cardTagRow}>
+                {visibleTags.map((tag) => (
+                  <Text key={tag} numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
+                    {tag}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
           </View>
         </View>
         <View style={styles.reviewCommentCluster}>
-          {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
-          <View style={styles.commentBubble}>
-            <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
-            <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
+          <View style={styles.cardRatingLine}>
+            <View style={styles.commentBubble}>
+              <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
+              <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
+            </View>
           </View>
           {commentParticipants.length ? (
             <View style={styles.commentParticipantRow}>
@@ -565,31 +623,6 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
                   label={participant.displayName || participant.username}
                   micro
                 />
-              ))}
-            </View>
-          ) : null}
-        </View>
-      </View>
-      <View style={styles.reviewCardBody}>
-        <Poster movie={item.movie} compact />
-        <View style={styles.reviewCopy}>
-          <Text numberOfLines={1} style={styles.movieTitle}>
-            {item.movie.title}
-          </Text>
-          <View style={styles.cardRatingLine}>
-            <PopcornRating value={item.rating} />
-          </View>
-          {quickTake ? (
-            <Text numberOfLines={2} style={styles.quickTake}>
-              {quickTake}
-            </Text>
-          ) : null}
-          {visibleTags.length ? (
-            <View style={styles.cardTagRow}>
-              {visibleTags.map((tag) => (
-                <Text key={tag} numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
-                  {tag}
-                </Text>
               ))}
             </View>
           ) : null}
@@ -652,20 +685,50 @@ function SearchScreen({
       />
       {busy ? <ActivityIndicator color={colors.pink} style={styles.inlineLoader} /> : null}
       <ScrollView contentContainerStyle={styles.stack}>
-        {results.map((movie) => (
-          <Pressable
-            key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
-            style={styles.resultRow}
-            onPress={() => selectMovie(movie)}
-          >
-            <Poster movie={movie} />
-            <View style={styles.reviewCopy}>
-              <Text style={styles.movieTitle}>{movie.title}</Text>
-              <Text style={styles.mutedText}>{movie.releaseYear ?? 'TBA'}</Text>
-            </View>
-            <Text style={styles.pill}>Review</Text>
-          </Pressable>
-        ))}
+        {query.trim().length < 2 ? (
+          <>
+            <Panel tint="yellow">
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Buzz movies</Text>
+                <Text style={styles.mutedText}>popular now</Text>
+              </View>
+              <MoviePosterRow movies={BUZZ_MOVIES} onPress={selectMovie} />
+            </Panel>
+            <Panel tint="cyan">
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Browse by genre</Text>
+                <Text style={styles.mutedText}>pick a mood</Text>
+              </View>
+              <View style={styles.genreGrid}>
+                {GENRE_BROWSE.map((genre) => (
+                  <Pressable
+                    key={genre.title}
+                    style={styles.genreTile}
+                    onPress={() => setQuery(genre.title)}
+                  >
+                    <Text style={styles.genreTitle}>{genre.title}</Text>
+                    <Text style={styles.mutedText}>{genre.subtitle}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Panel>
+          </>
+        ) : (
+          results.map((movie) => (
+            <Pressable
+              key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
+              style={styles.resultRow}
+              onPress={() => selectMovie(movie)}
+            >
+              <Poster movie={movie} />
+              <View style={styles.reviewCopy}>
+                <Text style={styles.movieTitle}>{movie.title}</Text>
+                <Text style={styles.mutedText}>{movie.releaseYear ?? 'TBA'}</Text>
+              </View>
+              <Text style={styles.pill}>Review</Text>
+            </Pressable>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -817,7 +880,9 @@ function CreateScreen({
           <Poster movie={selectedMovie} />
           <View style={styles.reviewCopy}>
             <Text style={styles.movieTitle}>{selectedMovie.title}</Text>
-            <Text style={styles.mutedText}>{selectedMovie.releaseYear ?? 'TBA'}</Text>
+            <Text style={styles.mutedText}>
+              {selectedMovie.releaseYear ?? 'TBA'} | selected movie
+            </Text>
           </View>
           <Pressable style={styles.pillButton} onPress={clearSelectedMovie}>
             <Text style={styles.pillButtonText}>Change</Text>
@@ -825,6 +890,12 @@ function CreateScreen({
         </View>
       ) : (
         <>
+          <Panel tint="pink">
+            <Text style={styles.sectionTitle}>What did you watch?</Text>
+            <Text style={styles.mutedText}>
+              Search for a movie first. Rating and review fields appear after you pick one.
+            </Text>
+          </Panel>
           <Field
             value={movieQuery}
             onChangeText={setMovieQuery}
@@ -849,6 +920,35 @@ function CreateScreen({
               <Text style={styles.pill}>Pick</Text>
             </Pressable>
           ))}
+          {movieQuery.trim().length < 2 ? (
+            <>
+              <Panel tint="yellow">
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Buzz movies to review</Text>
+                  <Text style={styles.mutedText}>quick start</Text>
+                </View>
+                <MoviePosterRow movies={BUZZ_MOVIES.slice(0, 3)} onPress={selectMovie} />
+              </Panel>
+              <Panel tint="cyan">
+                <Text style={styles.sectionTitle}>Prompt ideas</Text>
+                <View style={styles.tagPicker}>
+                  {['comfort watch', 'best with snacks', 'date night', 'thought-provoking'].map(
+                    (tag) => (
+                      <Pressable
+                        key={tag}
+                        style={styles.tagChip}
+                        onPress={() =>
+                          setSelectedTags((current) => [...new Set([...current, tag])])
+                        }
+                      >
+                        <Text style={styles.tagChipText}>{tag}</Text>
+                      </Pressable>
+                    ),
+                  )}
+                </View>
+              </Panel>
+            </>
+          ) : null}
         </>
       )}
       {selectedMovie ? (
@@ -874,7 +974,11 @@ function CreateScreen({
             })}
           </View>
           <Field value={quickTake} onChangeText={setQuickTake} placeholder="Quick take" />
-          <View style={styles.tagPanel}>
+          <Panel tint="cyan">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Pick up to 5 tags</Text>
+              <Text style={styles.mutedText}>optional</Text>
+            </View>
             <View style={styles.tagPicker}>
               {FEATURED_REVIEW_TAGS.map((tag) => {
                 const active = selectedTags.includes(tag);
@@ -932,9 +1036,7 @@ function CreateScreen({
                             ]}
                             onPress={() => toggleTag(tag)}
                           >
-                            <Text
-                              style={[styles.tagChipText, active && styles.tagChipTextActive]}
-                            >
+                            <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
                               {tag}
                             </Text>
                           </Pressable>
@@ -945,7 +1047,7 @@ function CreateScreen({
                 ))}
               </>
             ) : null}
-          </View>
+          </Panel>
           <View style={styles.textAreaWrap}>
             <TextInput
               ref={bodyInputRef}
@@ -1399,23 +1501,35 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
       />
       <ScrollView contentContainerStyle={styles.stack}>
         {incoming.length ? (
-          <View style={styles.requestStrip}>
+          <Panel tint="yellow">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Incoming</Text>
+              <Text style={styles.mutedText}>{incoming.length} requests</Text>
+            </View>
             {incoming.map((request) => (
-              <View key={request.id} style={styles.requestPill}>
-                <Text style={styles.requestText}>@{request.requester.username}</Text>
-                <Pressable style={styles.acceptButton} onPress={() => void accept(request.id)}>
-                  <Text style={styles.acceptButtonText}>Accept</Text>
-                </Pressable>
-                <Pressable style={styles.declineButton} onPress={() => void decline(request.id)}>
-                  <Text style={styles.declineButtonText}>No</Text>
-                </Pressable>
+              <View key={request.id} style={styles.friendRequestCard}>
+                <Avatar label={request.requester.displayName || request.requester.username} />
+                <View style={styles.reviewCopy}>
+                  <Text numberOfLines={1} style={styles.movieTitle}>
+                    @{request.requester.username}
+                  </Text>
+                  <Text style={styles.mutedText}>wants to be friends</Text>
+                </View>
+                <View style={styles.actionRow}>
+                  <Pressable style={styles.acceptButton} onPress={() => void accept(request.id)}>
+                    <Text style={styles.acceptButtonText}>Accept</Text>
+                  </Pressable>
+                  <Pressable style={styles.declineButton} onPress={() => void decline(request.id)}>
+                    <Text style={styles.declineButtonText}>No</Text>
+                  </Pressable>
+                </View>
               </View>
             ))}
-          </View>
+          </Panel>
         ) : null}
 
         {query.trim().length >= 2 ? (
-          <View style={styles.sectionBlock}>
+          <Panel>
             <Text style={styles.sectionTitle}>Find people</Text>
             {users.map((item) => (
               <View key={item.id} style={styles.simplePersonRow}>
@@ -1433,37 +1547,52 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
               </View>
             ))}
             {!users.length ? <Text style={styles.mutedText}>No matches yet.</Text> : null}
-          </View>
+          </Panel>
         ) : (
           <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Friends</Text>
-              <Text style={styles.bubble}>{friends.length}</Text>
-            </View>
-            {friends.length ? (
-              <View style={styles.friendGrid}>
-                {friends.map((friend) => (
-                  <View key={friend.id} style={styles.friendBubble}>
-                    <View style={styles.friendAvatarRing}>
+            <Panel>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Your friends</Text>
+                <Text style={styles.bubble}>{friends.length}</Text>
+              </View>
+              {friends.length ? (
+                <View style={styles.friendGrid}>
+                  {friends.map((friend) => (
+                    <View key={friend.id} style={styles.friendBubble}>
                       <Avatar label={friend.displayName || friend.username} large />
+                      <Text numberOfLines={1} style={styles.friendHandle}>
+                        @{friend.username}
+                      </Text>
                     </View>
-                    <Text numberOfLines={1} style={styles.friendHandle}>
-                      @{friend.username}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.mutedText}>Search a username to add friends.</Text>
-            )}
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.mutedText}>Search a username to add friends.</Text>
+              )}
+            </Panel>
             {outgoing.length ? (
-              <View style={styles.pendingList}>
-                {outgoing.map((request) => (
-                  <Text key={request.id} style={styles.pendingText}>
-                    pending @{request.addressee.username}
-                  </Text>
-                ))}
-              </View>
+              <Panel tint="pink">
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Suggestions</Text>
+                  <Text style={styles.mutedText}>pending</Text>
+                </View>
+                <View style={styles.friendGrid}>
+                  {outgoing.slice(0, 6).map((request) => (
+                    <View key={request.id} style={styles.friendBubble}>
+                      <View style={styles.friendSuggestion}>
+                        <View style={styles.statusDot} />
+                        <Avatar
+                          label={request.addressee.displayName || request.addressee.username}
+                          large
+                        />
+                      </View>
+                      <Text numberOfLines={1} style={styles.friendHandle}>
+                        @{request.addressee.username}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </Panel>
             ) : null}
           </>
         )}
@@ -1490,6 +1619,7 @@ function ProfileScreen({
   const [loadingMore, setLoadingMore] = useState(false);
   const [reviewLoadError, setReviewLoadError] = useState<string | null>(null);
   const [reviewQuery, setReviewQuery] = useState('');
+  const [friendCount, setFriendCount] = useState<number | null>(null);
 
   const loadReviews = useCallback(
     async (nextCursor?: string | null) => {
@@ -1513,6 +1643,13 @@ function ProfileScreen({
       }
     })();
   }, [loadReviews]);
+
+  useEffect(() => {
+    void api
+      .friends(tokens)
+      .then((rows) => setFriendCount(rows.length))
+      .catch(() => setFriendCount(null));
+  }, [tokens]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -1571,6 +1708,17 @@ function ProfileScreen({
       return searchable.includes(needle);
     });
   }, [reviewQuery, reviews]);
+  const tasteTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    reviews.forEach((review) => {
+      review.tags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1));
+    });
+    const topTags = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 3)
+      .map(([tag]) => tag);
+    return topTags.length ? topTags : ['sci-fi', 'thriller', 'drama'];
+  }, [reviews]);
 
   return (
     <ScrollView
@@ -1588,22 +1736,27 @@ function ProfileScreen({
           <Text numberOfLines={1} style={styles.profileName}>
             {user.displayName}
           </Text>
-          <Text numberOfLines={1} style={styles.profileHandle}>
-            @{user.username}
-          </Text>
-        </View>
-        <View style={styles.profileStat}>
-          {loading ? (
-            <ActivityIndicator color={colors.pink} />
-          ) : (
-            <Text style={styles.profileStatValue}>{reviewLoadError ? '-' : reviews.length}</Text>
-          )}
-          <Text style={styles.profileStatLabel}>reviews</Text>
+          <View style={styles.profileInlineStats}>
+            <Text style={styles.profileInlineText}>
+              {loading || reviewLoadError ? '-' : reviews.length} reviews
+            </Text>
+            <Text style={styles.profileInlineText}>|</Text>
+            <Text style={styles.profileInlineText}>
+              {friendCount === null ? '-' : friendCount} friends
+            </Text>
+          </View>
+          <View style={styles.profileTasteRow}>
+            {tasteTags.map((tag) => (
+              <Text key={tag} numberOfLines={1} style={styles.tagPill}>
+                {tag}
+              </Text>
+            ))}
+          </View>
         </View>
       </View>
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>My reviews</Text>
+          <Text style={styles.sectionTitle}>Recent</Text>
           {loading ? (
             <ActivityIndicator color={colors.pink} />
           ) : !reviewLoadError ? (
@@ -1667,6 +1820,51 @@ function Header({ title, right }: { title: string; right?: React.ReactNode }) {
       <Text style={styles.headerTitle}>{title}</Text>
       {right ?? <View style={styles.headerSpacer} />}
     </View>
+  );
+}
+
+function Panel({
+  children,
+  tint,
+}: {
+  children: React.ReactNode;
+  tint?: 'yellow' | 'cyan' | 'pink' | 'green';
+}) {
+  const tintStyle = {
+    yellow: styles.panelYellow,
+    cyan: styles.panelCyan,
+    pink: styles.panelPink,
+    green: styles.panelGreen,
+  }[tint ?? 'yellow'];
+  return <View style={[styles.panel, tint && tintStyle]}>{children}</View>;
+}
+
+function MoviePosterRow({
+  movies,
+  onPress,
+}: {
+  movies: MovieSummary[];
+  onPress: (movie: MovieSummary) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.posterRow}
+    >
+      {movies.map((movie) => (
+        <Pressable
+          key={`${movie.tmdbId}-${movie.title}`}
+          style={styles.miniMovie}
+          onPress={() => onPress(movie)}
+        >
+          <Poster movie={movie} />
+          <Text numberOfLines={2} style={styles.miniMovieTitle}>
+            {movie.title}
+          </Text>
+        </Pressable>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -1785,10 +1983,22 @@ function Avatar({
   mini?: boolean;
   micro?: boolean;
 }) {
+  const toneStyles = [
+    styles.avatarCyan,
+    styles.avatarPink,
+    styles.avatarYellow,
+    styles.avatarGreen,
+    styles.avatarOrange,
+  ];
+  const toneIndex =
+    label.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % toneStyles.length;
+  const lightText = toneIndex === 0 || toneIndex === 1 || toneIndex === 4;
+
   return (
     <View
       style={[
         styles.avatar,
+        toneStyles[toneIndex],
         large && styles.avatarLarge,
         mini && styles.avatarMini,
         micro && styles.avatarMicro,
@@ -1797,6 +2007,7 @@ function Avatar({
       <Text
         style={[
           styles.avatarText,
+          !lightText && styles.avatarTextDark,
           large && styles.avatarTextLarge,
           mini && styles.avatarTextMini,
           micro && styles.avatarTextMicro,
@@ -1817,13 +2028,13 @@ function Rating({ value, size = 18 }: { value: number; size?: number }) {
   );
 }
 
-function PopcornRating({ value }: { value: number }) {
+function PopcornRating({ value, large }: { value: number; large?: boolean }) {
   const count = Math.max(0, Math.min(5, Math.round(value)));
 
   return (
     <View style={styles.popcornRating} accessibilityLabel={`${value.toFixed(1)} out of 5`}>
       {Array.from({ length: count }).map((_, index) => (
-        <Popcorn key={index} size={15} color={colors.ink} strokeWidth={2.7} />
+        <Popcorn key={index} size={large ? 20 : 15} color={colors.ink} strokeWidth={2.7} />
       ))}
     </View>
   );
@@ -1949,108 +2160,6 @@ const styles = StyleSheet.create({
     fontSize: 34,
     lineHeight: 38,
     fontWeight: '900',
-  },
-  reel: {
-    alignSelf: 'center',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    borderWidth: 6,
-    borderColor: colors.ink,
-    backgroundColor: '#2a252b',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.ink,
-    shadowOpacity: 0.18,
-    shadowRadius: 0,
-    shadowOffset: { width: 7, height: 8 },
-    transform: [{ rotate: '-4deg' }],
-  },
-  tapeTail: {
-    position: 'absolute',
-    right: -88,
-    bottom: -24,
-    width: 104,
-    height: 162,
-    borderWidth: 6,
-    borderLeftWidth: 0,
-    borderColor: colors.ink,
-    borderTopRightRadius: 90,
-    borderBottomRightRadius: 90,
-    backgroundColor: colors.cream,
-    transform: [{ rotate: '24deg' }],
-    justifyContent: 'space-around',
-    paddingVertical: 16,
-    zIndex: 0,
-  },
-  tapeStripe: {
-    height: 6,
-    backgroundColor: colors.ink,
-  },
-  reelHole: {
-    position: 'absolute',
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#fff8ea',
-    top: 28,
-    zIndex: 1,
-  },
-  reelHoleTwo: {
-    top: 104,
-    left: 34,
-  },
-  reelHoleThree: {
-    top: 104,
-    right: 34,
-  },
-  reelGlasses: {
-    position: 'absolute',
-    top: 54,
-    left: -12,
-    right: -12,
-    height: 54,
-    borderWidth: 5,
-    borderColor: colors.ink,
-    borderRadius: 20,
-    backgroundColor: colors.ink,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  reelLens: {
-    width: 54,
-    height: 38,
-    borderRadius: 18,
-    backgroundColor: '#fff8ea',
-    borderWidth: 5,
-    borderColor: '#fff8ea',
-  },
-  reelGlare: {
-    position: 'absolute',
-    top: 13,
-    width: 36,
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    transform: [{ rotate: '-45deg' }],
-  },
-  reelGlareLeft: {
-    left: 30,
-  },
-  reelGlareRight: {
-    right: 30,
-  },
-  reelMouth: {
-    position: 'absolute',
-    bottom: 46,
-    width: 72,
-    height: 30,
-    borderBottomWidth: 7,
-    borderColor: colors.ink,
-    borderRadius: 38,
-    zIndex: 3,
   },
   logo: {
     fontSize: 52,
@@ -2187,28 +2296,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  ticketRail: {
-    borderWidth: 4,
-    borderColor: colors.ink,
-    borderRadius: 32,
-    backgroundColor: '#211d23',
-    paddingHorizontal: 24,
-    paddingVertical: 18,
-    shadowColor: colors.ink,
-    shadowOpacity: 0.12,
-    shadowRadius: 0,
-    shadowOffset: { width: 7, height: 8 },
-  },
-  ticketFrame: {
+  emptyPanel: {
     minHeight: 220,
     borderWidth: 3,
     borderColor: colors.ink,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
+    borderRadius: 18,
+    backgroundColor: colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
     padding: 18,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 4 },
+  },
+  emptyMascot: {
+    width: 94,
+    height: 94,
   },
   emptyTitle: {
     fontSize: 18,
@@ -2228,28 +2333,37 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
+    height: 150,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
     backgroundColor: colors.cream,
     padding: 10,
-    gap: 10,
+    gap: 8,
+    overflow: 'hidden',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
     shadowRadius: 0,
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 34,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  reviewCardBody: {
+    minHeight: 27,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  reviewCardBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    minHeight: 0,
+  },
+  reviewTitleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   reviewerRow: {
     flex: 1,
@@ -2264,8 +2378,8 @@ const styles = StyleSheet.create({
   },
   reviewerName: {
     color: colors.ink,
-    fontSize: 14,
-    lineHeight: 17,
+    fontSize: 11,
+    lineHeight: 13,
     fontWeight: '900',
   },
   reviewerHandle: {
@@ -2275,9 +2389,23 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   reviewCommentCluster: {
-    minWidth: 42,
+    width: 48,
+    minHeight: 86,
     alignItems: 'flex-end',
-    gap: 4,
+    justifyContent: 'flex-end',
+    gap: 3,
+  },
+  reviewTopMeta: {
+    width: 100,
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  feedReviewerNameRow: {
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 5,
   },
   commentParticipantRow: {
     minHeight: 18,
@@ -2320,6 +2448,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.cyan,
   },
+  avatarCyan: {
+    backgroundColor: colors.cyan,
+  },
+  avatarPink: {
+    backgroundColor: colors.pink,
+  },
+  avatarYellow: {
+    backgroundColor: colors.yellow,
+  },
+  avatarGreen: {
+    backgroundColor: colors.green,
+  },
+  avatarOrange: {
+    backgroundColor: colors.orange,
+  },
   avatarLarge: {
     width: 88,
     height: 88,
@@ -2342,6 +2485,9 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontWeight: '900',
     fontSize: 18,
+  },
+  avatarTextDark: {
+    color: colors.ink,
   },
   avatarTextLarge: {
     fontSize: 36,
@@ -2370,8 +2516,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   posterCompact: {
-    width: 62,
-    height: 92,
+    width: 58,
+    height: 80,
   },
   posterFallback: {
     alignItems: 'center',
@@ -2459,6 +2605,30 @@ const styles = StyleSheet.create({
   sectionBlock: {
     gap: 10,
   },
+  panel: {
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    padding: 12,
+    gap: 10,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 4 },
+  },
+  panelYellow: {
+    backgroundColor: colors.cream,
+  },
+  panelCyan: {
+    backgroundColor: '#c8eef4',
+  },
+  panelPink: {
+    backgroundColor: '#f0b5d1',
+  },
+  panelGreen: {
+    backgroundColor: '#c7e9d2',
+  },
   sectionHeader: {
     minHeight: 28,
     flexDirection: 'row',
@@ -2474,6 +2644,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  posterRow: {
+    gap: 10,
+    paddingRight: 8,
+  },
+  miniMovie: {
+    width: 82,
+    gap: 6,
+  },
+  miniMovieTitle: {
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 14,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  genreGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  genreTile: {
+    width: '48%',
+    minHeight: 64,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    gap: 4,
+    padding: 10,
+  },
+  genreTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    lineHeight: 17,
+    fontWeight: '900',
   },
   acceptButton: {
     minHeight: 34,
@@ -2525,16 +2732,24 @@ const styles = StyleSheet.create({
   },
   cardTagPill: {
     alignSelf: 'flex-start',
-    maxWidth: '48%',
+    maxWidth: '100%',
     paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
+    fontSize: 10,
   },
   cardTagRow: {
     minHeight: 24,
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 5,
+  },
+  feedMovieCluster: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
   stack: {
     gap: 12,
@@ -2549,7 +2764,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: colors.ink,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 10,
     backgroundColor: colors.surface,
   },
@@ -2809,7 +3024,7 @@ const styles = StyleSheet.create({
     minHeight: 34,
     borderWidth: 2,
     borderColor: colors.ink,
-    borderRadius: 8,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.yellow,
@@ -2941,25 +3156,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileBlock: {
-    flexDirection: 'row',
+    minHeight: 220,
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
-    minHeight: 132,
     borderWidth: 3,
     borderColor: colors.ink,
-    borderRadius: 8,
+    borderRadius: 24,
     backgroundColor: colors.surface,
-    padding: 14,
+    padding: 18,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 4 },
   },
   profileCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
+    width: '100%',
+    alignItems: 'center',
+    gap: 9,
   },
   profileName: {
     color: colors.ink,
-    fontSize: 24,
+    fontSize: 26,
+    lineHeight: 29,
     fontWeight: '900',
+    textAlign: 'center',
   },
   profileHandle: {
     color: colors.ink,
@@ -2988,6 +3209,25 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     fontWeight: '900',
+  },
+  profileInlineStats: {
+    minHeight: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  profileInlineText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  profileTasteRow: {
+    maxWidth: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
   },
   emptyProfileState: {
     minHeight: 150,
@@ -3018,6 +3258,17 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.ink,
     fontWeight: '900',
+  },
+  friendRequestCard: {
+    minHeight: 82,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    padding: 10,
   },
   simplePersonRow: {
     minHeight: 58,
@@ -3051,6 +3302,21 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.cyan,
     padding: 2,
+  },
+  friendSuggestion: {
+    position: 'relative',
+  },
+  statusDot: {
+    position: 'absolute',
+    top: 0,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.yellow,
+    zIndex: 1,
   },
   friendHandle: {
     maxWidth: '100%',
