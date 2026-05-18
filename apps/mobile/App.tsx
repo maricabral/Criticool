@@ -618,36 +618,34 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
         </View>
       </View>
       <View style={styles.reviewCardBody}>
-        <View style={styles.feedMovieCluster}>
+        <View style={styles.feedPosterSlot}>
           <Poster movie={item.movie} compact />
-          <View style={styles.reviewCopy}>
-            <View style={styles.feedSignalBlock}>
-              {quickTake ? (
-                <Text numberOfLines={2} style={styles.quickTake}>
-                  {quickTake}
-                </Text>
-              ) : null}
-              <View style={styles.cardRatingLine}>
-                <PopcornRating value={item.rating} large />
-              </View>
-            </View>
-            {visibleTags.length ? (
-              <View style={styles.cardTagRow}>
-                {visibleTags.map((tag) => (
-                  <Text key={tag} numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
-                    {tag}
-                  </Text>
-                ))}
-              </View>
+        </View>
+        <View style={styles.feedReviewCopy}>
+          <View style={styles.feedSignalBlock}>
+            {quickTake ? (
+              <Text numberOfLines={2} style={styles.quickTake}>
+                {quickTake}
+              </Text>
             ) : null}
+            <View style={styles.cardRatingLine}>
+              <PopcornRating value={item.rating} large />
+            </View>
           </View>
+          {visibleTags.length ? (
+            <View style={styles.cardTagRow}>
+              {visibleTags.map((tag) => (
+                <Text key={tag} numberOfLines={1} style={[styles.tagPill, styles.cardTagPill]}>
+                  {tag}
+                </Text>
+              ))}
+            </View>
+          ) : null}
         </View>
         <View style={styles.reviewCommentCluster}>
-          <View style={styles.cardRatingLine}>
-            <View style={styles.commentBubble}>
-              <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
-              <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
-            </View>
+          <View style={styles.commentBubble}>
+            <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
+            <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
           </View>
           {commentParticipants.length ? (
             <View style={styles.commentParticipantRow}>
@@ -2386,11 +2384,8 @@ const styles = StyleSheet.create({
   },
   reviewCardBody: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
-    gap: 8,
     minHeight: 0,
+    position: 'relative',
   },
   reviewTitleBlock: {
     flex: 1,
@@ -2420,16 +2415,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   reviewCommentCluster: {
+    position: 'absolute',
+    right: 0,
+    bottom: 6,
     width: 48,
-    alignSelf: 'stretch',
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
     gap: 5,
-    paddingBottom: 5,
   },
   reviewTopMeta: {
     width: 100,
+    height: 30,
     alignItems: 'flex-end',
+    position: 'relative',
     gap: 1,
   },
   feedReviewerNameRow: {
@@ -2444,7 +2442,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingRight: 2,
-    marginBottom: 2,
   },
   framePerfRow: {
     position: 'absolute',
@@ -2556,8 +2553,7 @@ const styles = StyleSheet.create({
   reviewCopy: {
     flex: 1,
     minWidth: 0,
-    justifyContent: 'space-between',
-    gap: 4,
+    gap: 6,
   },
   movieTitle: {
     color: colors.ink,
@@ -2588,6 +2584,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   feedSpoilerText: {
+    position: 'absolute',
+    top: 31,
+    right: 0,
     color: colors.orange,
     fontSize: 12,
     fontWeight: '900',
@@ -2600,12 +2599,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   feedSignalBlock: {
-    flex: 1,
-    minHeight: 44,
+    minHeight: 58,
     alignItems: 'center',
     justifyContent: 'flex-start',
     gap: 8,
-    paddingTop: 5,
+    paddingTop: 0,
   },
   takeRow: {
     flexDirection: 'row',
@@ -2788,12 +2786,20 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 5,
   },
-  feedMovieCluster: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 10,
+  feedPosterSlot: {
+    position: 'absolute',
+    left: 0,
+    bottom: 6,
+    width: 64,
+    height: 88,
+  },
+  feedReviewCopy: {
+    position: 'absolute',
+    left: 76,
+    right: 58,
+    top: 4,
+    bottom: 6,
+    justifyContent: 'space-between',
   },
   stack: {
     gap: 12,
