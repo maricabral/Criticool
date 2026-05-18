@@ -352,7 +352,7 @@
     }
 
     .center-rating {
-      min-height: 20px;
+      min-height: 38px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -360,8 +360,8 @@
     }
 
     .center-rating .popcorns i {
-      width: 15px;
-      height: 15px;
+      width: 20px;
+      height: 20px;
     }
 
     .avatar {
@@ -521,7 +521,9 @@
       min-width: 0;
       display: grid;
       gap: 6px;
-      align-content: center;
+      grid-template-rows: 1fr auto;
+      align-content: stretch;
+      min-height: 78px;
     }
 
     .movie-title {
@@ -574,6 +576,7 @@
       line-height: 15px;
       font-weight: 800;
       margin: 0;
+      align-self: end;
     }
 
     .tag-row,
@@ -583,6 +586,16 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 6px;
+    }
+
+    .review-card .tag-row {
+      align-self: end;
+      max-height: 54px;
+      overflow: hidden;
+    }
+
+    .review-card .tag:nth-child(n+4) {
+      display: none;
     }
 
     .genre-grid {
@@ -1032,7 +1045,7 @@
                       <div class="movie-title">Gladiator II</div>
                     </div>
                     <div class="review-top-meta">
-                      <div class="reviewer-footer"><span class="avatar">G</span><span><strong>Guba</strong> · 1d</span></div>
+                      <div class="reviewer-footer"><span class="avatar">G</span><span><strong>Guba</strong></span></div>
                       <span class="spoiler">Spoilers</span>
                     </div>
                   </div>
@@ -1057,7 +1070,7 @@
                       <div class="movie-title">The Devil Wears Prada 2</div>
                     </div>
                     <div class="review-top-meta">
-                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong> · 1d</span></div>
+                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong></span></div>
                     </div>
                   </div>
                   <div class="review-body">
@@ -1080,7 +1093,7 @@
                       <div class="movie-title">Beethoven</div>
                     </div>
                     <div class="review-top-meta">
-                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong> · 1d</span></div>
+                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong></span></div>
                       <span class="spoiler">Spoilers</span>
                     </div>
                   </div>
@@ -1105,7 +1118,7 @@
                       <div class="movie-title">Beatles</div>
                     </div>
                     <div class="review-top-meta">
-                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong> · 1d</span></div>
+                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong></span></div>
                     </div>
                   </div>
                   <div class="review-body">
