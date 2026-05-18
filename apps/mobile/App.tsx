@@ -48,7 +48,7 @@ import {
 } from './src/api';
 import { colors } from './src/theme';
 
-type Tab = 'feed' | 'search' | 'create' | 'friends' | 'notifications' | 'profile';
+type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
   Platform.OS === 'web'
@@ -471,11 +471,13 @@ function AppShell({
   const [tab, setTab] = useState<Tab>('feed');
   const [selectedMovie, setSelectedMovie] = useState<MovieSummary | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const openCreate = (movie?: MovieSummary) => {
     if (movie) {
       setSelectedMovie(movie);
     }
+    setShowNotifications(false);
     setTab('create');
   };
 
@@ -483,10 +485,21 @@ function AppShell({
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
       <View style={styles.app}>
-        {tab === 'feed' ? (
+        {showNotifications ? (
+          <NotificationsScreen
+            tokens={tokens}
+            onBack={() => setShowNotifications(false)}
+            onOpenReview={(id) => {
+              setShowNotifications(false);
+              setSelectedReviewId(id);
+              setTab('profile');
+            }}
+          />
+        ) : tab === 'feed' ? (
           <FeedScreen
             tokens={tokens}
             onCreate={() => openCreate()}
+            onOpenNotifications={() => setShowNotifications(true)}
             onOpenReview={(id) => {
               setSelectedReviewId(id);
               setTab('profile');
@@ -506,15 +519,6 @@ function AppShell({
           />
         ) : null}
         {tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
-        {tab === 'notifications' ? (
-          <NotificationsScreen
-            tokens={tokens}
-            onOpenReview={(id) => {
-              setSelectedReviewId(id);
-              setTab('profile');
-            }}
-          />
-        ) : null}
         {tab === 'profile' ? (
           selectedReviewId ? (
             <ReviewDetailScreen
@@ -533,7 +537,13 @@ function AppShell({
           )
         ) : null}
       </View>
-      <TabBar current={tab} onChange={setTab} />
+      <TabBar
+        current={tab}
+        onChange={(nextTab) => {
+          setShowNotifications(false);
+          setTab(nextTab);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -541,10 +551,12 @@ function AppShell({
 function FeedScreen({
   tokens,
   onCreate,
+  onOpenNotifications,
   onOpenReview,
 }: {
   tokens: AuthTokens;
   onCreate: () => void;
+  onOpenNotifications: () => void;
   onOpenReview: (id: string) => void;
 }) {
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -590,7 +602,15 @@ function FeedScreen({
     <View style={styles.screen}>
       <Header
         title="CritiCool"
-        right={<IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />}
+        right={
+          <View style={styles.headerActionRow}>
+            <IconButton
+              icon={<Bell size={20} color={colors.ink} />}
+              onPress={onOpenNotifications}
+            />
+            <IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />
+          </View>
+        }
       />
       {items.length ? (
         <FlatList
@@ -754,7 +774,7 @@ function SearchScreen({
         icon={<Search size={18} color={colors.muted} />}
       />
       {busy ? <ActivityIndicator color={colors.pink} style={styles.inlineLoader} /> : null}
-      <ScrollView contentContainerStyle={styles.stack}>
+      <ScrollView contentContainerStyle={[styles.stack, styles.afterSearchFieldStack]}>
         {query.trim().length < 2 ? (
           <>
             <Panel tint="yellow">
@@ -1365,8 +1385,16 @@ function ReviewDetailScreen({
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
       <Header title="Review" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
       <View style={styles.detailHeaderCard}>
+        <Text
+          style={[
+            styles.detailReviewStatus,
+            review.containsSpoilers ? styles.detailSpoilerText : styles.detailSafeText,
+          ]}
+        >
+          {review.containsSpoilers ? 'Spoilers' : 'Spoiler-free'}
+        </Text>
         <Poster movie={review.movie} compact />
-        <View style={styles.reviewCopy}>
+        <View style={[styles.reviewCopy, styles.detailHeaderCopy]}>
           <View style={styles.authorRow}>
             <Avatar label={review.author.displayName || review.author.username} mini />
             <Text style={styles.author}>@{review.author.username}</Text>
@@ -1376,11 +1404,6 @@ function ReviewDetailScreen({
           </Text>
           <View style={styles.takeRow}>
             <Rating value={review.rating} size={22} />
-            {review.containsSpoilers ? (
-              <Text style={styles.detailSpoilerText}>Spoilers</Text>
-            ) : (
-              <Text style={styles.detailSafeText}>Spoiler-free</Text>
-            )}
           </View>
         </View>
       </View>
@@ -1524,6 +1547,9 @@ function CommentNode({
   return (
     <View style={isRootComment ? styles.commentThread : styles.commentReplyThread}>
       <View style={[styles.commentCard, comment.depth > 0 && styles.commentReplyCard]}>
+        <Text style={styles.commentDateTopRight}>
+          {new Date(comment.createdAt).toLocaleDateString()}
+        </Text>
         <View style={styles.commentCardBody}>
           <View style={styles.voteColumn}>
             <Pressable
@@ -1555,9 +1581,6 @@ function CommentNode({
               <Avatar label={comment.author.displayName || comment.author.username} mini />
               <View style={styles.reviewCopy}>
                 <Text style={styles.author}>@{comment.author.username}</Text>
-                <Text style={styles.commentMeta}>
-                  {new Date(comment.createdAt).toLocaleDateString()}
-                </Text>
               </View>
             </View>
             {isEditing ? (
@@ -1714,9 +1737,11 @@ function CommentComposer({
 
 function NotificationsScreen({
   tokens,
+  onBack,
   onOpenReview,
 }: {
   tokens: AuthTokens;
+  onBack: () => void;
   onOpenReview: (id: string) => void;
 }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -1773,11 +1798,14 @@ function NotificationsScreen({
       <Header
         title="Alerts"
         right={
-          unreadCount ? (
-            <PrimaryButton label="Read all" onPress={markAllRead} compact />
-          ) : loading ? (
-            <ActivityIndicator color={colors.pink} />
-          ) : undefined
+          <View style={styles.headerActionRow}>
+            {unreadCount ? (
+              <PrimaryButton label="Read all" onPress={markAllRead} compact />
+            ) : loading ? (
+              <ActivityIndicator color={colors.pink} />
+            ) : null}
+            <PrimaryButton label="Back" onPress={onBack} compact />
+          </View>
         }
       />
       <ScrollView contentContainerStyle={styles.stack}>
@@ -1947,7 +1975,7 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
         autoCapitalize="none"
         icon={<UserPlus size={18} color={colors.muted} />}
       />
-      <ScrollView contentContainerStyle={styles.stack}>
+      <ScrollView contentContainerStyle={[styles.stack, styles.afterSearchFieldStack]}>
         {incoming.length ? (
           <Panel tint="yellow">
             <View style={styles.sectionHeader}>
@@ -2389,7 +2417,6 @@ function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => v
       { id: 'search' as const, label: 'Search', icon: Search },
       { id: 'create' as const, label: 'Post', icon: Plus },
       { id: 'friends' as const, label: 'Friends', icon: Users },
-      { id: 'notifications' as const, label: 'Alerts', icon: Bell },
       { id: 'profile' as const, label: 'Me', icon: User },
     ],
     [],
@@ -2677,6 +2704,11 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 40,
+  },
+  headerActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   iconButton: {
     width: 40,
@@ -3264,6 +3296,9 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 22,
   },
+  afterSearchFieldStack: {
+    paddingTop: 12,
+  },
   inlineLoader: {
     marginTop: 12,
   },
@@ -3407,6 +3442,16 @@ const styles = StyleSheet.create({
   },
   commentCard: {
     gap: 10,
+    position: 'relative',
+  },
+  commentDateTopRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '900',
   },
   commentActionRow: {
     flexDirection: 'row',
@@ -3463,6 +3508,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingRight: 82,
   },
   commentMeta: {
     color: colors.muted,
@@ -3646,11 +3692,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
+    position: 'relative',
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 16,
     backgroundColor: colors.surface,
     padding: 12,
+  },
+  detailHeaderCopy: {
+    paddingRight: 92,
+  },
+  detailReviewStatus: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 1,
+    fontSize: 13,
+    lineHeight: 16,
   },
   detailSpoilerText: {
     color: colors.orange,
