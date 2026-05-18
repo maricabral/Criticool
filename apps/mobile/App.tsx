@@ -472,6 +472,20 @@ function AppShell({
   const [selectedMovie, setSelectedMovie] = useState<MovieSummary | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const refreshUnreadNotifications = useCallback(async () => {
+    try {
+      const response = await api.notifications(tokens);
+      setUnreadNotifications(response.unreadCount);
+    } catch {
+      // The feed can still render if the alert count is temporarily unavailable.
+    }
+  }, [tokens]);
+
+  useEffect(() => {
+    void refreshUnreadNotifications();
+  }, [refreshUnreadNotifications]);
 
   const openCreate = (movie?: MovieSummary) => {
     if (movie) {
@@ -488,6 +502,7 @@ function AppShell({
         {showNotifications ? (
           <NotificationsScreen
             tokens={tokens}
+            onUnreadCountChange={setUnreadNotifications}
             onBack={() => setShowNotifications(false)}
             onOpenReview={(id) => {
               setShowNotifications(false);
@@ -498,6 +513,8 @@ function AppShell({
         ) : tab === 'feed' ? (
           <FeedScreen
             tokens={tokens}
+            unreadNotifications={unreadNotifications}
+            onRefreshNotifications={refreshUnreadNotifications}
             onCreate={() => openCreate()}
             onOpenNotifications={() => setShowNotifications(true)}
             onOpenReview={(id) => {
@@ -550,11 +567,15 @@ function AppShell({
 
 function FeedScreen({
   tokens,
+  unreadNotifications,
+  onRefreshNotifications,
   onCreate,
   onOpenNotifications,
   onOpenReview,
 }: {
   tokens: AuthTokens;
+  unreadNotifications: number;
+  onRefreshNotifications: () => Promise<void>;
   onCreate: () => void;
   onOpenNotifications: () => void;
   onOpenReview: (id: string) => void;
@@ -575,12 +596,13 @@ function FeedScreen({
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void onRefreshNotifications();
+  }, [load, onRefreshNotifications]);
 
   const refresh = async () => {
     setRefreshing(true);
     try {
-      await load();
+      await Promise.all([load(), onRefreshNotifications()]);
     } finally {
       setRefreshing(false);
     }
@@ -598,6 +620,8 @@ function FeedScreen({
     }
   };
 
+  const hasUnreadNotifications = unreadNotifications > 0;
+
   return (
     <View style={styles.screen}>
       <Header
@@ -605,8 +629,16 @@ function FeedScreen({
         right={
           <View style={styles.headerActionRow}>
             <IconButton
-              icon={<Bell size={20} color={colors.ink} />}
+              icon={
+                <Bell size={20} color={hasUnreadNotifications ? colors.surface : colors.ink} />
+              }
               onPress={onOpenNotifications}
+              active={hasUnreadNotifications}
+              accessibilityLabel={
+                hasUnreadNotifications
+                  ? `${unreadNotifications} unread alerts`
+                  : 'Alerts'
+              }
             />
             <IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />
           </View>
@@ -1761,10 +1793,12 @@ function CommentComposer({
 
 function NotificationsScreen({
   tokens,
+  onUnreadCountChange,
   onBack,
   onOpenReview,
 }: {
   tokens: AuthTokens;
+  onUnreadCountChange: (count: number) => void;
   onBack: () => void;
   onOpenReview: (id: string) => void;
 }) {
@@ -1778,12 +1812,13 @@ function NotificationsScreen({
       const response = await api.notifications(tokens);
       setItems(response.items);
       setUnreadCount(response.unreadCount);
+      onUnreadCountChange(response.unreadCount);
     } catch (err) {
       Alert.alert('Could not load alerts', err instanceof Error ? err.message : 'Try again');
     } finally {
       setLoading(false);
     }
-  }, [tokens]);
+  }, [onUnreadCountChange, tokens]);
 
   useEffect(() => {
     void load();
@@ -1792,12 +1827,14 @@ function NotificationsScreen({
   const markRead = async (notification: NotificationItem) => {
     try {
       await api.markNotificationRead(tokens, notification.id);
-      setItems((current) =>
-        current.map((item) =>
-          item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item,
-        ),
+      const readAt = new Date().toISOString();
+      const nextItems = items.map((item) =>
+        item.id === notification.id ? { ...item, readAt } : item,
       );
-      setUnreadCount((current) => Math.max(0, current - (notification.readAt ? 0 : 1)));
+      const nextUnreadCount = nextItems.filter((item) => !item.readAt).length;
+      setItems(nextItems);
+      setUnreadCount(nextUnreadCount);
+      onUnreadCountChange(nextUnreadCount);
       if (notification.reviewId) {
         onOpenReview(notification.reviewId);
       }
@@ -1812,6 +1849,7 @@ function NotificationsScreen({
       const readAt = new Date().toISOString();
       setItems((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })));
       setUnreadCount(0);
+      onUnreadCountChange(0);
     } catch (err) {
       Alert.alert('Could not update alerts', err instanceof Error ? err.message : 'Try again');
     }
@@ -2426,9 +2464,23 @@ function PrimaryButton({
   );
 }
 
-function IconButton({ icon, onPress }: { icon: React.ReactNode; onPress: () => void }) {
+function IconButton({
+  icon,
+  onPress,
+  active,
+  accessibilityLabel,
+}: {
+  icon: React.ReactNode;
+  onPress: () => void;
+  active?: boolean;
+  accessibilityLabel?: string;
+}) {
   return (
-    <Pressable style={styles.iconButton} onPress={onPress}>
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.iconButton, active && styles.iconButtonActive]}
+      onPress={onPress}
+    >
       {icon}
     </Pressable>
   );
@@ -2775,6 +2827,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 0,
     shadowOffset: { width: 2, height: 3 },
+  },
+  iconButtonActive: {
+    backgroundColor: colors.pink,
   },
   fieldWrap: {
     minHeight: 46,
