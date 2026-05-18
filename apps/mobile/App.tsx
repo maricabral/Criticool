@@ -133,7 +133,7 @@ const BUZZ_MOVIES: MovieSummary[] = [
     backdropUrl: null,
   },
   {
-    tmdbId: 11846,
+    tmdbId: 11806,
     title: 'Beethoven',
     releaseYear: 1992,
     overview: null,
