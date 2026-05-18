@@ -27,10 +27,6 @@
       box-sizing: border-box;
     }
 
-    html {
-      background: var(--paper);
-    }
-
     body {
       margin: 0;
       color: var(--ink);
@@ -46,10 +42,6 @@
     h3,
     p {
       margin: 0;
-    }
-
-    button {
-      font: inherit;
     }
 
     .page {
@@ -79,8 +71,8 @@
     }
 
     .intro-mark img {
-      width: 72px;
-      height: 72px;
+      width: 74px;
+      height: 74px;
       object-fit: contain;
     }
 
@@ -91,7 +83,7 @@
     }
 
     .intro p {
-      max-width: 760px;
+      max-width: 800px;
       margin-top: 8px;
       color: var(--muted);
       font-size: 16px;
@@ -108,8 +100,8 @@
 
     .mock {
       display: grid;
-      gap: 10px;
       justify-items: center;
+      gap: 10px;
     }
 
     .label {
@@ -136,9 +128,9 @@
     }
 
     .phone {
-      position: relative;
       width: var(--phone);
       height: 874px;
+      position: relative;
       overflow: hidden;
       border: 3px solid var(--ink);
       background: var(--surface);
@@ -146,11 +138,13 @@
     }
 
     .screen {
-      position: relative;
       height: 100%;
-      padding: 8px 8px 74px;
+      position: relative;
       overflow: hidden;
-      background: var(--surface);
+      padding: 8px 8px 74px;
+      background:
+        radial-gradient(circle at 338px 120px, rgba(69, 194, 220, 0.08) 0 34px, transparent 35px),
+        var(--surface);
     }
 
     .scroll {
@@ -164,7 +158,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 0 0 2px;
+      padding-bottom: 2px;
     }
 
     .brand,
@@ -224,7 +218,7 @@
       justify-content: center;
       align-self: flex-start;
       border: 2px solid var(--ink);
-      border-radius: 8px;
+      border-radius: 999px;
       background: var(--yellow);
       color: var(--ink);
       padding: 0 12px;
@@ -255,24 +249,38 @@
       display: grid;
       gap: 14px;
       padding-top: 4px;
+      padding-bottom: 18px;
+    }
+
+    .review-card,
+    .panel,
+    .result-row,
+    .profile-card,
+    .comment {
+      border: 3px solid var(--ink);
+      background: var(--surface);
+      box-shadow: var(--shadow);
     }
 
     .review-card {
       display: grid;
-      gap: 10px;
-      border: 3px solid var(--ink);
+      grid-template-columns: 66px minmax(0, 1fr) 76px;
+      grid-template-rows: auto 1fr auto;
+      gap: 8px 10px;
+      height: 152px;
       border-radius: 12px;
       background: var(--cream);
       padding: 10px;
-      box-shadow: var(--shadow);
+      overflow: hidden;
     }
 
     .review-head {
-      min-height: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
+      grid-column: 1 / -1;
+      min-height: 30px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 116px;
+      align-items: start;
+      gap: 8px;
     }
 
     .reviewer {
@@ -282,6 +290,78 @@
       gap: 8px;
       align-items: center;
       flex: 1;
+    }
+
+    .review-card-title {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .review-top-meta {
+      display: grid;
+      justify-items: end;
+      gap: 1px;
+      width: 116px;
+    }
+
+    .reviewer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .reviewer-footer strong {
+      color: var(--ink);
+      font-size: 11px;
+      line-height: 13px;
+      font-weight: 950;
+    }
+
+    .reviewer-footer span:last-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .review-top-meta .avatar {
+      width: 26px;
+      height: 26px;
+      font-size: 10px;
+    }
+
+    .review-bottom {
+      grid-column: 3;
+      grid-row: 2 / 4;
+      min-height: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+    }
+
+    .chat-stack {
+      display: grid;
+      justify-items: end;
+      gap: 3px;
+    }
+
+    .center-rating {
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+
+    .center-rating .popcorns i {
+      width: 15px;
+      height: 15px;
     }
 
     .avatar {
@@ -297,6 +377,11 @@
       line-height: 1;
       font-weight: 950;
     }
+
+    .avatar.pink { background: var(--pink); }
+    .avatar.yellow { background: var(--yellow); color: var(--ink); }
+    .avatar.green { background: var(--green); color: var(--ink); }
+    .avatar.orange { background: var(--orange); color: white; }
 
     .avatar.large {
       width: 88px;
@@ -317,15 +402,13 @@
       text-overflow: ellipsis;
     }
 
-    .reviewer span {
+    .reviewer span,
+    .muted {
       display: block;
       color: var(--muted);
-      font-size: 11px;
-      line-height: 14px;
-      font-weight: 900;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 12px;
+      line-height: 15px;
+      font-weight: 850;
     }
 
     .comment-count {
@@ -335,7 +418,6 @@
       align-items: center;
       justify-content: center;
       gap: 4px;
-      flex: 0 0 auto;
       border: 2px solid var(--ink);
       border-radius: 999px;
       background: var(--surface);
@@ -351,7 +433,6 @@
       display: inline-block;
       border: 2px solid var(--ink);
       border-radius: 8px;
-      box-shadow: -3px 6px 0 -5px var(--ink);
     }
 
     .comment-cluster {
@@ -362,23 +443,31 @@
     }
 
     .active-row {
-      min-height: 18px;
+      min-height: 17px;
       display: flex;
       justify-content: flex-end;
       padding-right: 2px;
     }
 
     .active-row .avatar {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       margin-left: -6px;
-      font-size: 9px;
+      font-size: 8px;
     }
 
     .review-body {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
+      grid-column: 1 / 3;
+      display: grid;
+      grid-template-columns: 66px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .review-card .poster {
+      width: 58px;
+      height: 78px;
     }
 
     .poster {
@@ -423,27 +512,34 @@
         linear-gradient(135deg, #fff0d2, #ffffff 45%, #f8dfb9);
     }
 
+    .poster.big {
+      width: 82px;
+      height: 122px;
+    }
+
     .review-copy {
       min-width: 0;
-      flex: 1;
       display: grid;
-      gap: 5px;
+      gap: 6px;
+      align-content: center;
     }
 
     .movie-title {
       color: var(--ink);
-      font-size: 19px;
-      line-height: 21px;
+      font-size: 18px;
+      line-height: 20px;
       font-weight: 950;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .rating-line {
+    .rating-line,
+    .inline-row {
       min-height: 22px;
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
     }
 
@@ -460,28 +556,28 @@
       background: center / contain no-repeat url("data:image/svg+xml,%3Csvg class='lucide lucide-popcorn' xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23171217' stroke-width='2.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a2 2 0 0 0 0-4 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0 0 4'/%3E%3Cpath d='M10 22 9 8'/%3E%3Cpath d='m14 22 1-14'/%3E%3Cpath d='M20 8c.5 0 .9.4.8 1l-2.6 12c-.1.5-.7 1-1.2 1H7c-.6 0-1.1-.4-1.2-1L3.2 9c-.1-.6.3-1 .8-1Z'/%3E%3C/svg%3E");
     }
 
-    .popcorns .rating-number {
-      margin-left: 3px;
-      color: var(--ink);
-      font-size: 14px;
-      line-height: 1;
-      font-weight: 950;
+    .popcorns.large i {
+      width: 28px;
+      height: 28px;
     }
 
     .spoiler {
       color: var(--orange);
-      font-size: 12px;
+      font-size: 11px;
+      line-height: 13px;
       font-weight: 950;
     }
 
     .quick {
       color: var(--ink);
-      font-size: 13px;
-      line-height: 16px;
+      font-size: 12px;
+      line-height: 15px;
       font-weight: 800;
+      margin: 0;
     }
 
-    .tag-row {
+    .tag-row,
+    .chip-list {
       min-height: 24px;
       display: flex;
       flex-wrap: wrap;
@@ -489,8 +585,33 @@
       gap: 6px;
     }
 
-    .tag {
-      max-width: 48%;
+    .genre-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .genre-tile {
+      min-height: 64px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      border: 2px solid var(--ink);
+      border-radius: 14px;
+      padding: 10px;
+      background: var(--surface);
+      box-shadow: 2px 3px 0 rgba(23, 18, 23, 0.08);
+    }
+
+    .genre-tile strong {
+      font-size: 15px;
+      line-height: 17px;
+      font-weight: 950;
+    }
+
+    .tag,
+    .chip {
+      max-width: 100%;
       min-height: 24px;
       display: inline-flex;
       align-items: center;
@@ -505,6 +626,19 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .chip {
+      min-height: 30px;
+      border-width: 2px;
+      background: var(--surface);
+      font-size: 13px;
+      padding: 0 9px;
+    }
+
+    .chip.active {
+      background: var(--cyan);
+      color: white;
     }
 
     .tabs {
@@ -550,25 +684,67 @@
       color: white;
     }
 
+    .panel {
+      display: grid;
+      gap: 10px;
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .panel.tint-yellow { background: var(--cream); }
+    .panel.tint-cyan { background: #c8eef4; }
+    .panel.tint-pink { background: #f0b5d1; }
+    .panel.tint-green { background: #c7e9d2; }
+
+    .section-head {
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .section-title {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 950;
+    }
+
+    .poster-row,
+    .friend-row {
+      display: flex;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .mini-movie {
+      width: 82px;
+      display: grid;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+
+    .mini-movie .poster {
+      width: 82px;
+      height: 122px;
+    }
+
+    .mini-movie strong,
+    .friend-name {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 14px;
+      font-weight: 950;
+      text-align: center;
+    }
+
     .result-row {
       min-height: 102px;
       display: flex;
       align-items: center;
       gap: 12px;
-      border: 3px solid var(--ink);
-      border-radius: 8px;
-      background: var(--surface);
+      border-radius: 12px;
       padding: 10px;
-    }
-
-    .result-row .review-copy {
-      gap: 3px;
-    }
-
-    .muted {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
     }
 
     .pill-button {
@@ -602,45 +778,16 @@
       height: 48px;
       display: grid;
       place-items: center;
-    }
-
-    .rating-picker i {
-      width: 28px;
-      height: 28px;
-      display: block;
-      background: center / contain no-repeat url("data:image/svg+xml,%3Csvg class='lucide lucide-popcorn' xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23171217' stroke-width='2.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a2 2 0 0 0 0-4 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0 0 4'/%3E%3Cpath d='M10 22 9 8'/%3E%3Cpath d='m14 22 1-14'/%3E%3Cpath d='M20 8c.5 0 .9.4.8 1l-2.6 12c-.1.5-.7 1-1.2 1H7c-.6 0-1.1-.4-1.2-1L3.2 9c-.1-.6.3-1 .8-1Z'/%3E%3C/svg%3E");
-    }
-
-    .chip-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .chip {
-      min-height: 30px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       border: 2px solid var(--ink);
-      border-radius: 999px;
+      border-radius: 16px;
       background: var(--surface);
-      color: var(--ink);
-      padding: 0 9px;
-      font-size: 13px;
-      font-weight: 950;
-    }
-
-    .chip.active {
-      background: var(--cyan);
-      color: white;
     }
 
     .text-area {
       min-height: 138px;
       position: relative;
       border: 3px solid var(--ink);
-      border-radius: 8px;
+      border-radius: 12px;
       background: var(--surface);
       color: var(--muted);
       padding: 13px 56px 13px 13px;
@@ -669,16 +816,6 @@
       display: block;
       border: 3px solid var(--ink);
       border-radius: 999px;
-    }
-
-    .mic::after {
-      content: "";
-      position: absolute;
-      width: 16px;
-      height: 10px;
-      border-bottom: 3px solid var(--ink);
-      border-radius: 0 0 12px 12px;
-      transform: translateY(7px);
     }
 
     .toggle {
@@ -711,139 +848,6 @@
       margin-left: auto;
       border-radius: 50%;
       background: var(--surface);
-    }
-
-    .detail-card {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      border: 3px solid var(--ink);
-      border-radius: 16px;
-      background: var(--surface);
-      padding: 12px;
-    }
-
-    .author-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 950;
-    }
-
-    .body-text {
-      color: var(--ink);
-      font-size: 16px;
-      line-height: 23px;
-      font-weight: 700;
-    }
-
-    .section-head {
-      min-height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .section-title {
-      color: var(--ink);
-      font-size: 18px;
-      font-weight: 950;
-    }
-
-    .comment-composer {
-      display: grid;
-      gap: 8px;
-      border: 2px solid var(--ink);
-      border-radius: 22px;
-      background: var(--cream);
-      padding: 8px;
-    }
-
-    .comment-input {
-      min-height: 86px;
-      position: relative;
-      border-radius: 16px;
-      background: var(--surface);
-      color: var(--muted);
-      padding: 14px 56px 14px 14px;
-      font-size: 14px;
-      font-weight: 800;
-    }
-
-    .comment {
-      display: flex;
-      gap: 10px;
-      border: 3px solid var(--ink);
-      border-radius: 22px;
-      background: var(--surface);
-      padding: 10px;
-    }
-
-    .vote {
-      width: 34px;
-      display: grid;
-      place-items: center;
-      gap: 2px;
-      flex: 0 0 auto;
-      border: 2px solid var(--ink);
-      border-radius: 12px;
-      background: var(--yellow);
-      padding: 4px 0;
-      color: var(--ink);
-      font-size: 13px;
-      line-height: 1;
-      font-weight: 950;
-    }
-
-    .vote .active {
-      color: var(--pink);
-    }
-
-    .comment-copy {
-      min-width: 0;
-      flex: 1;
-      display: grid;
-      gap: 8px;
-    }
-
-    .reply {
-      min-height: 28px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      justify-self: start;
-      border: 2px solid var(--ink);
-      border-radius: 999px;
-      background: var(--surface);
-      padding: 0 9px;
-      font-size: 12px;
-      font-weight: 950;
-    }
-
-    .profile-card {
-      min-height: 132px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      border: 3px solid var(--ink);
-      border-radius: 8px;
-      background: var(--surface);
-      padding: 14px;
-    }
-
-    .profile-stat {
-      width: 74px;
-      min-height: 70px;
-      display: grid;
-      place-items: center;
-      border: 2px solid var(--ink);
-      border-radius: 8px;
-      background: var(--cream);
-      padding: 8px;
-      text-align: center;
-      font-weight: 950;
     }
 
     .welcome {
@@ -881,6 +885,82 @@
       font-weight: 800;
     }
 
+    .friend-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px 14px;
+      padding-top: 4px;
+    }
+
+    .friend {
+      display: grid;
+      justify-items: center;
+      gap: 7px;
+      position: relative;
+    }
+
+    .friend .avatar {
+      width: 62px;
+      height: 62px;
+      border-width: 3px;
+      font-size: 20px;
+    }
+
+    .status-dot {
+      position: absolute;
+      top: 0;
+      right: 17px;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--ink);
+      border-radius: 50%;
+      background: var(--yellow);
+    }
+
+    .profile-card {
+      min-height: 132px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .profile-card.centered {
+      min-height: 220px;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      text-align: center;
+      gap: 12px;
+      border-radius: 24px;
+      padding: 18px;
+      background: var(--surface);
+    }
+
+    .profile-stat {
+      width: 74px;
+      min-height: 70px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      background: var(--cream);
+      padding: 8px;
+      text-align: center;
+      font-weight: 950;
+    }
+
+    .profile-inline-stats {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 850;
+    }
+
     @media (max-width: 860px) {
       :root {
         --phone: min(402px, calc(100vw - 28px));
@@ -904,7 +984,7 @@
       </div>
       <div>
         <h1>CritiCool current UX mockups</h1>
-        <p>Clean visual reference for the current direction: plain review cards, reviewer-first feed hierarchy, progressive post flow, spoiler reveal/hide, vote reset, and UP DOG as the approved mascot.</p>
+        <p>Updated reference for the cleaner direction: no movie-tape feed, UP DOG as the mascot, richer Search and Post default states, colorful Friends, and Me as the quality bar.</p>
       </div>
     </header>
 
@@ -912,7 +992,7 @@
       <article class="mock">
         <div class="label">
           <h2>01. Welcome</h2>
-          <span>UP DOG is the brand mark. Keep the first screen simple.</span>
+          <span>UP DOG is the only mascot/logo direction.</span>
         </div>
         <div class="phone">
           <div class="screen">
@@ -924,8 +1004,10 @@
                   <p>Movie takes from your friends. Cute, quick, and private first.</p>
                 </div>
               </div>
-              <button class="primary">Create account</button>
-              <button class="primary" style="background:var(--surface);color:var(--ink)">Log in</button>
+              <div class="stack">
+                <button class="primary">Create account</button>
+                <button class="primary" style="background:var(--surface);color:var(--ink)">Log in</button>
+              </div>
             </div>
           </div>
         </div>
@@ -934,7 +1016,7 @@
       <article class="mock">
         <div class="label">
           <h2>02. Feed</h2>
-          <span>No feed tape. Reviewer first, comment count anchored right.</span>
+          <span>Cleaner cards. Keep the tape removed.</span>
         </div>
         <div class="phone">
           <div class="screen">
@@ -946,83 +1028,96 @@
               <div class="feed">
                 <section class="review-card">
                   <div class="review-head">
-                    <div class="reviewer">
-                      <span class="avatar">G</span>
-                      <div><strong>Guba</strong><span>@guba - 22h</span></div>
+                    <div class="review-card-title">
+                      <div class="movie-title">Gladiator II</div>
                     </div>
-                    <div class="comment-cluster">
+                    <div class="review-top-meta">
+                      <div class="reviewer-footer"><span class="avatar">G</span><span><strong>Guba</strong> · 1d</span></div>
                       <span class="spoiler">Spoilers</span>
-                      <span class="comment-count">1</span>
-                      <div class="active-row"><span class="avatar">G</span></div>
                     </div>
                   </div>
                   <div class="review-body">
                     <div class="poster"><span>Gladiator</span></div>
                     <div class="review-copy">
-                      <div class="movie-title">Gladiator II</div>
-                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i></span></div>
+                      <div class="center-rating"><span class="popcorns"><i></i><i></i><i></i><i></i></span></div>
+                      <p class="quick">A big arena movie with actual bite.</p>
+                    </div>
+                  </div>
+                  <div class="review-bottom">
+                    <div class="chat-stack">
+                      <span class="comment-count">4</span>
+                      <div class="active-row"><span class="avatar pink">M</span><span class="avatar yellow">A</span><span class="avatar">L</span></div>
                     </div>
                   </div>
                 </section>
 
                 <section class="review-card">
                   <div class="review-head">
-                    <div class="reviewer">
-                      <span class="avatar">M</span>
-                      <div><strong>mariana</strong><span>@marimari - 1d</span></div>
+                    <div class="review-card-title">
+                      <div class="movie-title">The Devil Wears Prada 2</div>
                     </div>
-                    <div class="comment-cluster">
-                      <span class="comment-count">0</span>
+                    <div class="review-top-meta">
+                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong> · 1d</span></div>
                     </div>
                   </div>
                   <div class="review-body">
                     <div class="poster red"><span>Prada</span></div>
                     <div class="review-copy">
-                      <div class="movie-title">The Devil Wears Prada 2</div>
-                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i></span></div>
+                      <div class="center-rating"><span class="popcorns"><i></i><i></i><i></i></span></div>
                       <div class="tag-row"><span class="tag">to watch with grandma</span></div>
+                    </div>
+                  </div>
+                  <div class="review-bottom">
+                    <div class="chat-stack">
+                      <span class="comment-count">0</span>
                     </div>
                   </div>
                 </section>
 
                 <section class="review-card">
                   <div class="review-head">
-                    <div class="reviewer">
-                      <span class="avatar">M</span>
-                      <div><strong>mariana</strong><span>@marimari - 1d</span></div>
+                    <div class="review-card-title">
+                      <div class="movie-title">Beethoven</div>
                     </div>
-                    <div class="comment-cluster">
+                    <div class="review-top-meta">
+                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong> · 1d</span></div>
                       <span class="spoiler">Spoilers</span>
-                      <span class="comment-count">3</span>
-                      <div class="active-row"><span class="avatar">G</span><span class="avatar">M</span><span class="avatar">A</span></div>
                     </div>
                   </div>
                   <div class="review-body">
                     <div class="poster blue"><span>Beethoven</span></div>
                     <div class="review-copy">
-                      <div class="movie-title">Beethoven</div>
-                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span></div>
-                      <div class="tag-row"><span class="tag">best with snacks</span><span class="tag">date night</span></div>
+                      <div class="center-rating"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span></div>
+                      <div class="tag-row"><span class="tag">best with snacks</span><span class="tag">date night chaos</span></div>
+                    </div>
+                  </div>
+                  <div class="review-bottom">
+                    <div class="chat-stack">
+                      <span class="comment-count">3</span>
+                      <div class="active-row"><span class="avatar">G</span></div>
                     </div>
                   </div>
                 </section>
 
                 <section class="review-card">
                   <div class="review-head">
-                    <div class="reviewer">
-                      <span class="avatar">M</span>
-                      <div><strong>mariana</strong><span>@marimari - 1d</span></div>
+                    <div class="review-card-title">
+                      <div class="movie-title">Beatles</div>
                     </div>
-                    <div class="comment-cluster">
-                      <span class="comment-count">0</span>
+                    <div class="review-top-meta">
+                      <div class="reviewer-footer"><span class="avatar">M</span><span><strong>mariana</strong> · 1d</span></div>
                     </div>
                   </div>
                   <div class="review-body">
                     <div class="poster light"><span>Beatles</span></div>
                     <div class="review-copy">
-                      <div class="movie-title">Beatles</div>
-                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i></span></div>
+                      <div class="center-rating"><span class="popcorns"><i></i><i></i><i></i></span></div>
                       <p class="quick">yu</p>
+                    </div>
+                  </div>
+                  <div class="review-bottom">
+                    <div class="chat-stack">
+                      <span class="comment-count">0</span>
                     </div>
                   </div>
                 </section>
@@ -1041,31 +1136,132 @@
 
       <article class="mock">
         <div class="label">
-          <h2>03. Post Start</h2>
-          <span>Before movie selection, keep the page quiet.</span>
+          <h2>03. Search</h2>
+          <span>Add useful default content before typing.</span>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="top">
+              <span class="title">Search</span>
+            </div>
+            <div class="scroll">
+              <div class="stack">
+                <div class="field">Q&nbsp;&nbsp;Find a movie</div>
+                <section class="panel tint-yellow">
+                  <div class="section-head">
+                    <span class="section-title">Buzz movies</span>
+                    <span class="muted">popular now</span>
+                  </div>
+                  <div class="poster-row">
+                    <div class="mini-movie"><div class="poster"><span>Gladiator</span></div><strong>Gladiator II</strong></div>
+                    <div class="mini-movie"><div class="poster red"><span>Prada</span></div><strong>Prada 2</strong></div>
+                    <div class="mini-movie"><div class="poster blue"><span>Beethoven</span></div><strong>Beethoven</strong></div>
+                    <div class="mini-movie"><div class="poster light"><span>Beatles</span></div><strong>Beatles</strong></div>
+                  </div>
+                </section>
+                <section class="panel tint-cyan">
+                  <div class="section-head">
+                    <span class="section-title">Browse by genre</span>
+                    <span class="muted">pick a mood</span>
+                  </div>
+                  <div class="genre-grid">
+                    <div class="genre-tile"><strong>Comedy</strong><span class="muted">easy watches</span></div>
+                    <div class="genre-tile"><strong>Horror</strong><span class="muted">late night</span></div>
+                    <div class="genre-tile"><strong>Drama</strong><span class="muted">big feelings</span></div>
+                    <div class="genre-tile"><strong>Sci-fi</strong><span class="muted">weird worlds</span></div>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <nav class="tabs">
+              <span class="tab"><i>H</i>Feed</span>
+              <span class="tab active"><i>S</i>Search</span>
+              <span class="tab"><i>+</i>Post</span>
+              <span class="tab"><i>Fr</i>Friends</span>
+              <span class="tab"><i>M</i>Me</span>
+            </nav>
+          </div>
+        </div>
+      </article>
+
+      <article class="mock">
+        <div class="label">
+          <h2>04. Search Results</h2>
+          <span>Suggestions collapse once the user searches.</span>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="top">
+              <span class="title">Search</span>
+            </div>
+            <div class="stack">
+              <div class="field">Q&nbsp;&nbsp;beethoven</div>
+              <div class="result-row">
+                <div class="poster blue"><span>Beethoven</span></div>
+                <div class="review-copy">
+                  <div class="movie-title">Beethoven</div>
+                  <span class="muted">1992 | Family comedy</span>
+                  <div class="inline-row"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span><span class="muted">3 friend takes</span></div>
+                </div>
+                <span class="pill-button">Review</span>
+              </div>
+              <div class="result-row">
+                <div class="poster"><span>Beethoven 2</span></div>
+                <div class="review-copy">
+                  <div class="movie-title">Beethoven's 2nd</div>
+                  <span class="muted">1993</span>
+                </div>
+                <span class="pill-button">Review</span>
+              </div>
+            </div>
+            <nav class="tabs">
+              <span class="tab"><i>H</i>Feed</span>
+              <span class="tab active"><i>S</i>Search</span>
+              <span class="tab"><i>+</i>Post</span>
+              <span class="tab"><i>Fr</i>Friends</span>
+              <span class="tab"><i>M</i>Me</span>
+            </nav>
+          </div>
+        </div>
+      </article>
+
+      <article class="mock">
+        <div class="label">
+          <h2>05. Post Start</h2>
+          <span>Movie-first, but not empty.</span>
         </div>
         <div class="phone">
           <div class="screen">
             <div class="top">
               <span class="title">New Review</span>
             </div>
-            <div class="stack">
-              <div class="field">Q&nbsp;&nbsp;Find a movie</div>
-              <div class="result-row">
-                <div class="poster blue"><span>Beethoven</span></div>
-                <div class="review-copy">
-                  <div class="movie-title">Beethoven</div>
-                  <span class="muted">1992</span>
-                </div>
-                <span class="pill-button">Pick</span>
-              </div>
-              <div class="result-row">
-                <div class="poster light"><span>Beatles</span></div>
-                <div class="review-copy">
-                  <div class="movie-title">Beatles</div>
-                  <span class="muted">1964</span>
-                </div>
-                <span class="pill-button">Pick</span>
+            <div class="scroll">
+              <div class="stack">
+                <section class="panel tint-pink">
+                  <span class="section-title">What did you watch?</span>
+                  <p class="muted">Search for a movie first. Rating and review fields appear after you pick one.</p>
+                </section>
+                <div class="field">Q&nbsp;&nbsp;Find a movie</div>
+                <section class="panel tint-yellow">
+                  <div class="section-head">
+                    <span class="section-title">Buzz movies to review</span>
+                    <span class="muted">quick start</span>
+                  </div>
+                  <div class="poster-row">
+                    <div class="mini-movie"><div class="poster"><span>Gladiator</span></div><strong>Gladiator II</strong></div>
+                    <div class="mini-movie"><div class="poster blue"><span>Beethoven</span></div><strong>Beethoven</strong></div>
+                    <div class="mini-movie"><div class="poster red"><span>Prada</span></div><strong>Prada 2</strong></div>
+                  </div>
+                </section>
+                <section class="panel tint-cyan">
+                  <span class="section-title">Prompt ideas</span>
+                  <div class="chip-list">
+                    <span class="chip">comfort watch</span>
+                    <span class="chip">best with snacks</span>
+                    <span class="chip">date night</span>
+                    <span class="chip">thought-provoking</span>
+                  </div>
+                </section>
               </div>
             </div>
             <nav class="tabs">
@@ -1081,8 +1277,8 @@
 
       <article class="mock">
         <div class="label">
-          <h2>04. Post Form</h2>
-          <span>Controls appear only after a movie is selected.</span>
+          <h2>06. Post Form</h2>
+          <span>Controls appear after movie selection.</span>
         </div>
         <div class="phone">
           <div class="screen">
@@ -1090,29 +1286,44 @@
               <span class="title">New Review</span>
               <button class="primary compact disabled">Post</button>
             </div>
-            <div class="stack">
-              <div class="result-row">
-                <div class="poster blue"><span>Beethoven</span></div>
-                <div class="review-copy">
-                  <div class="movie-title">Beethoven</div>
-                  <span class="muted">1992</span>
+            <div class="scroll">
+              <div class="stack">
+                <div class="result-row">
+                  <div class="poster blue"><span>Beethoven</span></div>
+                  <div class="review-copy">
+                    <div class="movie-title">Beethoven</div>
+                    <span class="muted">1992 | selected movie</span>
+                  </div>
+                  <span class="pill-button">Change</span>
                 </div>
-                <span class="pill-button">Change</span>
+                <div class="label-text">Rating</div>
+                <div class="rating-picker">
+                  <div><span class="popcorns large"><i></i></span></div>
+                  <div><span class="popcorns large"><i></i></span></div>
+                  <div><span class="popcorns large"><i></i></span></div>
+                  <div><span class="popcorns large"><i></i></span></div>
+                  <div><span class="popcorns large"><i></i></span></div>
+                </div>
+                <div class="field">Quick take</div>
+                <section class="panel tint-cyan">
+                  <div class="section-head">
+                    <span class="section-title">Pick up to 5 tags</span>
+                    <span class="muted">optional</span>
+                  </div>
+                  <div class="chip-list">
+                    <span class="chip active">comfort watch</span>
+                    <span class="chip active">best with snacks</span>
+                    <span class="chip">date night</span>
+                    <span class="chip">great with friends</span>
+                    <span class="chip">bring tissues</span>
+                    <span class="chip">slow burn</span>
+                  </div>
+                  <button class="secondary">Browse more tags</button>
+                </section>
+                <div class="text-area">Full review<div class="mic"></div></div>
+                <div class="toggle"><span>Contains spoilers</span><span class="switch"></span></div>
+                <button class="primary">Post</button>
               </div>
-              <div class="label-text">Rating</div>
-              <div class="rating-picker"><div><i></i></div><div><i></i></div><div><i></i></div><div><i></i></div><div><i></i></div></div>
-              <div class="field">Quick take</div>
-              <div class="chip-list">
-                <span class="chip active">comfort watch</span>
-                <span class="chip active">best with snacks</span>
-                <span class="chip">date night</span>
-                <span class="chip">thought-provoking</span>
-                <span class="chip">slow burn</span>
-              </div>
-              <button class="secondary">Browse more tags</button>
-              <div class="text-area">Full review<div class="mic"></div></div>
-              <div class="toggle"><span>Contains spoilers</span><span class="switch"></span></div>
-              <button class="primary">Post</button>
             </div>
             <nav class="tabs">
               <span class="tab"><i>H</i>Feed</span>
@@ -1127,61 +1338,71 @@
 
       <article class="mock">
         <div class="label">
-          <h2>05. Review Detail</h2>
-          <span>Plain header card. Spoilers can be revealed and hidden.</span>
+          <h2>07. Friends</h2>
+          <span>Bring back the colorful avatar-grid feel.</span>
         </div>
         <div class="phone">
           <div class="screen">
             <div class="top">
-              <span class="title">Review</span>
-              <button class="primary compact">Back</button>
+              <span class="title">Friends</span>
+              <button class="icon-btn">+</button>
             </div>
-            <div class="stack">
-              <section class="detail-card">
-                <div class="poster blue"><span>Beethoven</span></div>
-                <div class="review-copy">
-                  <div class="author-row"><span class="avatar">M</span><span>@marimari</span></div>
-                  <div class="movie-title">Beethoven</div>
-                  <div class="rating-line"><span class="popcorns"><i></i><span class="rating-number">5.0</span></span><span class="spoiler">Spoilers</span></div>
-                </div>
-              </section>
-              <div class="tag-row"><span class="tag">best with snacks</span><span class="tag">date night chaos</span></div>
-              <button class="secondary">Hide spoilers</button>
-              <p class="body-text">I love it</p>
-              <p class="body-text">I love it was one of the best movies ever</p>
-              <div class="section-head">
-                <span class="section-title">Comments</span>
-                <span class="comment-count">3 chats</span>
+            <div class="scroll">
+              <div class="stack">
+                <div class="field">Q&nbsp;&nbsp;Search username</div>
+                <section class="panel tint-yellow">
+                  <div class="section-head">
+                    <span class="section-title">Incoming</span>
+                    <span class="muted">2 requests</span>
+                  </div>
+                  <div class="result-row" style="box-shadow:none">
+                    <span class="avatar yellow">A</span>
+                    <div class="review-copy"><div class="movie-title">@ana</div><span class="muted">wants to be friends</span></div>
+                    <span class="pill-button">Accept</span>
+                  </div>
+                </section>
+                <section class="panel">
+                  <div class="section-head">
+                    <span class="section-title">Your friends</span>
+                    <span class="muted">31</span>
+                  </div>
+                  <div class="friend-grid">
+                    <div class="friend"><span class="avatar yellow">A</span><span class="friend-name">@ana</span></div>
+                    <div class="friend"><span class="avatar">L</span><span class="friend-name">@leo</span></div>
+                    <div class="friend"><span class="avatar pink">P</span><span class="friend-name">@paula</span></div>
+                    <div class="friend"><span class="avatar green">J</span><span class="friend-name">@joao</span></div>
+                    <div class="friend"><span class="avatar orange">B</span><span class="friend-name">@bia</span></div>
+                    <div class="friend"><span class="avatar">R</span><span class="friend-name">@rafa</span></div>
+                  </div>
+                </section>
+                <section class="panel tint-pink">
+                  <div class="section-head">
+                    <span class="section-title">Suggestions</span>
+                    <span class="muted">add more</span>
+                  </div>
+                  <div class="friend-grid">
+                    <div class="friend"><span class="status-dot"></span><span class="avatar green">C</span><span class="friend-name">@clara</span></div>
+                    <div class="friend"><span class="status-dot"></span><span class="avatar yellow">D</span><span class="friend-name">@duda</span></div>
+                    <div class="friend"><span class="status-dot"></span><span class="avatar">V</span><span class="friend-name">@vini</span></div>
+                  </div>
+                </section>
               </div>
-              <div class="comment-composer">
-                <div class="comment-input">Join the discussion<div class="mic"></div></div>
-                <button class="primary compact disabled">Post comment</button>
-              </div>
-              <article class="comment">
-                <div class="vote"><span class="active">^</span><span>1</span><span>v</span></div>
-                <div class="comment-copy">
-                  <div class="author-row"><span class="avatar">G</span><span>@guba</span></div>
-                  <p class="body-text">One of my favorites too, love how a dog connects a family together</p>
-                  <span class="reply">Reply</span>
-                </div>
-              </article>
-              <article class="comment">
-                <div class="vote"><span>^</span><span>0</span><span class="active">v</span></div>
-                <div class="comment-copy">
-                  <div class="author-row"><span class="avatar">G</span><span>@guba</span></div>
-                  <p class="body-text">Tap the opposite vote once to reset, then again to apply it.</p>
-                  <span class="reply">Reply</span>
-                </div>
-              </article>
             </div>
+            <nav class="tabs">
+              <span class="tab"><i>H</i>Feed</span>
+              <span class="tab"><i>S</i>Search</span>
+              <span class="tab"><i>+</i>Post</span>
+              <span class="tab active"><i>Fr</i>Friends</span>
+              <span class="tab"><i>M</i>Me</span>
+            </nav>
           </div>
         </div>
       </article>
 
       <article class="mock">
         <div class="label">
-          <h2>06. Me</h2>
-          <span>Profile review cards use the same plain feed card.</span>
+          <h2>08. Me</h2>
+          <span>Strongest screen. Use as the quality bar.</span>
         </div>
         <div class="phone">
           <div class="screen">
@@ -1189,41 +1410,42 @@
               <span class="title">@marimari</span>
               <button class="icon-btn">*</button>
             </div>
-            <div class="stack">
-              <section class="profile-card">
-                <span class="avatar large">M</span>
-                <div class="review-copy">
-                  <div class="movie-title" style="font-size:24px;line-height:26px">mariana</div>
-                  <span class="muted">@marimari</span>
+            <div class="scroll">
+              <div class="stack">
+                <section class="profile-card centered">
+                  <span class="avatar large">M</span>
+                  <div>
+                    <div class="movie-title" style="font-size:26px;line-height:28px;text-align:center">Mari</div>
+                    <div class="profile-inline-stats"><span>42 reviews</span><span>|</span><span>31 friends</span></div>
+                  </div>
+                  <div class="tag-row" style="justify-content:center"><span class="tag">sci-fi</span><span class="tag">thriller</span><span class="tag">drama</span></div>
+                </section>
+                <div class="section-head">
+                  <span class="section-title">Recent</span>
+                  <span class="comment-count">42</span>
                 </div>
-                <div class="profile-stat"><span style="font-size:22px">12</span><span class="muted">reviews</span></div>
-              </section>
-              <div class="section-head">
-                <span class="section-title">My reviews</span>
-                <span class="comment-count">12</span>
+                <div class="field">Q&nbsp;&nbsp;Search my reviews</div>
+                <section class="review-card">
+                  <div class="review-head">
+                    <div class="reviewer">
+                      <span class="avatar">M</span>
+                      <div><strong>mariana</strong><span>@marimari - 1d</span></div>
+                    </div>
+                    <div class="comment-cluster">
+                      <span class="spoiler">Spoilers</span>
+                      <span class="comment-count">3</span>
+                    </div>
+                  </div>
+                  <div class="review-body">
+                    <div class="poster blue"><span>Beethoven</span></div>
+                    <div class="review-copy">
+                      <div class="movie-title">Beethoven</div>
+                      <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span></div>
+                      <div class="tag-row"><span class="tag">best with snacks</span><span class="tag">date night</span></div>
+                    </div>
+                  </div>
+                </section>
               </div>
-              <div class="field">Q&nbsp;&nbsp;Search my reviews</div>
-              <section class="review-card">
-                <div class="review-head">
-                  <div class="reviewer">
-                    <span class="avatar">M</span>
-                    <div><strong>mariana</strong><span>@marimari - 1d</span></div>
-                  </div>
-                  <div class="comment-cluster">
-                    <span class="spoiler">Spoilers</span>
-                    <span class="comment-count">3</span>
-                    <div class="active-row"><span class="avatar">G</span><span class="avatar">M</span><span class="avatar">A</span></div>
-                  </div>
-                </div>
-                <div class="review-body">
-                  <div class="poster blue"><span>Beethoven</span></div>
-                  <div class="review-copy">
-                    <div class="movie-title">Beethoven</div>
-                    <div class="rating-line"><span class="popcorns"><i></i><i></i><i></i><i></i><i></i></span></div>
-                    <div class="tag-row"><span class="tag">best with snacks</span><span class="tag">date night</span></div>
-                  </div>
-                </div>
-              </section>
             </div>
             <nav class="tabs">
               <span class="tab"><i>H</i>Feed</span>
