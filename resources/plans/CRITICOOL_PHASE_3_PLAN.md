@@ -1,40 +1,68 @@
-# CritiCool Phase 3 Plan
+# CritiCool Phase 3 Plan And Completion Notes
 
 Date: 2026-05-18
+Completed: 2026-05-19
+Implementation commits:
+
+- `e64e4e6` Execute CritiCool phase 3
+- `b8b85c8` Fix review navigation and translation UX
 
 ## Summary
 
-Phase 3 should turn the Phase 2 social foundation into a polished MVP/beta candidate. The focus is not new categories, global discovery, native push, or admin tooling; it is closing the remaining movie-review product gaps, improving review management, making profiles/friend states clearer, adding lightweight translation for mixed-language friend groups, and tightening QA around privacy.
+Phase 3 turned the Phase 2 social foundation into a stronger MVP/beta candidate. The completed work stayed movie-review focused: privacy polish, review management, friend/profile clarity, on-demand translation, report/block improvements, and broader automated QA.
 
-Phase 2 audit result: the implementation is largely applied and verified by the current test/build suite. The main follow-up is privacy polish around blocked comment authors: review detail hides blocked users' comment rows, but user-visible comment counts and feed participant avatars should also exclude comments from users blocked either way.
+Important product correction after implementation: CritiCool remains review-first in the mobile app. Review cards must open the review detail, not a movie detail screen. The mobile movie detail screen was removed from navigation after review because it made existing reviews harder to access. The API still exposes authenticated movie detail data for future use, but the mobile app does not route feed/profile review interactions there.
 
 ## Key Changes
 
-- Close the Phase 2 privacy follow-up by excluding blocked comment authors from feed `commentCount`, feed `commentParticipants`, review detail `commentCount`, and related tests.
-- Add a real movie detail experience. Expand `GET /movies/:id` into an authenticated movie detail response with poster/backdrop, title/year, overview, runtime/status when cached, the viewer's existing active review, and friends' recent reviews. Add a shared `MovieDetail` type and mobile API method.
-- Build a mobile movie detail screen reachable from Search results, buzz movies, selected Post movie, and review cards. It should show movie art/metadata, friends' reviews, and a single clear CTA: write a review if none exists, otherwise open/edit the existing review.
-- Add mobile edit/delete review flows using the existing `PATCH /reviews/:id` and `DELETE /reviews/:id` endpoints. Editing should reuse the current Post form structure, prefill rating/quick take/body/tags/spoiler state, and delete should require confirmation.
-- Improve profile and friends polish: show stable review/friend counts, average rating, top tags from loaded reviews, clearer incoming/outgoing/accepted friend states, and better empty/error states without showing email.
-- Improve report/block UX by collecting a short reason/details for reports and refreshing affected feed/friend/detail state after a block.
-- Add on-demand translation for user-generated review and comment text. Preserve the original text, show a `Translate` action when content language likely differs from the viewer locale, and allow toggling back to `Show original`.
+- Completed the Phase 2 privacy follow-up by excluding blocked comment authors from feed `commentCount`, feed `commentParticipants`, review detail `commentCount`, and tests.
+- Expanded `GET /movies/:id` into an authenticated movie detail API response with cached movie metadata, viewer review, and friends' recent reviews. This is API-ready but not a mobile navigation destination in the current review-first UX.
+- Added mobile edit/delete review flows using the existing `PATCH /reviews/:id` and `DELETE /reviews/:id` endpoints. Editing reuses the Post form and pre-fills rating, quick take, body, tags, and spoiler state. Delete requires confirmation.
+- Preserved review-first navigation: feed/profile review cards open review detail; own reviews are accessible without entering edit mode.
+- Restored friend/profile navigation from avatars. Friend avatars open a friend profile/reviews view backed by a visibility-aware `GET /feed/users/:id` endpoint.
+- Improved profile and friends polish with stable review/friend counts, average rating, top tags from loaded reviews, clearer incoming/outgoing/accepted friend states, and better empty/error states without showing email.
+- Improved report/block UX by collecting reason/details for reports and refreshing affected state after blocking.
+- Added on-demand translation for user-generated review and comment text. Original text is preserved, translated text can be toggled back to `Show original`, and movie catalog metadata is not translated.
 
 ## API And Type Changes
 
-- Extend shared types with `MovieDetail`, `MovieReviewSummary`, and optional `viewerReview`.
-- Update `GET /movies/:id` to require the current user in the service layer so friends' reviews and viewer review are permission-aware.
-- Keep review edit/delete on existing routes: `PATCH /reviews/:id` and `DELETE /reviews/:id`.
-- Add a server-side translation adapter and `POST /translations` endpoint for `review` and `comment` targets. The API must run the same visibility checks as review detail before translating, return only translated user-generated text, and cache translations by target, target update version, source locale when known, and target locale.
-- Use the existing user `locale` field plus mobile device locale fallback as the default translation target; do not translate movie catalog metadata in Phase 3.
-- Do not add new notification, push, admin, or global feed APIs in Phase 3 unless needed to support the movie detail/profile flows above.
+- Shared types now include `MovieDetail`, `MovieReviewSummary`, translation target/response types, and user `locale`.
+- `GET /movies/:id` requires the current user and returns permission-aware `viewerReview` and `friendsReviews`.
+- Review edit/delete remain on `PATCH /reviews/:id` and `DELETE /reviews/:id`.
+- `POST /translations` supports `review` and `comment` targets, runs the same visibility checks as review detail, returns only translated user-generated fields, and caches by target, target update version, source locale, and target locale.
+- Translation cache is persisted in the new `translation_caches` table.
+- The translation adapter supports a custom `TRANSLATION_ENDPOINT_URL` and defaults to a provider-backed Google translate path. `TRANSLATION_PROVIDER="passthrough"` can be used for local no-op behavior.
+- Mobile uses the user locale when set and falls back to the device locale for translation target selection.
+- `GET /feed/users/:id` returns visible friend reviews for friend profile pages and rejects strangers/blocked relationships.
 
 ## Test Plan
 
-- Backend tests: blocked comment counts/participants, movie detail visibility for self/friend/stranger/blocked/deleted reviews, viewer existing review, and friends' review ordering.
-- Translation tests: inaccessible reviews/comments cannot be translated, deleted content cannot be translated, cached translations are reused, edited content receives a fresh translation cache key, and original text is never overwritten.
-- Mobile type/build checks: `npm run build --workspaces --if-present`.
-- Existing unit suite: `npm test`.
-- Smoke QA: extend `scripts/qa-smoke.mjs` to cover movie detail, existing-review CTA behavior, review edit, review delete, translation permission behavior, and blocked-comment count normalization.
-- Manual mobile QA: restart Expo after mobile changes, then verify search -> movie detail -> create review, feed -> review detail -> edit/delete own review, translate/show original on a review or comment, friend review visibility, blocked user disappearance, and report submission.
+Completed verification:
+
+- `npm run build --workspaces --if-present`
+- `npm test`
+- `npm run qa:smoke`
+
+Automated coverage now includes:
+
+- Blocked comment counts and feed participant normalization.
+- Movie detail API visibility, viewer existing review, and friend review ordering.
+- Friend profile review visibility through `GET /feed/users/:id`.
+- Translation permission checks, deleted/inaccessible content rejection, cache reuse, and preserving original text.
+- Review edit/delete behavior.
+- Report details and block-driven refresh/privacy behavior.
+
+Manual mobile QA checklist for this completed phase:
+
+- Feed review card opens review detail.
+- Profile review card opens review detail.
+- Own review detail exposes Edit, but edit is not required to read the review.
+- Search/Post still let a user pick a movie for a new review.
+- Friend avatar opens friend profile/reviews.
+- Friend profile reviews hide from strangers and blocked users.
+- Translate/Show original works on review body, quick take, and comment text.
+- Report form collects reason/details.
+- Blocking a user removes their comments from visible counts and participant avatars.
 
 ## Assumptions
 
@@ -43,3 +71,4 @@ Phase 2 audit result: the implementation is largely applied and verified by the 
 - Browser speech recognition stays the only in-app dictation path for now; native dictation remains documented as requiring a custom development build.
 - Push notifications, admin moderation dashboard, global explore feed, watchlist, public profiles, and multi-category review subjects stay deferred.
 - The existing visual/design contract in `README.md` remains authoritative for mobile UI work.
+- Review-first navigation is authoritative for mobile: movie metadata supports the review workflow, but review cards should not route to a movie-detail page.
