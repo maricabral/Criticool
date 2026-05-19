@@ -219,6 +219,39 @@
       background: var(--pink);
     }
 
+    .bell-icon {
+      width: 16px;
+      height: 15px;
+      position: relative;
+      display: block;
+      border: 3px solid currentColor;
+      border-bottom: 0;
+      border-radius: 10px 10px 3px 3px;
+      margin-top: 2px;
+    }
+
+    .bell-icon::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      right: -5px;
+      bottom: -4px;
+      height: 3px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .bell-icon::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      bottom: -9px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
     .badge-dot {
       position: absolute;
       top: 3px;
@@ -1008,12 +1041,12 @@
       </div>
       <div>
         <h1>CritiCool UX mockups _phase2</h1>
-        <p>Screenshot-informed update from the running app. Phase 2 keeps the warm chunky identity, but tightens the feed into a reviewer-first review card, hides spoiler previews, removes duplicate create pressure from the feed header, and gives discussion signals clearer roles.</p>
+        <p>Screenshot-informed update from the running app. Phase 2 keeps the warm chunky identity, tightens the feed into a reviewer-first review card, hides spoiler previews, restores the feed alert and quick-create actions, and gives discussion signals clearer roles.</p>
         <div class="notes">
           <span class="note">Reviewer first</span>
           <span class="note">Fixed 5-popcorn scale</span>
           <span class="note">Spoiler preview hidden</span>
-          <span class="note">Post lives in bottom nav</span>
+          <span class="note">Alert and + restored</span>
         </div>
       </div>
     </header>
@@ -1048,14 +1081,15 @@
       <article class="mock">
         <div class="label">
           <h2>02. Feed</h2>
-          <span>Reviewer and timestamp become the first read; plus moves out.</span>
+          <span>Reviewer and timestamp become the first read; alert and + stay handy.</span>
         </div>
         <div class="phone">
           <div class="screen warm">
             <div class="top">
               <span class="brand">CritiCool</span>
               <div class="header-actions">
-                <button class="icon-btn active">B<span class="badge-dot"></span></button>
+                <button class="icon-btn active" aria-label="Alerts"><span class="bell-icon"></span><span class="badge-dot"></span></button>
+                <button class="icon-btn" aria-label="Create review">+</button>
               </div>
             </div>
             <div class="scroll">
