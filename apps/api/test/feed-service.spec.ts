@@ -129,6 +129,33 @@ describe('FeedService', () => {
       expect(result.items[0].commentCount).toBe(5);
     });
 
+    it('filters blocked comment authors from feed counts and participants', async () => {
+      prisma.block.findMany.mockResolvedValue([{ blockerId: 'user-1', blockedId: 'blocked-1' }]);
+      prisma.review.findMany.mockResolvedValue([
+        makeReview({
+          comments: [
+            {
+              user: {
+                id: 'friend-1',
+                username: 'friend',
+                displayName: 'Friend',
+                avatarUrl: null,
+              },
+            },
+          ],
+          _count: { comments: 1 },
+        }),
+      ]);
+
+      const result = await service.feed('user-1');
+      const query = prisma.review.findMany.mock.calls[0][0];
+
+      expect(query.include.comments.where.userId.notIn).toEqual(['blocked-1']);
+      expect(query.include._count.select.comments.where.userId.notIn).toEqual(['blocked-1']);
+      expect(result.items[0].commentCount).toBe(1);
+      expect(result.items[0].commentParticipants.map((user) => user.id)).toEqual(['friend-1']);
+    });
+
     it('paginates with cursor', async () => {
       prisma.review.findMany.mockResolvedValue(
         Array.from({ length: 21 }, (_, index) =>

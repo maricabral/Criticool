@@ -145,6 +145,11 @@ async function run() {
   const reviewId = reviewRes.data?.id;
   assert(!!reviewId, 'Review has an id');
 
+  console.log('\n--- Movies: Detail ---');
+  const movieDetailARes = await request('GET', `/movies/${movieId}`, { token: userA.tokens.accessToken });
+  assert(movieDetailARes.status === 200, `Movie detail loads for reviewer (status ${movieDetailARes.status})`);
+  assert(movieDetailARes.data?.viewerReview?.id === reviewId, 'Movie detail includes viewer existing review');
+
   // ─── Friendship: A → B ───
   console.log('\n--- Friendship: Request & Accept ---');
   const frReqRes = await request('POST', '/friend-requests', {
@@ -181,6 +186,13 @@ async function run() {
   const bSeesReview = feedBRes.data.items?.some?.(item => item.reviewId === reviewId);
   assert(bSeesReview, "User B (friend) sees User A's review in feed");
 
+  const movieDetailBRes = await request('GET', `/movies/${movieId}`, { token: userB.tokens.accessToken });
+  assert(movieDetailBRes.status === 200, 'Friend can load movie detail');
+  assert(
+    movieDetailBRes.data.friendsReviews?.some?.((item) => item.id === reviewId),
+    'Movie detail includes recent friend review',
+  );
+
   // ─── Feed Visibility: Stranger ───
   console.log('\n--- Feed: Stranger Exclusion ---');
   const feedCRes = await request('GET', '/feed', { token: userC.tokens.accessToken });
@@ -195,6 +207,40 @@ async function run() {
 
   const detailCRes = await request('GET', `/reviews/${reviewId}`, { token: userC.tokens.accessToken });
   assert(detailCRes.status === 404, `Stranger gets 404 for review detail (status ${detailCRes.status})`);
+
+  console.log('\n--- Review: Edit ---');
+  const editReviewRes = await request('PATCH', `/reviews/${reviewId}`, {
+    token: userA.tokens.accessToken,
+    body: {
+      rating: 4.0,
+      quickTake: 'Amazing film, edited!',
+      body: 'Edited long take for translation.',
+      containsSpoilers: false,
+      tags: ['mind-bending', 'instant rewatch'],
+    },
+  });
+  assert(editReviewRes.status === 200, `Review edited (status ${editReviewRes.status})`);
+  assert(editReviewRes.data?.quickTake === 'Amazing film, edited!', 'Edited review returns new quick take');
+
+  console.log('\n--- Translations: Review Permissions ---');
+  const translateReviewBRes = await request('POST', '/translations', {
+    token: userB.tokens.accessToken,
+    body: { targetType: 'review', targetId: reviewId, sourceLocale: 'en-US', targetLocale: 'pt-BR' },
+  });
+  assert(translateReviewBRes.status === 201 || translateReviewBRes.status === 200, `Friend can translate review (status ${translateReviewBRes.status})`);
+  assert(translateReviewBRes.data?.fields?.body, 'Review translation returns user-generated body');
+
+  const translateReviewCachedRes = await request('POST', '/translations', {
+    token: userB.tokens.accessToken,
+    body: { targetType: 'review', targetId: reviewId, sourceLocale: 'en-US', targetLocale: 'pt-BR' },
+  });
+  assert(translateReviewCachedRes.data?.cached === true, 'Review translation cache is reused');
+
+  const translateReviewCRes = await request('POST', '/translations', {
+    token: userC.tokens.accessToken,
+    body: { targetType: 'review', targetId: reviewId, sourceLocale: 'en-US', targetLocale: 'pt-BR' },
+  });
+  assert(translateReviewCRes.status === 404, `Stranger cannot translate review (status ${translateReviewCRes.status})`);
 
   // ─── Comments ───
   console.log('\n--- Comments ---');
@@ -217,6 +263,19 @@ async function run() {
   });
   assert(editCommentRes.status === 200, `Comment edited (status ${editCommentRes.status})`);
   assert(editCommentRes.data?.body === 'Totally agree, edited!', 'Edited comment returns new body');
+
+  const translateCommentARes = await request('POST', '/translations', {
+    token: userA.tokens.accessToken,
+    body: { targetType: 'comment', targetId: commentId, sourceLocale: 'en-US', targetLocale: 'pt-BR' },
+  });
+  assert(translateCommentARes.status === 201 || translateCommentARes.status === 200, `Review author can translate comment (status ${translateCommentARes.status})`);
+  assert(translateCommentARes.data?.fields?.body, 'Comment translation returns user-generated body');
+
+  const translateCommentCRes = await request('POST', '/translations', {
+    token: userC.tokens.accessToken,
+    body: { targetType: 'comment', targetId: commentId, sourceLocale: 'en-US', targetLocale: 'pt-BR' },
+  });
+  assert(translateCommentCRes.status === 404, `Stranger cannot translate comment (status ${translateCommentCRes.status})`);
 
   // Reply
   const replyRes = await request('POST', `/reviews/${reviewId}/comments`, {
@@ -263,19 +322,55 @@ async function run() {
   assert(detailAfterCommentDelete.status === 200, 'Review detail supports comment sorting query');
   assert(detailAfterCommentDelete.data.commentCount === 1, 'Deleted comment excluded from visible comment count');
 
+  const blockedCountCommentRes = await request('POST', `/reviews/${reviewId}/comments`, {
+    token: userB.tokens.accessToken,
+    body: { body: 'This comment should disappear after a block.' },
+  });
+  assert(blockedCountCommentRes.status === 201 || blockedCountCommentRes.status === 200, `Second comment created for block count check (status ${blockedCountCommentRes.status})`);
+  const blockedCountCommentId = blockedCountCommentRes.data?.id;
+
   // Reports and Blocks
   console.log('\n--- Reports & Blocks ---');
   const reportReviewRes = await request('POST', '/reports', {
     token: userB.tokens.accessToken,
-    body: { targetType: 'review', targetId: reviewId, reason: 'test review report' },
+    body: {
+      targetType: 'review',
+      targetId: reviewId,
+      reason: 'test review report',
+      details: 'Smoke test review report details',
+    },
   });
   assert(reportReviewRes.status === 201 || reportReviewRes.status === 200, `Review report created (status ${reportReviewRes.status})`);
 
   const reportUserRes = await request('POST', '/reports', {
     token: userC.tokens.accessToken,
-    body: { targetType: 'user', targetId: userA.id, reason: 'test user report' },
+    body: {
+      targetType: 'user',
+      targetId: userA.id,
+      reason: 'test user report',
+      details: 'Smoke test user report details',
+    },
   });
   assert(reportUserRes.status === 201 || reportUserRes.status === 200, `User report created (status ${reportUserRes.status})`);
+
+  const blockFriendRes = await request('POST', `/users/${userB.id}/block`, { token: userA.tokens.accessToken });
+  assert(blockFriendRes.status === 201 || blockFriendRes.status === 200, `User A blocks User B (status ${blockFriendRes.status})`);
+
+  const detailAfterBlock = await request('GET', `/reviews/${reviewId}`, { token: userA.tokens.accessToken });
+  assert(detailAfterBlock.status === 200, 'Review author can reload detail after blocking commenter');
+  assert(
+    !JSON.stringify(detailAfterBlock.data.comments ?? []).includes(blockedCountCommentId),
+    'Blocked comment author is removed from review detail comments',
+  );
+  assert(detailAfterBlock.data.commentCount === 1, 'Blocked comment author excluded from review detail count');
+
+  const feedAfterBlock = await request('GET', '/feed', { token: userA.tokens.accessToken });
+  const ownFeedReviewAfterBlock = feedAfterBlock.data.items?.find?.((item) => item.reviewId === reviewId);
+  assert(ownFeedReviewAfterBlock?.commentCount === 1, 'Blocked comment author excluded from feed count');
+  assert(
+    !ownFeedReviewAfterBlock?.commentParticipants?.some?.((participant) => participant.id === userB.id),
+    'Blocked comment author excluded from feed participant avatars',
+  );
 
   const blockRes = await request('POST', `/users/${userA.id}/block`, { token: userC.tokens.accessToken });
   assert(blockRes.status === 201 || blockRes.status === 200, `User C blocks User A (status ${blockRes.status})`);

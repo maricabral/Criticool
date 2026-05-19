@@ -1,5 +1,7 @@
 import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../common/auth.guard';
+import { RequestUser } from '../common/auth-user';
+import { CurrentUser } from '../common/current-user.decorator';
 import { MovieGenreQueryDto, MovieIdParamDto, MovieSearchQueryDto, TmdbIdParamDto } from './dto';
 import { MoviesService } from './movies.service';
 
@@ -19,8 +21,8 @@ export class MoviesController {
   }
 
   @Get(':id')
-  getMovie(@Param() params: MovieIdParamDto) {
-    return this.movies.getMovie(params.id);
+  getMovie(@CurrentUser() user: RequestUser, @Param() params: MovieIdParamDto) {
+    return this.movies.getMovie(user.id, params.id);
   }
 
   @Post('tmdb/:tmdbId/import')

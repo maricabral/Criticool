@@ -17,6 +17,9 @@ import { ReportsController } from './reports/reports.controller';
 import { ReportsService } from './reports/reports.service';
 import { ReviewsController } from './reviews/reviews.controller';
 import { ReviewsService } from './reviews/reviews.service';
+import { TranslationAdapter } from './translations/translation-adapter';
+import { TranslationsController } from './translations/translations.controller';
+import { TranslationsService } from './translations/translations.service';
 import { UsersController } from './users/users.controller';
 import { UsersService } from './users/users.service';
 import { VisibilityService } from './visibility/visibility.service';
@@ -36,6 +39,7 @@ import { VisibilityService } from './visibility/visibility.service';
     UsersController,
     NotificationsController,
     ReportsController,
+    TranslationsController,
   ],
   providers: [
     PrismaService,
@@ -48,6 +52,8 @@ import { VisibilityService } from './visibility/visibility.service';
     VisibilityService,
     NotificationsService,
     ReportsService,
+    TranslationAdapter,
+    TranslationsService,
   ],
 })
 export class AppModule {}

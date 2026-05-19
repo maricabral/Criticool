@@ -267,3 +267,20 @@ model Report {
   @@index([targetType, targetId])
   @@map("reports")
 }
+
+model TranslationCache {
+  id            String   @id @default(uuid()) @db.Uuid
+  targetType    String   @map("target_type")
+  targetId      String   @map("target_id") @db.Uuid
+  targetVersion String   @map("target_version")
+  sourceLocale  String   @default("und") @map("source_locale")
+  targetLocale  String   @map("target_locale")
+  fields        Json
+  provider      String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([targetType, targetId, targetVersion, sourceLocale, targetLocale])
+  @@index([targetType, targetId])
+  @@map("translation_caches")
+}

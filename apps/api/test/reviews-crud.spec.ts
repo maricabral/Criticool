@@ -229,6 +229,39 @@ describe('ReviewsService', () => {
         }),
       );
     });
+
+    it('excludes blocked comment authors from detail rows and count', async () => {
+      prisma.review.findUnique.mockResolvedValue({
+        ...baseReview,
+        comments: [
+          {
+            ...baseComment,
+            id: 'visible-comment',
+            userId: 'friend-1',
+            user: { id: 'friend-1', username: 'friend', displayName: 'Friend', avatarUrl: null },
+          },
+          {
+            ...baseComment,
+            id: 'blocked-comment',
+            userId: 'blocked-1',
+            user: {
+              id: 'blocked-1',
+              username: 'blocked',
+              displayName: 'Blocked',
+              avatarUrl: null,
+            },
+          },
+        ],
+        _count: { comments: 2 },
+      });
+      prisma.block.findMany.mockResolvedValue([{ blockerId: 'user-2', blockedId: 'blocked-1' }]);
+      visibility.canSeeReview.mockResolvedValue(true);
+
+      const result = await service.get('user-2', 'review-1');
+
+      expect(result.commentCount).toBe(1);
+      expect(result.comments.map((comment) => comment.id)).toEqual(['visible-comment']);
+    });
   });
 
   describe('comments', () => {

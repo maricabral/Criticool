@@ -4,14 +4,25 @@ import type {
   AuthTokens,
   AuthUser,
   FeedResponse,
+  MovieDetail,
+  MovieReviewSummary,
   MovieSummary,
   NotificationsResponse,
   NotificationItem,
   ReviewComment,
   ReviewDetail,
+  TranslationResponse,
+  TranslationTargetType,
 } from '@criticool/shared';
 
-export type { NotificationItem, ReviewComment, ReviewDetail };
+export type {
+  MovieDetail,
+  MovieReviewSummary,
+  NotificationItem,
+  ReviewComment,
+  ReviewDetail,
+  TranslationResponse,
+};
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 const TOKENS_KEY = 'criticool.tokens';
@@ -166,6 +177,7 @@ export const api = {
       `/movies/genre?genreId=${encodeURIComponent(String(genreId))}`,
       { tokens },
     ),
+  movie: (tokens: AuthTokens, id: string) => apiRequest<MovieDetail>(`/movies/${id}`, { tokens }),
   importMovie: (tokens: AuthTokens, tmdbId: number) =>
     apiRequest<MovieSummary>(`/movies/tmdb/${tmdbId}/import`, { method: 'POST', tokens }),
   createReview: (
@@ -179,11 +191,43 @@ export const api = {
       containsSpoilers: boolean;
     },
   ) => apiRequest<ReviewDetail>('/reviews', { method: 'POST', tokens, body: JSON.stringify(body) }),
+  updateReview: (
+    tokens: AuthTokens,
+    id: string,
+    body: {
+      rating?: number;
+      quickTake?: string;
+      body?: string;
+      tags?: string[];
+      containsSpoilers?: boolean;
+    },
+  ) =>
+    apiRequest<ReviewDetail>(`/reviews/${id}`, {
+      method: 'PATCH',
+      tokens,
+      body: JSON.stringify(body),
+    }),
+  deleteReview: (tokens: AuthTokens, id: string) =>
+    apiRequest<{ ok: boolean }>(`/reviews/${id}`, { method: 'DELETE', tokens }),
   review: (tokens: AuthTokens, id: string, commentSort?: 'best' | 'new') =>
     apiRequest<ReviewDetail>(
       `/reviews/${id}${commentSort ? `?commentSort=${encodeURIComponent(commentSort)}` : ''}`,
       { tokens },
     ),
+  translate: (
+    tokens: AuthTokens,
+    body: {
+      targetType: TranslationTargetType;
+      targetId: string;
+      targetLocale: string;
+      sourceLocale?: string;
+    },
+  ) =>
+    apiRequest<TranslationResponse>('/translations', {
+      method: 'POST',
+      tokens,
+      body: JSON.stringify(body),
+    }),
   createComment: (
     tokens: AuthTokens,
     reviewId: string,

@@ -399,6 +399,7 @@ export class ReviewsService {
     hiddenUserIds: Set<string> = new Set(),
   ) {
     const comments = review.comments.filter((comment) => !hiddenUserIds.has(comment.userId));
+    const commentCount = comments.filter((comment) => !comment.deletedAt).length;
     return {
       id: review.id,
       createdAt: review.createdAt.toISOString(),
@@ -409,7 +410,7 @@ export class ReviewsService {
       tags: review.tags,
       containsSpoilers: review.containsSpoilers,
       visibility: review.visibility,
-      commentCount: review._count.comments,
+      commentCount,
       author: review.user,
       movie: movieSummary(review.movie),
       comments: this.presentCommentTree(comments),

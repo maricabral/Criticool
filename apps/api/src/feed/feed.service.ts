@@ -28,6 +28,11 @@ export class FeedService {
     const blockedUserIds = new Set(
       blockedRows.map((row) => (row.blockerId === userId ? row.blockedId : row.blockerId)),
     );
+    const hiddenCommentAuthorIds = [...blockedUserIds];
+    const visibleCommentWhere = {
+      deletedAt: null,
+      ...(hiddenCommentAuthorIds.length ? { userId: { notIn: hiddenCommentAuthorIds } } : {}),
+    };
 
     const reviews = await this.prisma.review.findMany({
       where: {
@@ -44,14 +49,14 @@ export class FeedService {
         user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
         movie: true,
         comments: {
-          where: { deletedAt: null },
+          where: visibleCommentWhere,
           orderBy: { createdAt: 'desc' },
           take: 8,
           select: {
             user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
           },
         },
-        _count: { select: { comments: { where: { deletedAt: null } } } },
+        _count: { select: { comments: { where: visibleCommentWhere } } },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: PAGE_SIZE + 1,
@@ -68,6 +73,19 @@ export class FeedService {
 
   async userReviews(userId: string, cursor?: string) {
     const parsedCursor = decodeCursor(cursor);
+    const blockedRows = await this.prisma.block.findMany({
+      where: {
+        OR: [{ blockerId: userId }, { blockedId: userId }],
+      },
+      select: { blockerId: true, blockedId: true },
+    });
+    const hiddenCommentAuthorIds = blockedRows.map((row) =>
+      row.blockerId === userId ? row.blockedId : row.blockerId,
+    );
+    const visibleCommentWhere = {
+      deletedAt: null,
+      ...(hiddenCommentAuthorIds.length ? { userId: { notIn: hiddenCommentAuthorIds } } : {}),
+    };
     const reviews = await this.prisma.review.findMany({
       where: {
         userId,
@@ -83,14 +101,14 @@ export class FeedService {
         user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
         movie: true,
         comments: {
-          where: { deletedAt: null },
+          where: visibleCommentWhere,
           orderBy: { createdAt: 'desc' },
           take: 8,
           select: {
             user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
           },
         },
-        _count: { select: { comments: { where: { deletedAt: null } } } },
+        _count: { select: { comments: { where: visibleCommentWhere } } },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: PAGE_SIZE + 1,

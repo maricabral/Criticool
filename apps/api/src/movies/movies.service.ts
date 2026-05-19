@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { Prisma, Review } from '@prisma/client';
 import { movieSummary } from '../common/movie-presenter';
 import { PrismaService } from '../prisma.service';
+import { VisibilityService } from '../visibility/visibility.service';
 
 type TmdbSearchMovie = {
   id: number;
@@ -32,6 +38,7 @@ export class MoviesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly visibility: VisibilityService,
   ) {}
 
   async search(query: string) {
@@ -95,9 +102,64 @@ export class MoviesService {
     }
   }
 
-  async getMovie(id: string) {
-    const movie = await this.prisma.movie.findUniqueOrThrow({ where: { id } });
-    return movieSummary(movie);
+  async getMovie(viewerId: string, id: string) {
+    const movie = await this.prisma.movie.findUnique({
+      where: { id },
+      include: {
+        genres: {
+          include: { genre: true },
+          orderBy: { genre: { name: 'asc' } },
+        },
+      },
+    });
+
+    if (!movie) {
+      throw new NotFoundException('Movie not found');
+    }
+
+    const [friendIds, blockedRows, viewerReview] = await Promise.all([
+      this.visibility.acceptedFriendIds(viewerId),
+      this.prisma.block.findMany({
+        where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] },
+        select: { blockerId: true, blockedId: true },
+      }),
+      this.prisma.review.findFirst({
+        where: { userId: viewerId, movieId: movie.id, deletedAt: null },
+        include: {
+          user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    const blockedUserIds = new Set(
+      blockedRows.map((row) => (row.blockerId === viewerId ? row.blockedId : row.blockerId)),
+    );
+    const visibleFriendIds = friendIds.filter((friendId) => !blockedUserIds.has(friendId));
+    const friendsReviews = visibleFriendIds.length
+      ? await this.prisma.review.findMany({
+          where: {
+            movieId: movie.id,
+            userId: { in: visibleFriendIds },
+            deletedAt: null,
+            visibility: 'friends',
+          },
+          include: {
+            user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 8,
+        })
+      : [];
+
+    return {
+      ...movieSummary(movie),
+      runtimeMinutes: movie.runtimeMinutes,
+      status: movie.status,
+      originalLanguage: movie.originalLanguage,
+      genres: movie.genres.map((link) => link.genre.name),
+      viewerReview: viewerReview ? this.presentMovieReview(viewerReview) : null,
+      friendsReviews: friendsReviews.map((review) => this.presentMovieReview(review)),
+    };
   }
 
   async importTmdbMovie(tmdbId: number) {
@@ -214,6 +276,24 @@ export class MoviesService {
       overview: movie.overview ?? null,
       posterUrl: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
       backdropUrl: movie.backdrop_path ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}` : null,
+    };
+  }
+
+  private presentMovieReview(
+    review: Review & {
+      user: { id: string; username: string; displayName: string; avatarUrl: string | null };
+    },
+  ) {
+    return {
+      id: review.id,
+      createdAt: review.createdAt.toISOString(),
+      updatedAt: review.updatedAt.toISOString(),
+      rating: Number(review.rating),
+      quickTake: review.quickTake,
+      body: review.body,
+      tags: review.tags,
+      containsSpoilers: review.containsSpoilers,
+      author: review.user,
     };
   }
 }

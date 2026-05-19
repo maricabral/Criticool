@@ -5,6 +5,7 @@ export type AuthUser = {
   displayName: string;
   avatarUrl: string | null;
   bio: string | null;
+  locale: string;
 };
 
 export type AuthTokens = {
@@ -25,6 +26,32 @@ export type MovieSummary = {
   overview: string | null;
   posterUrl: string | null;
   backdropUrl: string | null;
+};
+
+export type MovieReviewSummary = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  rating: number;
+  quickTake: string | null;
+  body: string | null;
+  tags: string[];
+  containsSpoilers: boolean;
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+};
+
+export type MovieDetail = MovieSummary & {
+  runtimeMinutes: number | null;
+  status: string | null;
+  originalLanguage: string | null;
+  genres: string[];
+  viewerReview: MovieReviewSummary | null;
+  friendsReviews: MovieReviewSummary[];
 };
 
 export type FeedItem = {
@@ -94,6 +121,21 @@ export type ReviewDetail = {
   };
   movie: MovieSummary;
   comments: ReviewComment[];
+};
+
+export type TranslationTargetType = 'review' | 'comment';
+
+export type TranslationResponse = {
+  targetType: TranslationTargetType;
+  targetId: string;
+  sourceLocale: string | null;
+  targetLocale: string;
+  targetVersion: string;
+  cached: boolean;
+  fields: {
+    quickTake?: string | null;
+    body?: string | null;
+  };
 };
 
 export type NotificationItem = {

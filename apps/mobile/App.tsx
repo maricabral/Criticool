@@ -4,9 +4,11 @@ import {
   Bell,
   Flag,
   Home,
+  Languages,
   LogOut,
   MessageCircle,
   Mic,
+  Pencil,
   Plus,
   Popcorn,
   Search,
@@ -32,13 +34,21 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import type { TextStyle } from 'react-native';
-import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
+import type { StyleProp, TextStyle } from 'react-native';
+import type {
+  AuthTokens,
+  AuthUser,
+  FeedItem,
+  MovieSummary,
+  TranslationTargetType,
+} from '@criticool/shared';
 import {
   api,
   FriendRequest,
   FriendSummary,
   loadTokens,
+  MovieDetail,
+  MovieReviewSummary,
   NotificationItem,
   ReviewComment,
   ReviewDetail,
@@ -157,6 +167,22 @@ const BUZZ_MOVIES: MovieSummary[] = [
     backdropUrl: null,
   },
 ];
+type EditableReview = {
+  id: string;
+  movie: MovieSummary;
+  rating: number;
+  quickTake: string | null;
+  body: string | null;
+  tags: string[];
+  containsSpoilers: boolean;
+};
+
+type ReportTarget = {
+  targetType: 'user' | 'review' | 'comment';
+  targetId: string;
+  label: string;
+};
+
 type GenreBrowseItem = {
   title: string;
   subtitle: string;
@@ -263,6 +289,61 @@ function startDictation({
   };
   recognition.onend = () => onEnd(false);
   recognition.start();
+}
+
+function deviceLocaleFallback() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
+  } catch {
+    return 'en-US';
+  }
+}
+
+function primaryLocale(locale: string) {
+  return locale.split(/[-_]/)[0]?.toLowerCase() || 'en';
+}
+
+function detectLikelyLocale(text: string) {
+  const value = ` ${text.toLowerCase()} `;
+  if (/[ãõçáéíóúâêôà]/i.test(text) || /\b(que|uma|para|com|não|muito|filme|achei)\b/.test(value)) {
+    return 'pt';
+  }
+  if (/[¿¡ñ]/i.test(text) || /\b(una|para|con|pero|muy|película|está)\b/.test(value)) {
+    return 'es';
+  }
+  if (/\b(the|and|with|movie|film|this|that|was|really|loved)\b/.test(value)) {
+    return 'en';
+  }
+  return null;
+}
+
+function shouldOfferTranslation(text: string, targetLocale: string) {
+  const detected = detectLikelyLocale(text);
+  return Boolean(detected && detected !== primaryLocale(targetLocale));
+}
+
+function toEditableReview(review: ReviewDetail, movie = review.movie): EditableReview {
+  return {
+    id: review.id,
+    movie,
+    rating: review.rating,
+    quickTake: review.quickTake,
+    body: review.body,
+    tags: review.tags,
+    containsSpoilers: review.containsSpoilers,
+  };
+}
+
+function movieSummaryFromDetail(movie: MovieDetail): MovieSummary {
+  return {
+    id: movie.id,
+    tmdbId: movie.tmdbId,
+    title: movie.title,
+    releaseYear: movie.releaseYear,
+    overview: movie.overview,
+    posterUrl: movie.posterUrl,
+    backdropUrl: movie.backdropUrl,
+  };
 }
 
 export default function App() {
@@ -476,9 +557,13 @@ function AppShell({
 }) {
   const [tab, setTab] = useState<Tab>('feed');
   const [selectedMovie, setSelectedMovie] = useState<MovieSummary | null>(null);
+  const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [editingReview, setEditingReview] = useState<EditableReview | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const viewerLocale = user.locale || deviceLocaleFallback();
+  const showingOverlay = Boolean(selectedMovieId || showNotifications);
 
   const refreshUnreadNotifications = useCallback(async () => {
     try {
@@ -497,6 +582,38 @@ function AppShell({
     if (movie) {
       setSelectedMovie(movie);
     }
+    setEditingReview(null);
+    setSelectedMovieId(null);
+    setShowNotifications(false);
+    setTab('create');
+  };
+
+  const openReview = (id: string) => {
+    setSelectedMovieId(null);
+    setShowNotifications(false);
+    setSelectedReviewId(id);
+    setTab('profile');
+  };
+
+  const openMovie = async (movie: MovieSummary) => {
+    try {
+      const localMovie = movie.id ? movie : await api.importMovie(tokens, movie.tmdbId);
+      if (!localMovie.id) {
+        throw new Error('Movie is not available locally yet');
+      }
+      setSelectedReviewId(null);
+      setShowNotifications(false);
+      setSelectedMovieId(localMovie.id);
+    } catch (err) {
+      Alert.alert('Could not open movie', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const startEditReview = (review: EditableReview) => {
+    setEditingReview(review);
+    setSelectedMovie(review.movie);
+    setSelectedMovieId(null);
+    setSelectedReviewId(null);
     setShowNotifications(false);
     setTab('create');
   };
@@ -505,16 +622,33 @@ function AppShell({
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
       <View style={styles.app}>
-        {showNotifications ? (
+        {selectedMovieId ? (
+          <MovieDetailScreen
+            tokens={tokens}
+            currentUserId={user.id}
+            viewerLocale={viewerLocale}
+            movieId={selectedMovieId}
+            onBack={() => setSelectedMovieId(null)}
+            onWriteReview={(movie) => openCreate(movie)}
+            onEditReview={(review, movie) =>
+              startEditReview({
+                id: review.id,
+                movie,
+                rating: review.rating,
+                quickTake: review.quickTake,
+                body: review.body,
+                tags: review.tags,
+                containsSpoilers: review.containsSpoilers,
+              })
+            }
+            onOpenReview={openReview}
+          />
+        ) : showNotifications ? (
           <NotificationsScreen
             tokens={tokens}
             onUnreadCountChange={setUnreadNotifications}
             onBack={() => setShowNotifications(false)}
-            onOpenReview={(id) => {
-              setShowNotifications(false);
-              setSelectedReviewId(id);
-              setTab('profile');
-            }}
+            onOpenReview={openReview}
           />
         ) : tab === 'feed' ? (
           <FeedScreen
@@ -523,38 +657,62 @@ function AppShell({
             onRefreshNotifications={refreshUnreadNotifications}
             onCreate={() => openCreate()}
             onOpenNotifications={() => setShowNotifications(true)}
-            onOpenReview={(id) => {
-              setSelectedReviewId(id);
-              setTab('profile');
-            }}
+            onOpenReview={openReview}
+            onOpenMovie={(movie) => void openMovie(movie)}
           />
         ) : null}
-        {tab === 'search' ? <SearchScreen tokens={tokens} onReviewMovie={openCreate} /> : null}
-        {tab === 'create' ? (
+        {!showingOverlay && tab === 'search' ? (
+          <SearchScreen
+            tokens={tokens}
+            onReviewMovie={openCreate}
+            onOpenMovie={(movie) => void openMovie(movie)}
+          />
+        ) : null}
+        {!showingOverlay && tab === 'create' ? (
           <CreateScreen
             tokens={tokens}
             selectedMovie={selectedMovie}
+            editingReview={editingReview}
             onSelectMovie={setSelectedMovie}
+            onOpenMovie={(movie) => void openMovie(movie)}
             onPosted={(id) => {
-              setSelectedReviewId(id);
+              setEditingReview(null);
+              openReview(id);
+            }}
+            onUpdated={(id) => {
+              setEditingReview(null);
+              openReview(id);
+            }}
+            onDeleted={() => {
+              setEditingReview(null);
+              setSelectedMovie(null);
+              setSelectedReviewId(null);
               setTab('profile');
+            }}
+            onCancelEdit={() => {
+              setEditingReview(null);
+              setSelectedMovie(null);
             }}
           />
         ) : null}
-        {tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
-        {tab === 'profile' ? (
+        {!showingOverlay && tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
+        {!showingOverlay && tab === 'profile' ? (
           selectedReviewId ? (
             <ReviewDetailScreen
               tokens={tokens}
               currentUserId={user.id}
+              viewerLocale={viewerLocale}
               reviewId={selectedReviewId}
               onBack={() => setSelectedReviewId(null)}
+              onOpenMovie={(movie) => void openMovie(movie)}
+              onEditReview={(review) => startEditReview(toEditableReview(review))}
             />
           ) : (
             <ProfileScreen
               tokens={tokens}
               user={user}
-              onOpenReview={setSelectedReviewId}
+              onOpenReview={openReview}
+              onOpenMovie={(movie) => void openMovie(movie)}
               onSignOut={onSignOut}
             />
           )
@@ -564,6 +722,10 @@ function AppShell({
         current={tab}
         onChange={(nextTab) => {
           setShowNotifications(false);
+          setSelectedMovieId(null);
+          if (nextTab !== 'create') {
+            setEditingReview(null);
+          }
           setTab(nextTab);
         }}
       />
@@ -578,6 +740,7 @@ function FeedScreen({
   onCreate,
   onOpenNotifications,
   onOpenReview,
+  onOpenMovie,
 }: {
   tokens: AuthTokens;
   unreadNotifications: number;
@@ -585,6 +748,7 @@ function FeedScreen({
   onCreate: () => void;
   onOpenNotifications: () => void;
   onOpenReview: (id: string) => void;
+  onOpenMovie: (movie: MovieSummary) => void;
 }) {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -662,7 +826,11 @@ function FeedScreen({
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
           onEndReached={loadMore}
           renderItem={({ item }) => (
-            <ReviewCard item={item} onPress={() => onOpenReview(item.reviewId)} />
+            <ReviewCard
+              item={item}
+              onPress={() => onOpenReview(item.reviewId)}
+              onOpenMovie={onOpenMovie}
+            />
           )}
         />
       ) : (
@@ -692,7 +860,15 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
+function ReviewCard({
+  item,
+  onPress,
+  onOpenMovie,
+}: {
+  item: FeedItem;
+  onPress: () => void;
+  onOpenMovie?: (movie: MovieSummary) => void;
+}) {
   const quickTake = item.containsSpoilers ? null : item.quickTake?.trim();
   const visibleTags = item.tags?.slice(0, 2) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
@@ -736,11 +912,24 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
         </View>
       </View>
       <View style={styles.reviewCardBody}>
-        <View style={styles.feedPosterColumn}>
+        <Pressable
+          style={styles.feedPosterColumn}
+          onPress={(event) => {
+            event.stopPropagation();
+            onOpenMovie?.(item.movie);
+          }}
+        >
           <Poster movie={item.movie} feed />
-        </View>
+        </Pressable>
         <View style={styles.feedReviewMain}>
-          <Text numberOfLines={1} style={styles.movieTitle}>
+          <Text
+            numberOfLines={1}
+            style={styles.movieTitle}
+            onPress={(event) => {
+              event.stopPropagation();
+              onOpenMovie?.(item.movie);
+            }}
+          >
             {item.movie.title}
           </Text>
           {quickTake ? (
@@ -778,9 +967,11 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
 function SearchScreen({
   tokens,
   onReviewMovie,
+  onOpenMovie,
 }: {
   tokens: AuthTokens;
   onReviewMovie: (movie: MovieSummary) => void;
+  onOpenMovie: (movie: MovieSummary) => void;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MovieSummary[]>([]);
@@ -892,7 +1083,7 @@ function SearchScreen({
                 <Text style={styles.sectionTitle}>Buzz movies</Text>
                 <Text style={styles.mutedText}>popular now</Text>
               </View>
-              <MoviePosterRow movies={buzzMovies} onPress={selectMovie} />
+              <MoviePosterRow movies={buzzMovies} onPress={onOpenMovie} />
             </Panel>
             <Panel tint="cyan">
               <View style={styles.sectionHeader}>
@@ -935,14 +1126,21 @@ function SearchScreen({
               <Pressable
                 key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
                 style={styles.resultRow}
-                onPress={() => selectMovie(movie)}
+                onPress={() => onOpenMovie(movie)}
               >
                 <Poster movie={movie} />
                 <View style={styles.reviewCopy}>
                   <Text style={styles.movieTitle}>{movie.title}</Text>
                   <Text style={styles.mutedText}>{movie.releaseYear ?? 'TBA'}</Text>
                 </View>
-                <Text style={styles.pill}>Review</Text>
+                <Pressable
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    void selectMovie(movie);
+                  }}
+                >
+                  <Text style={styles.pill}>Review</Text>
+                </Pressable>
               </Pressable>
             ))}
             {!busy && results.length === 0 ? (
@@ -961,13 +1159,23 @@ function SearchScreen({
 function CreateScreen({
   tokens,
   selectedMovie,
+  editingReview,
   onSelectMovie,
+  onOpenMovie,
   onPosted,
+  onUpdated,
+  onDeleted,
+  onCancelEdit,
 }: {
   tokens: AuthTokens;
   selectedMovie: MovieSummary | null;
+  editingReview: EditableReview | null;
   onSelectMovie: (movie: MovieSummary | null) => void;
+  onOpenMovie: (movie: MovieSummary) => void;
   onPosted: (id: string) => void;
+  onUpdated: (id: string) => void;
+  onDeleted: () => void;
+  onCancelEdit: () => void;
 }) {
   const [movieQuery, setMovieQuery] = useState('');
   const [movieResults, setMovieResults] = useState<MovieSummary[]>([]);
@@ -983,6 +1191,7 @@ function CreateScreen({
   const [transcribing, setTranscribing] = useState(false);
   const bodyInputRef = useRef<TextInput>(null);
   const buzzMovies = useBuzzMovies(tokens);
+  const isEditing = Boolean(editingReview);
 
   const visibleTagCategories = useMemo(() => {
     const needle = tagQuery.trim().toLowerCase();
@@ -995,6 +1204,19 @@ function CreateScreen({
         : category.tags,
     })).filter((category) => category.tags.length > 0);
   }, [tagQuery]);
+
+  useEffect(() => {
+    if (editingReview) {
+      onSelectMovie(editingReview.movie);
+      setRating(editingReview.rating);
+      setQuickTake(editingReview.quickTake ?? '');
+      setBody(editingReview.body ?? '');
+      setSelectedTags(editingReview.tags);
+      setTagQuery('');
+      setShowAllTags(false);
+      setContainsSpoilers(editingReview.containsSpoilers);
+    }
+  }, [editingReview, onSelectMovie]);
 
   useEffect(() => {
     if (selectedMovie || movieQuery.trim().length < 2) {
@@ -1039,12 +1261,15 @@ function CreateScreen({
   };
 
   const clearSelectedMovie = () => {
+    if (isEditing) {
+      onCancelEdit();
+    }
     onSelectMovie(null);
     setMovieResults([]);
     resetReviewFields();
   };
 
-  const canPost = Boolean(selectedMovie?.id && rating > 0);
+  const canSubmit = Boolean(selectedMovie?.id && rating > 0);
   const toggleTag = (tag: string) => {
     setSelectedTags((current) =>
       current.includes(tag)
@@ -1065,38 +1290,84 @@ function CreateScreen({
     });
   };
 
-  const post = async () => {
+  const submit = async () => {
     if (!selectedMovie?.id || rating <= 0) {
       return;
     }
     setBusy(true);
     try {
-      const review = await api.createReview(tokens, {
-        movieId: selectedMovie.id,
-        rating,
-        quickTake,
-        body,
-        tags: selectedTags,
-        containsSpoilers,
-      });
+      const review = editingReview
+        ? await api.updateReview(tokens, editingReview.id, {
+            rating,
+            quickTake,
+            body,
+            tags: selectedTags,
+            containsSpoilers,
+          })
+        : await api.createReview(tokens, {
+            movieId: selectedMovie.id,
+            rating,
+            quickTake,
+            body,
+            tags: selectedTags,
+            containsSpoilers,
+          });
       resetReviewFields();
       onSelectMovie(null);
-      onPosted(review.id);
-      Alert.alert('Posted', 'Your review is live.');
+      if (editingReview) {
+        onUpdated(review.id);
+        Alert.alert('Saved', 'Your review was updated.');
+      } else {
+        onPosted(review.id);
+        Alert.alert('Posted', 'Your review is live.');
+      }
     } catch (err) {
-      Alert.alert('Could not post', err instanceof Error ? err.message : 'Try again');
+      Alert.alert(
+        editingReview ? 'Could not save' : 'Could not post',
+        err instanceof Error ? err.message : 'Try again',
+      );
     } finally {
       setBusy(false);
     }
   };
 
+  const deleteReview = async () => {
+    if (!editingReview) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.deleteReview(tokens, editingReview.id);
+      resetReviewFields();
+      onSelectMovie(null);
+      onDeleted();
+      Alert.alert('Deleted', 'Your review was removed.');
+    } catch (err) {
+      Alert.alert('Could not delete', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDeleteReview = () => {
+    Alert.alert('Delete review?', 'This removes it from friends feeds and movie detail.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void deleteReview() },
+    ]);
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
       <Header
-        title="New Review"
+        title={isEditing ? 'Edit Review' : 'New Review'}
         right={
           selectedMovie ? (
-            <PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} compact />
+            <PrimaryButton
+              label={isEditing ? 'Save' : 'Post'}
+              onPress={submit}
+              disabled={!canSubmit || busy}
+              compact
+            />
           ) : undefined
         }
       />
@@ -1104,14 +1375,19 @@ function CreateScreen({
         <View style={styles.resultRow}>
           <Poster movie={selectedMovie} />
           <View style={styles.reviewCopy}>
-            <Text style={styles.movieTitle}>{selectedMovie.title}</Text>
+          <Text style={styles.movieTitle}>{selectedMovie.title}</Text>
             <Text style={styles.mutedText}>
-              {selectedMovie.releaseYear ?? 'TBA'} | selected movie
+              {selectedMovie.releaseYear ?? 'TBA'} | {isEditing ? 'editing review' : 'selected movie'}
             </Text>
           </View>
-          <Pressable style={styles.pillButton} onPress={clearSelectedMovie}>
-            <Text style={styles.pillButtonText}>Change</Text>
+          <Pressable style={styles.pillButton} onPress={() => onOpenMovie(selectedMovie)}>
+            <Text style={styles.pillButtonText}>Details</Text>
           </Pressable>
+          {!isEditing ? (
+            <Pressable style={styles.pillButton} onPress={clearSelectedMovie}>
+              <Text style={styles.pillButtonText}>Change</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         <>
@@ -1301,9 +1577,176 @@ function CreateScreen({
               <View style={[styles.toggleKnob, containsSpoilers && styles.toggleKnobOn]} />
             </View>
           </Pressable>
-          <PrimaryButton label="Post" onPress={post} disabled={!canPost || busy} />
+          <PrimaryButton
+            label={isEditing ? 'Save review' : 'Post'}
+            onPress={submit}
+            disabled={!canSubmit || busy}
+          />
+          {isEditing ? (
+            <Pressable
+              style={[styles.secondaryButton, styles.dangerButton]}
+              onPress={confirmDeleteReview}
+              disabled={busy}
+            >
+              <Trash2 size={15} color={colors.ink} />
+              <Text style={styles.secondaryButtonText}>Delete review</Text>
+            </Pressable>
+          ) : null}
         </>
       ) : null}
+    </ScrollView>
+  );
+}
+
+function MovieDetailScreen({
+  tokens,
+  viewerLocale,
+  movieId,
+  onBack,
+  onWriteReview,
+  onEditReview,
+  onOpenReview,
+}: {
+  tokens: AuthTokens;
+  currentUserId: string;
+  viewerLocale: string;
+  movieId: string;
+  onBack: () => void;
+  onWriteReview: (movie: MovieSummary) => void;
+  onEditReview: (review: MovieReviewSummary, movie: MovieSummary) => void;
+  onOpenReview: (id: string) => void;
+}) {
+  const [detail, setDetail] = useState<MovieDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setDetail(await api.movie(tokens, movieId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setLoading(false);
+    }
+  }, [movieId, tokens]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading && !detail) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.pink} />
+      </View>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <View style={styles.screen}>
+        <Header title="Movie" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
+        <View style={styles.notice}>
+          <Text style={styles.error}>Could not load movie.</Text>
+          {error ? <Text style={styles.mutedText}>{error}</Text> : null}
+          <PrimaryButton label="Try again" onPress={load} compact />
+        </View>
+      </View>
+    );
+  }
+
+  const movie = movieSummaryFromDetail(detail);
+  const metadata = [
+    detail.releaseYear?.toString(),
+    detail.runtimeMinutes ? `${detail.runtimeMinutes} min` : null,
+    detail.status,
+  ]
+    .filter(Boolean)
+    .join(' | ');
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
+      <Header title="Movie" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
+      <View style={styles.movieDetailHero}>
+        {detail.backdropUrl ? (
+          <Image source={{ uri: detail.backdropUrl }} style={styles.movieBackdrop} resizeMode="cover" />
+        ) : null}
+        <View style={styles.movieDetailHeader}>
+          <Poster movie={movie} compact />
+          <View style={styles.movieDetailCopy}>
+            <Text style={styles.movieDetailTitle}>{detail.title}</Text>
+            {metadata ? <Text style={styles.mutedText}>{metadata}</Text> : null}
+            {detail.genres.length ? <TagPills tags={detail.genres.slice(0, 3)} /> : null}
+          </View>
+        </View>
+      </View>
+      <View style={styles.detailInline}>
+        {detail.overview ? <Text style={styles.bodyText}>{detail.overview}</Text> : null}
+        {detail.viewerReview ? (
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => onEditReview(detail.viewerReview as MovieReviewSummary, movie)}
+          >
+            <Pencil size={16} color={colors.surface} />
+            <Text style={styles.primaryButtonText}>Edit your review</Text>
+          </Pressable>
+        ) : (
+          <PrimaryButton label="Write a review" onPress={() => onWriteReview(movie)} />
+        )}
+      </View>
+      <View style={styles.sectionBlock}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Friends reviews</Text>
+          <Text style={styles.bubble}>{detail.friendsReviews.length}</Text>
+        </View>
+        {detail.friendsReviews.length ? (
+          detail.friendsReviews.map((review) => (
+            <Pressable
+              key={review.id}
+              style={styles.friendReviewCard}
+              onPress={() => onOpenReview(review.id)}
+            >
+              <View style={styles.authorRow}>
+                <Avatar label={review.author.displayName || review.author.username} mini />
+                <Text style={styles.author}>@{review.author.username}</Text>
+                <Rating value={review.rating} size={18} />
+              </View>
+              {review.quickTake ? (
+                <TranslatableText
+                  tokens={tokens}
+                  targetType="review"
+                  targetId={review.id}
+                  field="quickTake"
+                  text={review.quickTake}
+                  targetLocale={viewerLocale}
+                  style={styles.detailTitle}
+                />
+              ) : null}
+              {review.body ? (
+                <TranslatableText
+                  tokens={tokens}
+                  targetType="review"
+                  targetId={review.id}
+                  field="body"
+                  text={review.body}
+                  targetLocale={viewerLocale}
+                  style={styles.bodyText}
+                  numberOfLines={4}
+                />
+              ) : null}
+              {review.tags.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
+            </Pressable>
+          ))
+        ) : (
+          <View style={styles.emptyProfileState}>
+            <Users size={28} color={colors.ink} />
+            <Text style={styles.emptyTitle}>No friend reviews yet</Text>
+            <Text style={styles.mutedText}>Your friends' takes will appear here.</Text>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -1311,13 +1754,19 @@ function CreateScreen({
 function ReviewDetailScreen({
   tokens,
   currentUserId,
+  viewerLocale,
   reviewId,
   onBack,
+  onOpenMovie,
+  onEditReview,
 }: {
   tokens: AuthTokens;
   currentUserId: string;
+  viewerLocale: string;
   reviewId: string;
   onBack: () => void;
+  onOpenMovie: (movie: MovieSummary) => void;
+  onEditReview: (review: ReviewDetail) => void;
 }) {
   const [review, setReview] = useState<ReviewDetail | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -1330,6 +1779,10 @@ function ReviewDetailScreen({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState('');
   const [mutatingCommentId, setMutatingCommentId] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
 
   const loadReview = useCallback(async () => {
@@ -1456,32 +1909,32 @@ function ReviewDetailScreen({
     }
   };
 
-  const reportReview = async () => {
-    if (!review) {
-      return;
-    }
-    try {
-      await api.report(tokens, {
-        targetType: 'review',
-        targetId: review.id,
-        reason: 'review report',
-      });
-      Alert.alert('Report sent', 'Thanks. This review was reported.');
-    } catch (err) {
-      Alert.alert('Could not report review', err instanceof Error ? err.message : 'Try again');
-    }
+  const openReport = (target: ReportTarget) => {
+    setReportTarget(target);
+    setReportReason('');
+    setReportDetails('');
   };
 
-  const reportComment = async (comment: ReviewComment) => {
+  const submitReport = async () => {
+    if (!reportTarget || reportReason.trim().length < 3) {
+      return;
+    }
+    setSubmittingReport(true);
     try {
       await api.report(tokens, {
-        targetType: 'comment',
-        targetId: comment.id,
-        reason: 'comment report',
+        targetType: reportTarget.targetType,
+        targetId: reportTarget.targetId,
+        reason: reportReason.trim(),
+        details: reportDetails.trim() || undefined,
       });
-      Alert.alert('Report sent', 'Thanks. This comment was reported.');
+      setReportTarget(null);
+      setReportReason('');
+      setReportDetails('');
+      Alert.alert('Report sent', 'Thanks. The report was sent.');
     } catch (err) {
-      Alert.alert('Could not report comment', err instanceof Error ? err.message : 'Try again');
+      Alert.alert('Could not report', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setSubmittingReport(false);
     }
   };
 
@@ -1535,7 +1988,9 @@ function ReviewDetailScreen({
         >
           {review.containsSpoilers ? 'Spoilers' : 'Spoiler-free'}
         </Text>
-        <Poster movie={review.movie} compact />
+        <Pressable onPress={() => onOpenMovie(review.movie)}>
+          <Poster movie={review.movie} compact />
+        </Pressable>
         <View style={[styles.reviewCopy, styles.detailHeaderCopy]}>
           <View style={styles.authorRow}>
             <Avatar label={review.author.displayName || review.author.username} mini />
@@ -1550,11 +2005,37 @@ function ReviewDetailScreen({
         </View>
       </View>
       <View style={styles.detailInline}>
-        {review.quickTake ? <Text style={styles.detailTitle}>{review.quickTake}</Text> : null}
+        {review.quickTake ? (
+          <TranslatableText
+            tokens={tokens}
+            targetType="review"
+            targetId={review.id}
+            field="quickTake"
+            text={review.quickTake}
+            targetLocale={viewerLocale}
+            style={styles.detailTitle}
+          />
+        ) : null}
         {review.tags?.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
-        {review.author.id !== currentUserId ? (
+        {review.author.id === currentUserId ? (
           <View style={styles.actionRow}>
-            <Pressable style={styles.secondaryButton} onPress={reportReview}>
+            <Pressable style={styles.secondaryButton} onPress={() => onEditReview(review)}>
+              <Pencil size={14} color={colors.ink} />
+              <Text style={styles.secondaryButtonText}>Edit</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.actionRow}>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() =>
+                openReport({
+                  targetType: 'review',
+                  targetId: review.id,
+                  label: `@${review.author.username}'s review`,
+                })
+              }
+            >
               <Flag size={14} color={colors.ink} />
               <Text style={styles.secondaryButtonText}>Report</Text>
             </Pressable>
@@ -1563,6 +2044,18 @@ function ReviewDetailScreen({
               <Text style={styles.secondaryButtonText}>Block</Text>
             </Pressable>
           </View>
+        )}
+        {reportTarget ? (
+          <ReportComposer
+            target={reportTarget}
+            reason={reportReason}
+            details={reportDetails}
+            submitting={submittingReport}
+            onChangeReason={setReportReason}
+            onChangeDetails={setReportDetails}
+            onCancel={() => setReportTarget(null)}
+            onSubmit={submitReport}
+          />
         ) : null}
         {showBody ? (
           <>
@@ -1571,7 +2064,19 @@ function ReviewDetailScreen({
                 <Text style={styles.secondaryButtonText}>Hide spoilers</Text>
               </Pressable>
             ) : null}
-            <Text style={styles.bodyText}>{review.body || 'No full review.'}</Text>
+            {review.body ? (
+              <TranslatableText
+                tokens={tokens}
+                targetType="review"
+                targetId={review.id}
+                field="body"
+                text={review.body}
+                targetLocale={viewerLocale}
+                style={styles.bodyText}
+              />
+            ) : (
+              <Text style={styles.bodyText}>No full review.</Text>
+            )}
           </>
         ) : (
           <PrimaryButton label="Reveal spoilers" onPress={() => setRevealed(true)} />
@@ -1613,6 +2118,8 @@ function ReviewDetailScreen({
                 comment={comment}
                 replyComposer={composer}
                 currentUserId={currentUserId}
+                viewerLocale={viewerLocale}
+                tokens={tokens}
                 editingCommentId={editingCommentId}
                 editingBody={editingBody}
                 mutatingCommentId={mutatingCommentId}
@@ -1626,7 +2133,13 @@ function ReviewDetailScreen({
                 onChangeEditBody={setEditingBody}
                 onSaveEdit={saveCommentEdit}
                 onDelete={deleteComment}
-                onReport={reportComment}
+                onReport={(comment) =>
+                  openReport({
+                    targetType: 'comment',
+                    targetId: comment.id,
+                    label: `@${comment.author.username}'s comment`,
+                  })
+                }
                 votingCommentId={votingCommentId}
               />
             ))}
@@ -1647,6 +2160,8 @@ function CommentNode({
   comment,
   replyComposer,
   currentUserId,
+  viewerLocale,
+  tokens,
   editingCommentId,
   editingBody,
   mutatingCommentId,
@@ -1664,6 +2179,8 @@ function CommentNode({
   comment: ReviewComment;
   replyComposer: React.ReactNode;
   currentUserId: string;
+  viewerLocale: string;
+  tokens: AuthTokens;
   editingCommentId: string | null;
   editingBody: string;
   mutatingCommentId: string | null;
@@ -1747,9 +2264,19 @@ function CommentNode({
                 </View>
               </View>
             ) : (
-              <Text style={[styles.bodyText, isDeleted && styles.deletedCommentText]}>
-                {comment.body}
-              </Text>
+              isDeleted ? (
+                <Text style={[styles.bodyText, styles.deletedCommentText]}>{comment.body}</Text>
+              ) : (
+                <TranslatableText
+                  tokens={tokens}
+                  targetType="comment"
+                  targetId={comment.id}
+                  field="body"
+                  text={comment.body}
+                  targetLocale={viewerLocale}
+                  style={styles.bodyText}
+                />
+              )
             )}
             {!isEditing ? (
               <View style={styles.commentActionRow}>
@@ -1795,6 +2322,8 @@ function CommentNode({
           comment={reply}
           replyComposer={replyComposer}
           currentUserId={currentUserId}
+          viewerLocale={viewerLocale}
+          tokens={tokens}
           editingCommentId={editingCommentId}
           editingBody={editingBody}
           mutatingCommentId={mutatingCommentId}
@@ -1873,6 +2402,126 @@ function CommentComposer({
         disabled={posting || !body.trim()}
         compact
       />
+    </View>
+  );
+}
+
+function ReportComposer({
+  target,
+  reason,
+  details,
+  submitting,
+  onChangeReason,
+  onChangeDetails,
+  onCancel,
+  onSubmit,
+}: {
+  target: ReportTarget;
+  reason: string;
+  details: string;
+  submitting: boolean;
+  onChangeReason: (value: string) => void;
+  onChangeDetails: (value: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <View style={styles.reportComposer}>
+      <Text style={styles.label}>Report {target.label}</Text>
+      <Field value={reason} onChangeText={onChangeReason} placeholder="Reason" />
+      <TextInput
+        value={details}
+        onChangeText={onChangeDetails}
+        placeholder="Details"
+        placeholderTextColor={colors.muted}
+        multiline
+        style={[styles.commentInput, webNoOutline]}
+      />
+      <View style={styles.actionRow}>
+        <Pressable
+          style={styles.acceptButton}
+          disabled={submitting || reason.trim().length < 3}
+          onPress={onSubmit}
+        >
+          <Text style={styles.acceptButtonText}>Send</Text>
+        </Pressable>
+        <Pressable style={styles.declineButton} onPress={onCancel}>
+          <Text style={styles.declineButtonText}>Cancel</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function TranslatableText({
+  tokens,
+  targetType,
+  targetId,
+  field,
+  text,
+  targetLocale,
+  style,
+  numberOfLines,
+}: {
+  tokens: AuthTokens;
+  targetType: TranslationTargetType;
+  targetId: string;
+  field: 'quickTake' | 'body';
+  text: string;
+  targetLocale: string;
+  style: StyleProp<TextStyle>;
+  numberOfLines?: number;
+}) {
+  const [translated, setTranslated] = useState<string | null>(null);
+  const [showTranslated, setShowTranslated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const detectedLocale = detectLikelyLocale(text);
+  const canTranslate = shouldOfferTranslation(text, targetLocale);
+  const visibleText = showTranslated && translated ? translated : text;
+
+  const toggleTranslation = async () => {
+    if (showTranslated) {
+      setShowTranslated(false);
+      return;
+    }
+    if (translated) {
+      setShowTranslated(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.translate(tokens, {
+        targetType,
+        targetId,
+        targetLocale,
+        sourceLocale: detectedLocale ?? undefined,
+      });
+      const nextText = response.fields[field];
+      if (nextText) {
+        setTranslated(nextText);
+        setShowTranslated(true);
+      }
+    } catch (err) {
+      Alert.alert('Could not translate', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.translationBlock}>
+      <Text style={style} numberOfLines={numberOfLines}>
+        {visibleText}
+      </Text>
+      {canTranslate ? (
+        <Pressable style={styles.translationButton} onPress={toggleTranslation} disabled={loading}>
+          <Languages size={14} color={colors.ink} />
+          <Text style={styles.translationButtonText}>
+            {loading ? 'Translating...' : showTranslated ? 'Show original' : 'Translate'}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -2023,6 +2672,10 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendSummary[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
 
   const loadFriendState = useCallback(async () => {
     setLoadingRequests(true);
@@ -2101,14 +2754,44 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
     }
   };
 
-  const reportUser = async (id: string) => {
+  const openUserReport = (id: string, username: string) => {
+    setReportTarget({ targetType: 'user', targetId: id, label: `@${username}` });
+    setReportReason('');
+    setReportDetails('');
+  };
+
+  const submitReport = async () => {
+    if (!reportTarget || reportReason.trim().length < 3) {
+      return;
+    }
+    setSubmittingReport(true);
     try {
-      await api.report(tokens, { targetType: 'user', targetId: id, reason: 'user report' });
-      Alert.alert('Report sent', 'Thanks. This user was reported.');
+      await api.report(tokens, {
+        targetType: reportTarget.targetType,
+        targetId: reportTarget.targetId,
+        reason: reportReason.trim(),
+        details: reportDetails.trim() || undefined,
+      });
+      setReportTarget(null);
+      setReportReason('');
+      setReportDetails('');
+      Alert.alert('Report sent', 'Thanks. The report was sent.');
     } catch (err) {
-      Alert.alert('Could not report user', err instanceof Error ? err.message : 'Try again');
+      Alert.alert('Could not report', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setSubmittingReport(false);
     }
   };
+
+  const friendIds = useMemo(() => new Set(friends.map((friend) => friend.id)), [friends]);
+  const incomingByUserId = useMemo(
+    () => new Map(incoming.map((request) => [request.requester.id, request])),
+    [incoming],
+  );
+  const outgoingUserIds = useMemo(
+    () => new Set(outgoing.map((request) => request.addressee.id)),
+    [outgoing],
+  );
 
   return (
     <View style={styles.screen}>
@@ -2124,6 +2807,18 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
         icon={<UserPlus size={18} color={colors.muted} />}
       />
       <ScrollView contentContainerStyle={[styles.stack, styles.afterSearchFieldStack]}>
+        {reportTarget ? (
+          <ReportComposer
+            target={reportTarget}
+            reason={reportReason}
+            details={reportDetails}
+            submitting={submittingReport}
+            onChangeReason={setReportReason}
+            onChangeDetails={setReportDetails}
+            onCancel={() => setReportTarget(null)}
+            onSubmit={submitReport}
+          />
+        ) : null}
         {incoming.length ? (
           <Panel tint="yellow">
             <View style={styles.sectionHeader}>
@@ -2155,27 +2850,46 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
         {query.trim().length >= 2 ? (
           <Panel>
             <Text style={styles.sectionTitle}>Find people</Text>
-            {users.map((item) => (
-              <View key={item.id} style={styles.simplePersonRow}>
-                <Avatar label={item.displayName} />
-                <Text numberOfLines={1} style={styles.friendSearchName}>
-                  @{item.username}
-                </Text>
-                <Pressable
-                  disabled={item.friendshipStatus !== null}
-                  onPress={() => void add(item.id)}
-                  style={styles.friendAddAction}
-                >
-                  <Text style={styles.pill}>{item.friendshipStatus ?? 'Add'}</Text>
-                </Pressable>
-                <Pressable style={styles.iconSmallButton} onPress={() => void reportUser(item.id)}>
-                  <Flag size={14} color={colors.ink} />
-                </Pressable>
-                <Pressable style={styles.iconSmallButton} onPress={() => void blockUser(item.id)}>
-                  <Ban size={14} color={colors.ink} />
-                </Pressable>
-              </View>
-            ))}
+            {users.map((item) => {
+              const incomingRequest = incomingByUserId.get(item.id);
+              const alreadyFriends =
+                friendIds.has(item.id) || item.friendshipStatus === 'accepted';
+              const pendingOutgoing =
+                outgoingUserIds.has(item.id) || item.friendshipStatus === 'pending';
+              const label = alreadyFriends
+                ? 'Friends'
+                : incomingRequest
+                  ? 'Respond'
+                  : pendingOutgoing
+                    ? 'Pending'
+                    : 'Add';
+              return (
+                <View key={item.id} style={styles.simplePersonRow}>
+                  <Avatar label={item.displayName} />
+                  <Text numberOfLines={1} style={styles.friendSearchName}>
+                    @{item.username}
+                  </Text>
+                  <Pressable
+                    disabled={alreadyFriends || (pendingOutgoing && !incomingRequest)}
+                    onPress={() =>
+                      incomingRequest ? void accept(incomingRequest.id) : void add(item.id)
+                    }
+                    style={styles.friendAddAction}
+                  >
+                    <Text style={styles.pill}>{label}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.iconSmallButton}
+                    onPress={() => openUserReport(item.id, item.username)}
+                  >
+                    <Flag size={14} color={colors.ink} />
+                  </Pressable>
+                  <Pressable style={styles.iconSmallButton} onPress={() => void blockUser(item.id)}>
+                    <Ban size={14} color={colors.ink} />
+                  </Pressable>
+                </View>
+              );
+            })}
             {!users.length ? <Text style={styles.mutedText}>No matches yet.</Text> : null}
           </Panel>
         ) : (
@@ -2194,7 +2908,7 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
                         @{friend.username}
                       </Text>
                       <View style={styles.friendMiniActions}>
-                        <Pressable onPress={() => void reportUser(friend.id)}>
+                        <Pressable onPress={() => openUserReport(friend.id, friend.username)}>
                           <Text style={styles.commentReplyText}>Report</Text>
                         </Pressable>
                         <Pressable onPress={() => void blockUser(friend.id)}>
@@ -2211,7 +2925,7 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
             {outgoing.length ? (
               <Panel tint="pink">
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Suggestions</Text>
+                  <Text style={styles.sectionTitle}>Outgoing</Text>
                   <Text style={styles.mutedText}>pending</Text>
                 </View>
                 <View style={styles.friendGrid}>
@@ -2243,11 +2957,13 @@ function ProfileScreen({
   tokens,
   user,
   onOpenReview,
+  onOpenMovie,
   onSignOut,
 }: {
   tokens: AuthTokens;
   user: AuthUser;
   onOpenReview: (id: string) => void;
+  onOpenMovie: (movie: MovieSummary) => void;
   onSignOut: () => void;
 }) {
   const [reviews, setReviews] = useState<FeedItem[]>([]);
@@ -2355,7 +3071,14 @@ function ProfileScreen({
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 3)
       .map(([tag]) => tag);
-    return topTags.length ? topTags : ['sci-fi', 'thriller', 'drama'];
+    return topTags;
+  }, [reviews]);
+  const averageRating = useMemo(() => {
+    if (!reviews.length) {
+      return null;
+    }
+    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return total / reviews.length;
   }, [reviews]);
 
   return (
@@ -2382,14 +3105,20 @@ function ProfileScreen({
             <Text style={styles.profileInlineText}>
               {friendCount === null ? '-' : friendCount} friends
             </Text>
+            <Text style={styles.profileInlineText}>|</Text>
+            <Text style={styles.profileInlineText}>
+              {averageRating === null ? '-' : averageRating.toFixed(1)} avg
+            </Text>
           </View>
-          <View style={styles.profileTasteRow}>
-            {tasteTags.map((tag) => (
-              <Text key={tag} numberOfLines={1} style={styles.tagPill}>
-                {tag}
-              </Text>
-            ))}
-          </View>
+          {tasteTags.length ? (
+            <View style={styles.profileTasteRow}>
+              {tasteTags.map((tag) => (
+                <Text key={tag} numberOfLines={1} style={styles.tagPill}>
+                  {tag}
+                </Text>
+              ))}
+            </View>
+          ) : null}
         </View>
       </View>
       <View style={styles.sectionBlock}>
@@ -2422,6 +3151,7 @@ function ProfileScreen({
               key={review.reviewId}
               item={review}
               onPress={() => onOpenReview(review.reviewId)}
+              onOpenMovie={onOpenMovie}
             />
           ))
         )}
@@ -2945,8 +3675,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.ink,
     backgroundColor: colors.pink,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     shadowColor: colors.ink,
     shadowOpacity: 0.13,
@@ -3623,6 +4355,34 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 8,
   },
+  reportComposer: {
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    backgroundColor: colors.cream,
+    gap: 8,
+    padding: 10,
+  },
+  translationBlock: {
+    gap: 6,
+  },
+  translationButton: {
+    alignSelf: 'flex-start',
+    minHeight: 28,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  translationButtonText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+  },
   activeReplyComposer: {
     marginTop: 10,
   },
@@ -3868,6 +4628,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
     paddingHorizontal: 12,
   },
+  dangerButton: {
+    backgroundColor: '#ffd8bd',
+  },
   secondaryButtonText: {
     color: colors.ink,
     fontSize: 13,
@@ -3956,6 +4719,44 @@ const styles = StyleSheet.create({
   detailInline: {
     gap: 12,
     paddingBottom: 4,
+  },
+  movieDetailHero: {
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  movieBackdrop: {
+    width: '100%',
+    height: 132,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.ink,
+  },
+  movieDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 12,
+  },
+  movieDetailCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
+  },
+  movieDetailTitle: {
+    color: colors.ink,
+    fontSize: 25,
+    lineHeight: 28,
+    fontWeight: '900',
+  },
+  friendReviewCard: {
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    gap: 10,
+    padding: 12,
   },
   detailHeaderCard: {
     flexDirection: 'row',

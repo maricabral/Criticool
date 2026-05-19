@@ -175,7 +175,12 @@ export class AuthService {
     return expiresAt;
   }
 
-  private presentUser(user: Pick<User, 'id' | 'email' | 'username' | 'displayName' | 'avatarUrl' | 'bio'>) {
+  private presentUser(
+    user: Pick<
+      User,
+      'id' | 'email' | 'username' | 'displayName' | 'avatarUrl' | 'bio' | 'locale'
+    >,
+  ) {
     return {
       id: user.id,
       email: user.email,
@@ -183,6 +188,7 @@ export class AuthService {
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
+      locale: user.locale,
     };
   }
 }
