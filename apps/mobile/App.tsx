@@ -640,7 +640,11 @@ function FeedScreen({
                   : 'Alerts'
               }
             />
-            <IconButton icon={<Plus size={20} color={colors.ink} />} onPress={onCreate} />
+            <IconButton
+              icon={<Plus size={20} color={colors.ink} />}
+              onPress={onCreate}
+              accessibilityLabel="Create review"
+            />
           </View>
         }
       />
@@ -683,7 +687,7 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 }
 
 function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
-  const quickTake = item.quickTake?.trim();
+  const quickTake = item.containsSpoilers ? null : item.quickTake?.trim();
   const visibleTags = item.tags?.slice(0, 2) ?? [];
   const reviewerName = item.author.displayName || item.author.username;
   const commentParticipants = item.commentParticipants ?? [];
@@ -694,64 +698,20 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
 
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
-      <View style={styles.feedPosterSlot}>
-        <Poster movie={item.movie} feed />
-      </View>
       <View style={styles.reviewCardHeader}>
-        <View style={styles.reviewTitleBlock}>
-          <Text numberOfLines={1} style={styles.movieTitle}>
-            {item.movie.title}
-          </Text>
-        </View>
-        <View style={styles.reviewTopMeta}>
-          <Text numberOfLines={1} style={styles.feedReviewDate}>
-            {reviewDate}
-          </Text>
-          <View style={styles.feedReviewerNameRow}>
-            <Avatar label={reviewerName} mini />
+        <View style={styles.feedReviewerRow}>
+          <Avatar label={reviewerName} mini />
+          <View style={styles.feedReviewerCopy}>
             <Text numberOfLines={1} style={styles.reviewerName}>
               {reviewerName}
             </Text>
+            <Text numberOfLines={1} style={styles.reviewerHandle}>
+              @{item.author.username} - {reviewDate}
+            </Text>
           </View>
-          {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
-        </View>
-      </View>
-      <View style={styles.reviewCardBody}>
-        <View style={styles.feedReviewCopy}>
-          <View style={styles.feedSignalBlock}>
-            <View style={styles.feedRatingLane}>
-              {quickTake ? (
-                <Text numberOfLines={2} style={styles.quickTake}>
-                  {quickTake}
-                </Text>
-              ) : null}
-              <View style={styles.cardRatingLine}>
-                <PopcornRating value={item.rating} large />
-              </View>
-            </View>
-          </View>
-          {visibleTags.length ? (
-            <View style={styles.feedTagLane}>
-              <View style={styles.cardTagRow}>
-                {visibleTags.map((tag) => (
-                  <Text
-                    key={tag}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={[
-                      styles.tagPill,
-                      styles.cardTagPill,
-                      visibleTags.length > 1 ? styles.cardTagPillPair : styles.cardTagPillSolo,
-                    ]}
-                  >
-                    {tag}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          ) : null}
         </View>
         <View style={styles.reviewCommentCluster}>
+          {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
           <View style={styles.commentBubble}>
             <MessageCircle size={13} color={colors.ink} strokeWidth={3} />
             <Text style={styles.commentBubbleText}>{item.commentCount}</Text>
@@ -769,6 +729,44 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
           ) : null}
         </View>
       </View>
+      <View style={styles.reviewCardBody}>
+        <View style={styles.feedPosterColumn}>
+          <Poster movie={item.movie} feed />
+        </View>
+        <View style={styles.feedReviewMain}>
+          <Text numberOfLines={1} style={styles.movieTitle}>
+            {item.movie.title}
+          </Text>
+          {quickTake ? (
+            <Text numberOfLines={2} style={styles.quickTake}>
+              {quickTake}
+            </Text>
+          ) : null}
+          <View style={styles.cardRatingLine}>
+            <PopcornRating value={item.rating} large />
+          </View>
+        </View>
+      </View>
+      {visibleTags.length ? (
+        <View style={styles.feedTagFooter}>
+          <View style={styles.cardTagRow}>
+            {visibleTags.map((tag) => (
+              <Text
+                key={tag}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={[
+                  styles.tagPill,
+                  styles.cardTagPill,
+                  visibleTags.length > 1 ? styles.cardTagPillPair : styles.cardTagPillSolo,
+                ]}
+              >
+                {tag}
+              </Text>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -2934,37 +2932,47 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewFrame: {
-    height: 186,
+    minHeight: 188,
     borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 12,
     backgroundColor: colors.cream,
     padding: 10,
-    gap: 4,
+    gap: 8,
     overflow: 'hidden',
-    position: 'relative',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
     shadowRadius: 0,
     shadowOffset: { width: 3, height: 4 },
   },
   reviewCardHeader: {
-    minHeight: 54,
+    minHeight: 34,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
-    marginLeft: 106,
   },
   reviewCardBody: {
-    flex: 1,
-    minHeight: 0,
-    position: 'relative',
-    marginLeft: 106,
+    minHeight: 112,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
   },
   reviewTitleBlock: {
     flex: 1,
     minWidth: 0,
+  },
+  feedReviewerRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  feedReviewerCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
   },
   reviewerRow: {
     flex: 1,
@@ -2979,24 +2987,20 @@ const styles = StyleSheet.create({
   },
   reviewerName: {
     color: colors.ink,
-    fontSize: 11,
-    lineHeight: 13,
+    fontSize: 14,
+    lineHeight: 16,
     fontWeight: '900',
   },
   reviewerHandle: {
     color: colors.muted,
     fontSize: 11,
-    lineHeight: 14,
+    lineHeight: 13,
     fontWeight: '800',
   },
   reviewCommentCluster: {
-    position: 'absolute',
-    right: 0,
-    bottom: 8,
-    width: 52,
+    width: 58,
     alignItems: 'flex-end',
-    justifyContent: 'flex-end',
-    gap: 5,
+    gap: 4,
   },
   reviewTopMeta: {
     width: 90,
@@ -3128,9 +3132,8 @@ const styles = StyleSheet.create({
     height: 88,
   },
   feedPosterImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
+    width: 84,
+    height: 112,
     borderRadius: 8,
     borderWidth: 3,
     borderColor: colors.ink,
@@ -3175,7 +3178,7 @@ const styles = StyleSheet.create({
   },
   cardRatingLine: {
     width: '100%',
-    minHeight: 36,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -3183,18 +3186,27 @@ const styles = StyleSheet.create({
   },
   feedSpoilerText: {
     color: colors.orange,
-    fontSize: 12,
+    fontSize: 11,
     lineHeight: 13,
     fontWeight: '900',
-    marginTop: 3,
   },
   quickTake: {
     maxWidth: '100%',
     color: colors.ink,
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 13,
+    lineHeight: 16,
     fontWeight: '800',
     textAlign: 'left',
+  },
+  feedPosterColumn: {
+    width: 84,
+    height: 112,
+  },
+  feedReviewMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 7,
+    paddingTop: 1,
   },
   feedSignalBlock: {
     flex: 1,
@@ -3425,10 +3437,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingRight: 56,
   },
+  feedTagFooter: {
+    minHeight: 24,
+    paddingLeft: 95,
+  },
   cardTagRow: {
-    width: 176,
+    width: '100%',
     maxWidth: '100%',
-    minHeight: 32,
+    minHeight: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
