@@ -2,13 +2,13 @@ import { StatusBar } from 'expo-status-bar';
 import {
   Ban,
   Bell,
+  ChevronDown,
+  Ellipsis,
   Flag,
   Home,
-  Languages,
   LogOut,
   MessageCircle,
   Mic,
-  Pencil,
   Plus,
   Popcorn,
   Search,
@@ -35,12 +35,7 @@ import {
   View,
 } from 'react-native';
 import type { TextStyle } from 'react-native';
-import type {
-  AuthTokens,
-  AuthUser,
-  FeedItem,
-  MovieSummary,
-} from '@criticool/shared';
+import type { AuthTokens, AuthUser, FeedItem, MovieSummary } from '@criticool/shared';
 import {
   api,
   BlockedUserSummary,
@@ -185,6 +180,13 @@ type ReviewTranslationState = {
   quickTake: string | null;
   body: string | null;
   showTranslated: boolean;
+};
+
+type MenuAction = {
+  label: string;
+  onPress: () => void | Promise<void>;
+  disabled?: boolean;
+  danger?: boolean;
 };
 
 type GenreBrowseItem = {
@@ -759,15 +761,11 @@ function FeedScreen({
         right={
           <View style={styles.headerActionRow}>
             <IconButton
-              icon={
-                <Bell size={20} color={hasUnreadNotifications ? colors.surface : colors.ink} />
-              }
+              icon={<Bell size={20} color={hasUnreadNotifications ? colors.surface : colors.ink} />}
               onPress={onOpenNotifications}
               active={hasUnreadNotifications}
               accessibilityLabel={
-                hasUnreadNotifications
-                  ? `${unreadNotifications} unread alerts`
-                  : 'Alerts'
+                hasUnreadNotifications ? `${unreadNotifications} unread alerts` : 'Alerts'
               }
             />
             <IconButton
@@ -1317,9 +1315,10 @@ function CreateScreen({
         <View style={styles.resultRow}>
           <Poster movie={selectedMovie} />
           <View style={styles.reviewCopy}>
-          <Text style={styles.movieTitle}>{selectedMovie.title}</Text>
+            <Text style={styles.movieTitle}>{selectedMovie.title}</Text>
             <Text style={styles.mutedText}>
-              {selectedMovie.releaseYear ?? 'TBA'} | {isEditing ? 'editing review' : 'selected movie'}
+              {selectedMovie.releaseYear ?? 'TBA'} |{' '}
+              {isEditing ? 'editing review' : 'selected movie'}
             </Text>
           </View>
           {!isEditing ? (
@@ -1557,8 +1556,10 @@ function ReviewDetailScreen({
   const [review, setReview] = useState<ReviewDetail | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [commentBody, setCommentBody] = useState('');
+  const [showCommentComposer, setShowCommentComposer] = useState(false);
   const [replyTo, setReplyTo] = useState<ReviewComment | null>(null);
   const [commentSort, setCommentSort] = useState<'best' | 'new'>('best');
+  const [reviewActionMenuOpen, setReviewActionMenuOpen] = useState(false);
   const [postingComment, setPostingComment] = useState(false);
   const [transcribingComment, setTranscribingComment] = useState(false);
   const [votingCommentId, setVotingCommentId] = useState<string | null>(null);
@@ -1587,6 +1588,10 @@ function ReviewDetailScreen({
 
   useEffect(() => {
     setReviewTranslation(null);
+    setReviewActionMenuOpen(false);
+    setShowCommentComposer(false);
+    setReplyTo(null);
+    setCommentBody('');
   }, [reviewId]);
 
   useEffect(() => {
@@ -1597,6 +1602,15 @@ function ReviewDetailScreen({
     const focusTimer = setTimeout(() => commentInputRef.current?.focus(), 50);
     return () => clearTimeout(focusTimer);
   }, [replyTo]);
+
+  useEffect(() => {
+    if (!showCommentComposer || replyTo) {
+      return;
+    }
+
+    const focusTimer = setTimeout(() => commentInputRef.current?.focus(), 50);
+    return () => clearTimeout(focusTimer);
+  }, [showCommentComposer, replyTo]);
 
   const postComment = async () => {
     const body = commentBody.trim();
@@ -1611,6 +1625,9 @@ function ReviewDetailScreen({
         parentCommentId: replyTo?.id ?? null,
       });
       setCommentBody('');
+      if (!replyTo) {
+        setShowCommentComposer(false);
+      }
       setReplyTo(null);
       await loadReview();
     } catch (err) {
@@ -1655,6 +1672,8 @@ function ReviewDetailScreen({
   };
 
   const startReply = (comment: ReviewComment) => {
+    setShowCommentComposer(false);
+    setCommentBody('');
     setReplyTo(comment);
   };
 
@@ -1789,7 +1808,14 @@ function ReviewDetailScreen({
       posting={postingComment}
       replyTo={replyTo}
       transcribing={transcribingComment}
-      onCancelReply={() => setReplyTo(null)}
+      onCancelReply={() => {
+        setReplyTo(null);
+        setCommentBody('');
+      }}
+      onCancelComment={() => {
+        setShowCommentComposer(false);
+        setCommentBody('');
+      }}
       onChangeBody={setCommentBody}
       onDictate={startCommentDictation}
       onSubmit={postComment}
@@ -1819,6 +1845,43 @@ function ReviewDetailScreen({
     : showTranslatedReview
       ? 'Show original'
       : 'Translate';
+  const toggleCommentSort = () => {
+    setCommentSort((current) => (current === 'best' ? 'new' : 'best'));
+  };
+  const reviewActions: MenuAction[] = [
+    ...(canTranslateReview
+      ? [
+          {
+            label: reviewTranslationLabel,
+            onPress: toggleReviewTranslation,
+            disabled: translatingReview,
+          },
+        ]
+      : []),
+    ...(review.author.id === currentUserId
+      ? [
+          {
+            label: 'Edit review',
+            onPress: () => onEditReview(review),
+          },
+        ]
+      : [
+          {
+            label: 'Report review',
+            onPress: () =>
+              openReport({
+                targetType: 'review',
+                targetId: review.id,
+                label: `@${review.author.username}'s review`,
+              }),
+          },
+          {
+            label: 'Block user',
+            onPress: blockReviewAuthor,
+            danger: true,
+          },
+        ]),
+  ];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
@@ -1848,9 +1911,9 @@ function ReviewDetailScreen({
           </View>
         </View>
         <View style={styles.detailReviewHighlight}>
-          {visibleQuickTake ? <Text style={styles.detailTitle}>{visibleQuickTake}</Text> : null}
           {showBody ? (
             <>
+              {visibleQuickTake ? <Text style={styles.detailTitle}>{visibleQuickTake}</Text> : null}
               {visibleBody ? (
                 <Text style={styles.detailReviewBody}>{visibleBody}</Text>
               ) : (
@@ -1863,60 +1926,26 @@ function ReviewDetailScreen({
               ) : null}
             </>
           ) : (
-            <PrimaryButton label="Reveal spoilers" onPress={() => setRevealed(true)} />
+            <View style={styles.spoilerGate}>
+              <Text style={styles.mutedText}>This review contains spoilers.</Text>
+              <PrimaryButton label="Reveal spoilers" onPress={() => setRevealed(true)} />
+            </View>
           )}
         </View>
-        {review.tags?.length ? (
+        <View style={styles.detailFooterRow}>
           <View style={styles.detailTagBlock}>
-            <TagPills tags={review.tags} />
+            {review.tags?.length ? <TagPills tags={review.tags} /> : null}
           </View>
+          <ActionIconButton
+            accessibilityLabel="Review actions"
+            active={reviewActionMenuOpen}
+            onPress={() => setReviewActionMenuOpen((current) => !current)}
+            icon={<Ellipsis size={18} color={colors.ink} />}
+          />
+        </View>
+        {reviewActionMenuOpen ? (
+          <ActionMenu actions={reviewActions} onSelect={() => setReviewActionMenuOpen(false)} />
         ) : null}
-        {review.author.id === currentUserId ? (
-          <View style={styles.actionRow}>
-            {canTranslateReview ? (
-              <ActionIconButton
-                accessibilityLabel={reviewTranslationLabel}
-                active={showTranslatedReview}
-                onPress={toggleReviewTranslation}
-                disabled={translatingReview}
-                icon={<Languages size={16} color={colors.ink} />}
-              />
-            ) : null}
-            <ActionIconButton
-              accessibilityLabel="Edit review"
-              onPress={() => onEditReview(review)}
-              icon={<Pencil size={16} color={colors.ink} />}
-            />
-          </View>
-        ) : (
-          <View style={styles.actionRow}>
-            {canTranslateReview ? (
-              <ActionIconButton
-                accessibilityLabel={reviewTranslationLabel}
-                active={showTranslatedReview}
-                onPress={toggleReviewTranslation}
-                disabled={translatingReview}
-                icon={<Languages size={16} color={colors.ink} />}
-              />
-            ) : null}
-            <ActionIconButton
-              accessibilityLabel="Report review"
-              onPress={() =>
-                openReport({
-                  targetType: 'review',
-                  targetId: review.id,
-                  label: `@${review.author.username}'s review`,
-                })
-              }
-              icon={<Flag size={16} color={colors.ink} />}
-            />
-            <ActionIconButton
-              accessibilityLabel="Block user"
-              onPress={blockReviewAuthor}
-              icon={<Ban size={16} color={colors.ink} />}
-            />
-          </View>
-        )}
         {reportTarget ? (
           <ReportComposer
             target={reportTarget}
@@ -1932,31 +1961,35 @@ function ReviewDetailScreen({
       </View>
       <View style={styles.commentsInline}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.emptyTitle}>Comments</Text>
-          <Text style={styles.bubble}>{review.commentCount} chats</Text>
+          <View style={styles.commentsTitleGroup}>
+            <Text style={styles.emptyTitle}>Comments</Text>
+            <Text style={styles.bubble}>{review.commentCount} chats</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Toggle comment sort"
+            style={styles.commentSortButton}
+            onPress={toggleCommentSort}
+          >
+            <Text style={styles.commentSortText}>{commentSort === 'best' ? 'Best' : 'New'}</Text>
+            <ChevronDown size={14} color={colors.surface} />
+          </Pressable>
         </View>
-        <View style={styles.segmentedControl}>
-          {(['best', 'new'] as const).map((sort) => (
-            <Pressable
-              key={sort}
-              style={[
-                styles.segmentedButton,
-                commentSort === sort && styles.segmentedButtonActive,
-              ]}
-              onPress={() => setCommentSort(sort)}
-            >
-              <Text
-                style={[
-                  styles.segmentedButtonText,
-                  commentSort === sort && styles.segmentedButtonTextActive,
-                ]}
-              >
-                {sort === 'best' ? 'Best' : 'New'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        {replyTo ? null : composer}
+        {replyTo ? null : showCommentComposer ? (
+          composer
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            style={styles.joinDiscussionButton}
+            onPress={() => setShowCommentComposer(true)}
+          >
+            <View style={styles.joinDiscussionCopy}>
+              <Text style={styles.joinDiscussionTitle}>Join discussion</Text>
+              <Text style={styles.joinDiscussionHint}>Type or dictate a comment</Text>
+            </View>
+            <MessageCircle size={20} color={colors.ink} />
+          </Pressable>
+        )}
         {review.comments.length ? (
           <View style={styles.commentList}>
             {review.comments.map((comment) => (
@@ -2056,6 +2089,7 @@ function CommentNode({
   const [translatedComment, setTranslatedComment] = useState<string | null>(null);
   const [showTranslatedComment, setShowTranslatedComment] = useState(false);
   const [translatingComment, setTranslatingComment] = useState(false);
+  const [commentMenuOpen, setCommentMenuOpen] = useState(false);
   const canTranslateComment = !isDeleted && shouldOfferTranslation(comment.body, viewerLocale);
   const visibleCommentBody =
     showTranslatedComment && translatedComment ? translatedComment : comment.body;
@@ -2068,6 +2102,7 @@ function CommentNode({
   useEffect(() => {
     setTranslatedComment(null);
     setShowTranslatedComment(false);
+    setCommentMenuOpen(false);
   }, [comment.id, comment.updatedAt]);
 
   const toggleCommentTranslation = async () => {
@@ -2100,12 +2135,42 @@ function CommentNode({
     }
   };
 
+  const commentActions: MenuAction[] = [
+    ...(canTranslateComment
+      ? [
+          {
+            label: commentTranslationLabel,
+            onPress: toggleCommentTranslation,
+            disabled: translatingComment,
+          },
+        ]
+      : []),
+    ...(canEdit
+      ? [
+          {
+            label: 'Edit comment',
+            onPress: () => onStartEdit(comment),
+          },
+          {
+            label: 'Delete comment',
+            onPress: () => onDelete(comment),
+            disabled: isMutating,
+            danger: true,
+          },
+        ]
+      : !isDeleted
+        ? [
+            {
+              label: 'Report comment',
+              onPress: () => onReport(comment),
+            },
+          ]
+        : []),
+  ];
+
   return (
     <View style={isRootComment ? styles.commentThread : styles.commentReplyThread}>
       <View style={[styles.commentCard, comment.depth > 0 && styles.commentReplyCard]}>
-        <Text style={styles.commentDateTopRight}>
-          {new Date(comment.createdAt).toLocaleDateString()}
-        </Text>
         <View style={styles.commentCardBody}>
           <View style={styles.voteColumn}>
             <Pressable
@@ -2133,12 +2198,19 @@ function CommentNode({
             </Pressable>
           </View>
           <View style={styles.commentCopy}>
-            <Pressable style={styles.commentAuthorRow} onPress={() => onOpenUser(comment.author)}>
-              <Avatar label={comment.author.displayName || comment.author.username} mini />
-              <View style={styles.reviewCopy}>
-                <Text style={styles.author}>@{comment.author.username}</Text>
-              </View>
-            </Pressable>
+            <View style={styles.commentMetaRow}>
+              <Pressable style={styles.commentAuthorRow} onPress={() => onOpenUser(comment.author)}>
+                <Avatar label={comment.author.displayName || comment.author.username} mini />
+                <View style={styles.reviewCopy}>
+                  <Text numberOfLines={1} style={styles.author}>
+                    @{comment.author.username}
+                  </Text>
+                </View>
+              </Pressable>
+              <Text style={styles.commentDate}>
+                {new Date(comment.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
             {isEditing ? (
               <View style={styles.commentEditBox}>
                 <TextInput
@@ -2166,53 +2238,35 @@ function CommentNode({
               <Text style={styles.bodyText}>{visibleCommentBody}</Text>
             )}
             {!isEditing ? (
-              <View style={styles.commentActionRow}>
-                <View style={styles.commentPrimaryActions}>
-                  {canReply ? (
+              <>
+                <View style={styles.commentActionRow}>
+                  <View style={styles.commentPrimaryActions}>
+                    {canReply ? (
+                      <ActionIconButton
+                        accessibilityLabel="Reply to comment"
+                        onPress={() => onReply(comment)}
+                        icon={<Send size={15} color={colors.ink} />}
+                      />
+                    ) : null}
+                  </View>
+                  {commentActions.length ? (
                     <ActionIconButton
-                      accessibilityLabel="Reply to comment"
-                      onPress={() => onReply(comment)}
-                      icon={<Send size={15} color={colors.ink} />}
+                      accessibilityLabel="Comment actions"
+                      active={commentMenuOpen}
+                      small
+                      onPress={() => setCommentMenuOpen((current) => !current)}
+                      icon={<Ellipsis size={15} color={colors.ink} />}
                     />
                   ) : null}
                 </View>
-                <View style={styles.commentUtilityActions}>
-                  {canTranslateComment ? (
-                    <ActionIconButton
-                      accessibilityLabel={commentTranslationLabel}
-                      active={showTranslatedComment}
-                      small
-                      onPress={toggleCommentTranslation}
-                      disabled={translatingComment}
-                      icon={<Languages size={13} color={colors.ink} />}
-                    />
-                  ) : null}
-                  {canEdit ? (
-                    <>
-                      <ActionIconButton
-                        accessibilityLabel="Edit comment"
-                        small
-                        onPress={() => onStartEdit(comment)}
-                        icon={<Pencil size={13} color={colors.ink} />}
-                      />
-                      <ActionIconButton
-                        accessibilityLabel="Delete comment"
-                        disabled={isMutating}
-                        small
-                        onPress={() => onDelete(comment)}
-                        icon={<Trash2 size={13} color={colors.ink} />}
-                      />
-                    </>
-                  ) : !isDeleted ? (
-                    <ActionIconButton
-                      accessibilityLabel="Report comment"
-                      small
-                      onPress={() => onReport(comment)}
-                      icon={<Flag size={13} color={colors.ink} />}
-                    />
-                  ) : null}
-                </View>
-              </View>
+                {commentMenuOpen ? (
+                  <ActionMenu
+                    actions={commentActions}
+                    compact
+                    onSelect={() => setCommentMenuOpen(false)}
+                  />
+                ) : null}
+              </>
             ) : null}
           </View>
         </View>
@@ -2254,6 +2308,7 @@ function CommentComposer({
   replyTo,
   transcribing,
   onCancelReply,
+  onCancelComment,
   onChangeBody,
   onDictate,
   onSubmit,
@@ -2265,6 +2320,7 @@ function CommentComposer({
   replyTo: ReviewComment | null;
   transcribing: boolean;
   onCancelReply: () => void;
+  onCancelComment?: () => void;
   onChangeBody: (value: string) => void;
   onDictate: () => void;
   onSubmit: () => void;
@@ -2306,6 +2362,11 @@ function CommentComposer({
         disabled={posting || !body.trim()}
         compact
       />
+      {!isReply && onCancelComment ? (
+        <Pressable style={styles.composerCancelButton} onPress={onCancelComment}>
+          <Text style={styles.composerCancelText}>Cancel</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -2441,10 +2502,7 @@ function NotificationsScreen({
           items.map((notification) => (
             <Pressable
               key={notification.id}
-              style={[
-                styles.notificationRow,
-                !notification.readAt && styles.notificationRowUnread,
-              ]}
+              style={[styles.notificationRow, !notification.readAt && styles.notificationRowUnread]}
               onPress={() => void markRead(notification)}
             >
               <Avatar
@@ -2704,8 +2762,7 @@ function FriendsScreen({
             <Text style={styles.sectionTitle}>Find people</Text>
             {users.map((item) => {
               const incomingRequest = incomingByUserId.get(item.id);
-              const alreadyFriends =
-                friendIds.has(item.id) || item.friendshipStatus === 'accepted';
+              const alreadyFriends = friendIds.has(item.id) || item.friendshipStatus === 'accepted';
               const pendingOutgoing =
                 outgoingUserIds.has(item.id) || item.friendshipStatus === 'pending';
               const label = alreadyFriends
@@ -2886,7 +2943,10 @@ function ProfileScreen({
       setFriendCount(null);
       return;
     }
-    void api.friends(tokens).then((rows) => setFriendCount(rows.length)).catch(() => setFriendCount(null));
+    void api
+      .friends(tokens)
+      .then((rows) => setFriendCount(rows.length))
+      .catch(() => setFriendCount(null));
   }, [isOwnProfile, tokens]);
 
   const refresh = async () => {
@@ -3229,6 +3289,46 @@ function ActionIconButton({
     >
       {icon}
     </Pressable>
+  );
+}
+
+function ActionMenu({
+  actions,
+  onSelect,
+  compact,
+}: {
+  actions: MenuAction[];
+  onSelect?: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <View style={[styles.moreMenu, compact && styles.moreMenuCompact]}>
+      {actions.map((action) => (
+        <Pressable
+          key={action.label}
+          accessibilityRole="button"
+          disabled={action.disabled}
+          onPress={() => {
+            if (action.disabled) {
+              return;
+            }
+            onSelect?.();
+            void action.onPress();
+          }}
+          style={[styles.moreMenuItem, action.disabled && styles.moreMenuItemDisabled]}
+        >
+          <Text
+            style={[
+              styles.moreMenuText,
+              action.danger && styles.moreMenuTextDanger,
+              action.disabled && styles.moreMenuTextDisabled,
+            ]}
+          >
+            {action.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -3598,6 +3698,40 @@ const styles = StyleSheet.create({
   },
   actionIconButtonDisabled: {
     opacity: 0.45,
+  },
+  moreMenu: {
+    alignSelf: 'flex-end',
+    minWidth: 158,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    backgroundColor: colors.cream,
+    padding: 6,
+    gap: 4,
+  },
+  moreMenuCompact: {
+    minWidth: 146,
+  },
+  moreMenuItem: {
+    minHeight: 32,
+    borderRadius: 9,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  moreMenuItemDisabled: {
+    opacity: 0.55,
+  },
+  moreMenuText: {
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '900',
+  },
+  moreMenuTextDanger: {
+    color: colors.danger,
+  },
+  moreMenuTextDisabled: {
+    color: colors.muted,
   },
   fieldWrap: {
     minHeight: 46,
@@ -4072,6 +4206,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
+  },
+  commentsTitleGroup: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   sectionTitle: {
     color: colors.ink,
@@ -4109,6 +4252,23 @@ const styles = StyleSheet.create({
   },
   segmentedButtonTextActive: {
     color: colors.surface,
+  },
+  commentSortButton: {
+    minHeight: 34,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    backgroundColor: colors.pink,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  commentSortText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: '900',
   },
   posterRow: {
     gap: 14,
@@ -4303,10 +4463,48 @@ const styles = StyleSheet.create({
   commentComposer: {
     borderWidth: 2,
     borderColor: colors.ink,
-    borderRadius: 22,
+    borderRadius: 16,
     backgroundColor: colors.cream,
     gap: 8,
     padding: 8,
+  },
+  joinDiscussionButton: {
+    minHeight: 54,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  joinDiscussionCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
+  },
+  joinDiscussionTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  joinDiscussionHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  composerCancelButton: {
+    alignSelf: 'center',
+    minHeight: 30,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  composerCancelText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900',
   },
   reportComposer: {
     borderWidth: 2,
@@ -4391,16 +4589,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   commentThread: {
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: colors.ink,
-    borderRadius: 22,
+    borderRadius: 18,
     backgroundColor: colors.surface,
     padding: 10,
     gap: 10,
   },
   commentReplyThread: {
     gap: 8,
-    marginLeft: 18,
+    marginLeft: 22,
+    paddingLeft: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.ink,
   },
   commentCard: {
     gap: 10,
@@ -4441,9 +4642,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   commentReplyCard: {
-    borderTopWidth: 2,
-    borderTopColor: colors.ink,
-    paddingTop: 10,
+    paddingTop: 2,
   },
   commentCardBody: {
     flexDirection: 'row',
@@ -4480,10 +4679,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   commentAuthorRow: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingRight: 82,
+  },
+  commentMetaRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  commentDate: {
+    flexShrink: 0,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '900',
   },
   commentMeta: {
     color: colors.muted,
@@ -4685,17 +4899,30 @@ const styles = StyleSheet.create({
   },
   detailReviewHighlight: {
     alignSelf: 'stretch',
-    marginHorizontal: -12,
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.cream,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: 'transparent',
+    paddingTop: 2,
     gap: 8,
   },
+  spoilerGate: {
+    minHeight: 92,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 14,
+  },
+  detailFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   detailTagBlock: {
-    alignSelf: 'stretch',
+    flex: 1,
+    minWidth: 0,
   },
   detailReviewStatus: {
     position: 'absolute',

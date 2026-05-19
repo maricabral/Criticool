@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CritiCool UX Mockup _phase3_review</title>
+    <style>
+      :root {
+        --ink: #171217;
+        --paper: #f8dfb9;
+        --cream: #ffe8bb;
+        --surface: #fff0d2;
+        --pink: #dd6aa5;
+        --cyan: #45c2dc;
+        --yellow: #ffd668;
+        --orange: #ff8a3d;
+        --green: #83ce9f;
+        --muted: #736b73;
+        --disabled: #d8c7aa;
+        --shadow: 3px 4px 0 rgba(23, 18, 23, 0.1);
+        --phone: 390px;
+        font-family: 'Arial Rounded MT Bold', 'Trebuchet MS', Arial, system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          linear-gradient(90deg, rgba(23, 18, 23, 0.035) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(23, 18, 23, 0.035) 1px, transparent 1px), var(--paper);
+        background-size: 34px 34px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      button {
+        font: inherit;
+        color: inherit;
+      }
+
+      .page {
+        width: min(1360px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 26px 0 44px;
+      }
+
+      .intro {
+        max-width: 980px;
+        margin-bottom: 24px;
+      }
+
+      .intro h1 {
+        font-size: clamp(30px, 5vw, 54px);
+        line-height: 0.95;
+        letter-spacing: 0;
+      }
+
+      .intro p {
+        max-width: 720px;
+        margin-top: 10px;
+        color: var(--muted);
+        font-weight: 900;
+        line-height: 1.35;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(var(--phone), 1fr));
+        gap: 22px;
+        align-items: start;
+      }
+
+      .mock {
+        display: grid;
+        gap: 10px;
+        justify-items: start;
+      }
+
+      .mock-title {
+        font-size: 18px;
+        line-height: 1.1;
+        font-weight: 900;
+      }
+
+      .phone {
+        width: var(--phone);
+        min-height: 780px;
+        border: 3px solid var(--ink);
+        border-radius: 26px;
+        background: var(--cream);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .screen {
+        min-height: 780px;
+        padding: 12px 10px 70px;
+        position: relative;
+        display: grid;
+        align-content: start;
+        gap: 12px;
+      }
+
+      .header {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .header h2 {
+        font-size: 26px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .back {
+        min-height: 36px;
+        border: 3px solid var(--ink);
+        border-radius: 999px;
+        padding: 0 18px;
+        background: var(--pink);
+        color: var(--surface);
+        font-weight: 900;
+        box-shadow: 2px 3px 0 rgba(23, 18, 23, 0.16);
+      }
+
+      .review-card,
+      .comments-card,
+      .composer,
+      .empty-state {
+        border: 3px solid var(--ink);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+
+      .review-card {
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+        box-shadow: var(--shadow);
+      }
+
+      .review-top {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        position: relative;
+      }
+
+      .poster {
+        width: 64px;
+        height: 88px;
+        border: 3px solid var(--ink);
+        border-radius: 10px;
+        background: linear-gradient(135deg, #111 0 35%, #823 35% 52%, #f5c767 52% 100%);
+        display: grid;
+        place-items: end center;
+        padding: 7px 4px;
+        color: var(--surface);
+        font-size: 10px;
+        font-weight: 900;
+        text-align: center;
+        overflow: hidden;
+      }
+
+      .spoiler-chip {
+        position: absolute;
+        top: 0;
+        right: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .spoiler-chip.warn {
+        color: var(--orange);
+      }
+
+      .review-meta {
+        padding-right: 90px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .author-row,
+      .comment-author {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: var(--cyan);
+        font-size: 12px;
+        font-weight: 900;
+        flex: 0 0 auto;
+      }
+
+      .avatar.pink {
+        background: var(--pink);
+        color: var(--surface);
+      }
+
+      .avatar.green {
+        background: var(--green);
+      }
+
+      .handle,
+      .comment-handle {
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .movie-title {
+        font-size: 22px;
+        line-height: 1.05;
+        font-weight: 900;
+      }
+
+      .rating {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 900;
+        font-size: 14px;
+      }
+
+      .review-copy {
+        display: grid;
+        gap: 9px;
+      }
+
+      .quick-take {
+        font-size: 20px;
+        line-height: 1.15;
+        font-weight: 900;
+      }
+
+      .body-copy {
+        font-size: 16px;
+        line-height: 1.38;
+        font-weight: 700;
+      }
+
+      .spoiler-gate {
+        min-height: 96px;
+        border: 2px solid var(--ink);
+        border-radius: 14px;
+        background: var(--cream);
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        text-align: center;
+        gap: 10px;
+      }
+
+      .primary,
+      .secondary,
+      .sort-button,
+      .join-button,
+      .icon-button {
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--surface);
+        min-height: 36px;
+        font-weight: 900;
+      }
+
+      .primary {
+        background: var(--pink);
+        color: var(--surface);
+        padding: 0 18px;
+      }
+
+      .secondary {
+        background: var(--yellow);
+        padding: 0 12px;
+        justify-self: start;
+      }
+
+      .tags-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .tag {
+        border: 1px solid var(--ink);
+        border-radius: 999px;
+        background: #9bddea;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .icon-button {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+      }
+
+      .menu {
+        margin-left: auto;
+        min-width: 152px;
+        border: 2px solid var(--ink);
+        border-radius: 14px;
+        background: var(--cream);
+        padding: 7px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .menu-row {
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        min-height: 30px;
+        padding: 0 8px;
+        text-align: left;
+        font-weight: 900;
+      }
+
+      .comments-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .comments-title {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .comments-title h3 {
+        font-size: 19px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .count {
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--surface);
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .sort-button {
+        min-height: 32px;
+        padding: 0 11px;
+        background: var(--pink);
+        color: var(--surface);
+      }
+
+      .join-button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        background: var(--surface);
+        text-align: left;
+      }
+
+      .join-muted {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .composer {
+        padding: 8px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .composer-field {
+        min-height: 84px;
+        border-radius: 16px;
+        background: var(--surface);
+        color: var(--muted);
+        padding: 13px 48px 12px 12px;
+        position: relative;
+        font-weight: 900;
+      }
+
+      .mic {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        width: 36px;
+        height: 36px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--yellow);
+        display: grid;
+        place-items: center;
+      }
+
+      .composer-actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+
+      .post-disabled {
+        min-height: 36px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--disabled);
+        color: var(--muted);
+        font-weight: 900;
+      }
+
+      .comment-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .thread {
+        border: 3px solid var(--ink);
+        border-radius: 18px;
+        background: var(--surface);
+        padding: 10px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .thread.reply {
+        margin-left: 24px;
+        border-width: 0 0 0 3px;
+        border-radius: 0;
+        padding: 0 0 0 10px;
+        background: transparent;
+      }
+
+      .comment {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 9px;
+      }
+
+      .vote {
+        min-height: 82px;
+        border: 2px solid var(--ink);
+        border-radius: 13px;
+        background: var(--yellow);
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 0;
+        font-weight: 900;
+        line-height: 1.1;
+      }
+
+      .comment-copy {
+        display: grid;
+        gap: 7px;
+        min-width: 0;
+      }
+
+      .comment-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .date {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        flex: 0 0 auto;
+      }
+
+      .comment-text {
+        font-size: 15px;
+        line-height: 1.35;
+        font-weight: 700;
+      }
+
+      .comment-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .reply-button {
+        width: 36px;
+        height: 36px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--yellow);
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+      }
+
+      .empty-state {
+        min-height: 88px;
+        display: grid;
+        place-items: center;
+        gap: 6px;
+        padding: 14px;
+        text-align: center;
+      }
+
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 60px;
+        border-top: 3px solid var(--ink);
+        background: var(--paper);
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        align-items: center;
+      }
+
+      .tab {
+        display: grid;
+        place-items: center;
+        gap: 3px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 900;
+      }
+
+      .tab-dot {
+        width: 24px;
+        height: 24px;
+        border: 2px solid currentColor;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+      }
+
+      .tab.active {
+        color: var(--pink);
+      }
+
+      @media (max-width: 430px) {
+        .page {
+          width: 100%;
+          padding: 0;
+        }
+
+        .intro {
+          padding: 18px 14px 4px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        .mock {
+          justify-items: stretch;
+        }
+
+        .mock-title {
+          padding: 0 14px;
+        }
+
+        .phone {
+          width: 100%;
+          border-radius: 0;
+          border-left: 0;
+          border-right: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="intro">
+        <h1>Review detail cleanup</h1>
+        <p>
+          Phase 3 target: make the review page feel like a readable discussion page, with one
+          unified review card and participation hidden behind a clear action.
+        </p>
+      </section>
+
+      <section class="grid" aria-label="Phase 3 review mockups">
+        <article class="mock">
+          <h2 class="mock-title">Spoiler-free, collapsed composer</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <h2>Review</h2>
+                <button class="back">Back</button>
+              </header>
+              <section class="review-card">
+                <div class="review-top">
+                  <div class="poster">GLADIATOR II</div>
+                  <span class="spoiler-chip">Spoiler-free</span>
+                  <div class="review-meta">
+                    <div class="author-row">
+                      <span class="avatar">L</span>
+                      <span class="handle">@choci</span>
+                    </div>
+                    <div class="movie-title">Gladiator II</div>
+                    <div class="rating">popcorn 4.0</div>
+                  </div>
+                </div>
+                <div class="review-copy">
+                  <div class="quick-take">DONDUS</div>
+                  <p class="body-copy">the first one is better, as always</p>
+                </div>
+                <div class="tags-actions">
+                  <div class="tags">
+                    <span class="tag">comfort watch</span>
+                    <span class="tag">great with friends</span>
+                  </div>
+                  <button class="icon-button" aria-label="More review actions">...</button>
+                </div>
+              </section>
+              <section class="comments-header">
+                <div class="comments-title">
+                  <h3>Comments</h3>
+                  <span class="count">0 chats</span>
+                </div>
+                <button class="sort-button">Best v</button>
+              </section>
+              <button class="join-button">
+                <span>Join discussion</span>
+                <span class="join-muted">type or dictate</span>
+              </button>
+              <section class="empty-state">
+                <strong>No comments yet.</strong>
+                <span class="join-muted">Start the thread.</span>
+              </section>
+              <nav class="tabbar">
+                <span class="tab"><span class="tab-dot">H</span>Feed</span>
+                <span class="tab"><span class="tab-dot">S</span>Search</span>
+                <span class="tab"><span class="tab-dot">+</span>Post</span>
+                <span class="tab"><span class="tab-dot">F</span>Friends</span>
+                <span class="tab active"><span class="tab-dot">M</span>Me</span>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="mock">
+          <h2 class="mock-title">Spoiler review before reveal</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <h2>Review</h2>
+                <button class="back">Back</button>
+              </header>
+              <section class="review-card">
+                <div class="review-top">
+                  <div class="poster">BEETHOVEN</div>
+                  <span class="spoiler-chip warn">Spoilers</span>
+                  <div class="review-meta">
+                    <div class="author-row">
+                      <span class="avatar pink">M</span>
+                      <span class="handle">@marimari</span>
+                    </div>
+                    <div class="movie-title">Beethoven</div>
+                    <div class="rating">popcorn 5.0</div>
+                  </div>
+                </div>
+                <div class="spoiler-gate">
+                  <strong>This review contains spoilers.</strong>
+                  <button class="primary">Reveal spoilers</button>
+                </div>
+                <div class="tags-actions">
+                  <div class="tags">
+                    <span class="tag">best with snacks</span>
+                    <span class="tag">date night chaos</span>
+                  </div>
+                  <button class="icon-button">...</button>
+                </div>
+              </section>
+              <section class="comments-header">
+                <div class="comments-title">
+                  <h3>Comments</h3>
+                  <span class="count">7 chats</span>
+                </div>
+                <button class="sort-button">Best v</button>
+              </section>
+              <button class="join-button">
+                <span>Join discussion</span>
+                <span class="join-muted">type or dictate</span>
+              </button>
+              <section class="comment-list">
+                <div class="thread">
+                  <div class="comment">
+                    <div class="vote">^<br />1<br />v</div>
+                    <div class="comment-copy">
+                      <div class="comment-meta">
+                        <div class="comment-author">
+                          <span class="avatar green">G</span
+                          ><span class="comment-handle">@guba</span>
+                        </div>
+                        <span class="date">5/16/2026</span>
+                      </div>
+                      <p class="comment-text">
+                        One of my favorites too, love how a dog connects a family together
+                      </p>
+                      <div class="comment-actions">
+                        <span class="reply-button">></span><button class="icon-button">...</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <nav class="tabbar">
+                <span class="tab"><span class="tab-dot">H</span>Feed</span>
+                <span class="tab"><span class="tab-dot">S</span>Search</span>
+                <span class="tab"><span class="tab-dot">+</span>Post</span>
+                <span class="tab"><span class="tab-dot">F</span>Friends</span>
+                <span class="tab active"><span class="tab-dot">M</span>Me</span>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="mock">
+          <h2 class="mock-title">Spoiler review after reveal</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <h2>Review</h2>
+                <button class="back">Back</button>
+              </header>
+              <section class="review-card">
+                <div class="review-top">
+                  <div class="poster">BEETHOVEN</div>
+                  <span class="spoiler-chip warn">Spoilers</span>
+                  <div class="review-meta">
+                    <div class="author-row">
+                      <span class="avatar pink">M</span>
+                      <span class="handle">@marimari</span>
+                    </div>
+                    <div class="movie-title">Beethoven</div>
+                    <div class="rating">popcorn 5.0</div>
+                  </div>
+                </div>
+                <div class="review-copy">
+                  <p class="body-copy">I love it</p>
+                  <p class="body-copy">I love it was one of the best movies ever</p>
+                  <button class="secondary">Hide spoilers</button>
+                </div>
+                <div class="tags-actions">
+                  <div class="tags">
+                    <span class="tag">best with snacks</span>
+                    <span class="tag">date night chaos</span>
+                  </div>
+                  <div class="menu">
+                    <button class="menu-row">Translate</button>
+                    <button class="menu-row">Edit review</button>
+                  </div>
+                </div>
+              </section>
+              <section class="comments-header">
+                <div class="comments-title">
+                  <h3>Comments</h3>
+                  <span class="count">7 chats</span>
+                </div>
+                <button class="sort-button">Best v</button>
+              </section>
+              <section class="composer">
+                <div class="composer-field">Join the discussion<span class="mic">mic</span></div>
+                <div class="composer-actions">
+                  <button class="post-disabled">Post comment</button>
+                  <button class="secondary">Cancel</button>
+                </div>
+              </section>
+              <section class="comment-list">
+                <div class="thread">
+                  <div class="comment">
+                    <div class="vote">^<br />1<br />v</div>
+                    <div class="comment-copy">
+                      <div class="comment-meta">
+                        <div class="comment-author">
+                          <span class="avatar green">G</span
+                          ><span class="comment-handle">@guba</span>
+                        </div>
+                        <span class="date">5/16/2026</span>
+                      </div>
+                      <p class="comment-text">
+                        One of my favorites too, love how a dog connects a family together
+                      </p>
+                      <div class="comment-actions">
+                        <span class="reply-button">></span><button class="icon-button">...</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <nav class="tabbar">
+                <span class="tab"><span class="tab-dot">H</span>Feed</span>
+                <span class="tab"><span class="tab-dot">S</span>Search</span>
+                <span class="tab"><span class="tab-dot">+</span>Post</span>
+                <span class="tab"><span class="tab-dot">F</span>Friends</span>
+                <span class="tab active"><span class="tab-dot">M</span>Me</span>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="mock">
+          <h2 class="mock-title">Active discussion</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <h2>Review</h2>
+                <button class="back">Back</button>
+              </header>
+              <section class="review-card">
+                <div class="review-top">
+                  <div class="poster">BEETHOVEN</div>
+                  <span class="spoiler-chip warn">Spoilers</span>
+                  <div class="review-meta">
+                    <div class="author-row">
+                      <span class="avatar pink">M</span>
+                      <span class="handle">@marimari</span>
+                    </div>
+                    <div class="movie-title">Beethoven</div>
+                    <div class="rating">popcorn 5.0</div>
+                  </div>
+                </div>
+                <div class="review-copy">
+                  <p class="body-copy">I love it was one of the best movies ever</p>
+                </div>
+                <div class="tags-actions">
+                  <div class="tags"><span class="tag">best with snacks</span></div>
+                  <button class="icon-button">...</button>
+                </div>
+              </section>
+              <section class="comments-header">
+                <div class="comments-title">
+                  <h3>Comments</h3>
+                  <span class="count">7 chats</span>
+                </div>
+                <button class="sort-button">New v</button>
+              </section>
+              <button class="join-button">
+                <span>Join discussion</span>
+                <span class="join-muted">type or dictate</span>
+              </button>
+              <section class="comment-list">
+                <div class="thread">
+                  <div class="comment">
+                    <div class="vote">^<br />1<br />v</div>
+                    <div class="comment-copy">
+                      <div class="comment-meta">
+                        <div class="comment-author">
+                          <span class="avatar green">G</span
+                          ><span class="comment-handle">@guba</span>
+                        </div>
+                        <span class="date">5/16/2026</span>
+                      </div>
+                      <p class="comment-text">
+                        One of my favorites too, love how a dog connects a family together
+                      </p>
+                      <div class="comment-actions">
+                        <span class="reply-button">></span><button class="icon-button">...</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="thread reply">
+                    <div class="comment">
+                      <div class="vote">^<br />2<br />v</div>
+                      <div class="comment-copy">
+                        <div class="comment-meta">
+                          <div class="comment-author">
+                            <span class="avatar green">G</span
+                            ><span class="comment-handle">@guba</span>
+                          </div>
+                          <span class="date">5/16/2026</span>
+                        </div>
+                        <p class="comment-text">bethovson</p>
+                        <div class="comment-actions">
+                          <span class="reply-button">></span
+                          ><button class="icon-button">...</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="thread">
+                  <div class="comment">
+                    <div class="vote">^<br />0<br />v</div>
+                    <div class="comment-copy">
+                      <div class="comment-meta">
+                        <div class="comment-author">
+                          <span class="avatar pink">M</span
+                          ><span class="comment-handle">@marimari</span>
+                        </div>
+                        <span class="date">5/19/2026</span>
+                      </div>
+                      <p class="comment-text">oi</p>
+                      <div class="comment-actions">
+                        <span class="reply-button">></span>
+                        <div class="menu">
+                          <button class="menu-row">Edit comment</button>
+                          <button class="menu-row">Delete comment</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <nav class="tabbar">
+                <span class="tab"><span class="tab-dot">H</span>Feed</span>
+                <span class="tab"><span class="tab-dot">S</span>Search</span>
+                <span class="tab"><span class="tab-dot">+</span>Post</span>
+                <span class="tab"><span class="tab-dot">F</span>Friends</span>
+                <span class="tab active"><span class="tab-dot">M</span>Me</span>
+              </nav>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
