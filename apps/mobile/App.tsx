@@ -2938,6 +2938,7 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 8,
     overflow: 'hidden',
+    position: 'relative',
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
     shadowRadius: 0,
@@ -2949,6 +2950,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
+    paddingRight: 66,
   },
   reviewCardBody: {
     minHeight: 112,
@@ -2996,9 +2998,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   reviewCommentCluster: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
     width: 58,
     alignItems: 'flex-end',
     gap: 4,
+    zIndex: 1,
   },
   reviewTopMeta: {
     width: 90,
