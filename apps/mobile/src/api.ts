@@ -43,6 +43,15 @@ export type BlockedUserSummary = FriendSummary & {
   blockedAt: string;
 };
 
+export type AccountTokenResponse = {
+  ok: boolean;
+  email?: string;
+  pendingEmail?: string | null;
+  emailVerifiedAt?: string | null;
+  expiresAt?: string;
+  devToken?: string;
+};
+
 export async function loadTokens() {
   const value = await AsyncStorage.getItem(TOKENS_KEY);
   return value ? (JSON.parse(value) as AuthTokens) : null;
@@ -159,6 +168,44 @@ export const api = {
       body: JSON.stringify({ refreshToken: tokens.refreshToken }),
     }),
   me: (tokens: AuthTokens) => apiRequest<AuthUser>('/me', { tokens }),
+  updateMe: (
+    tokens: AuthTokens,
+    body: {
+      email?: string;
+      username?: string;
+      displayName?: string;
+      bio?: string | null;
+      locale?: string;
+      avatarUrl?: string | null;
+    },
+  ) =>
+    apiRequest<AuthUser>('/me', {
+      method: 'PATCH',
+      tokens,
+      body: JSON.stringify(body),
+    }),
+  deleteMe: (tokens: AuthTokens, body: { username: string; currentPassword: string }) =>
+    apiRequest<{ ok: boolean }>('/me', { method: 'DELETE', tokens, body: JSON.stringify(body) }),
+  requestEmailVerification: (tokens: AuthTokens) =>
+    apiRequest<AccountTokenResponse>('/auth/email/verify/request', {
+      method: 'POST',
+      tokens,
+    }),
+  verifyEmailToken: (token: string) =>
+    apiRequest<{ ok: boolean; user: AuthUser }>('/auth/email/verify', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+  forgotPassword: (email: string) =>
+    apiRequest<AccountTokenResponse>('/auth/password/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (body: { token: string; password: string }) =>
+    apiRequest<{ ok: boolean }>('/auth/password/reset', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   feed: (tokens: AuthTokens, cursor?: string | null) =>
     apiRequest<FeedResponse>(`/feed${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
       tokens,

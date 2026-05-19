@@ -13,6 +13,7 @@ import {
   Popcorn,
   Search,
   Send,
+  Settings,
   Trash2,
   User,
   UserPlus,
@@ -389,7 +390,7 @@ export default function App() {
     return <AuthScreen onAuth={onAuth} />;
   }
 
-  return <AppShell tokens={tokens} user={user} onSignOut={signOut} />;
+  return <AppShell tokens={tokens} user={user} onUserChange={setUser} onSignOut={signOut} />;
 }
 
 function LoadingScreen() {
@@ -408,18 +409,24 @@ function AuthScreen({
 }: {
   onAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void;
 }) {
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'forgot'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [devResetToken, setDevResetToken] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isWelcome = mode === 'welcome';
   const isRegister = mode === 'register';
+  const isForgot = mode === 'forgot';
 
   const submit = async () => {
-    if (isWelcome) {
+    if (isWelcome || isForgot) {
       return;
     }
     setBusy(true);
@@ -436,9 +443,48 @@ function AuthScreen({
     }
   };
 
-  const chooseMode = (nextMode: 'login' | 'register') => {
+  const requestPasswordReset = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    setDevResetToken(null);
+    try {
+      const response = await api.forgotPassword(resetEmail);
+      if (response.devToken) {
+        setDevResetToken(response.devToken);
+        setResetToken(response.devToken);
+      }
+      setNotice('If that email exists, a reset token is ready for this beta flow.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start reset');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitPasswordReset = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.resetPassword({ token: resetToken, password: resetPassword });
+      setEmail(resetEmail);
+      setPassword('');
+      setResetToken('');
+      setResetPassword('');
+      setDevResetToken(null);
+      setNotice('Password updated. Log in with the new password.');
+      setMode('login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reset password');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const chooseMode = (nextMode: 'welcome' | 'login' | 'register' | 'forgot') => {
     setMode(nextMode);
     setError(null);
+    setNotice(null);
   };
 
   return (
@@ -474,50 +520,108 @@ function AuthScreen({
               <View style={styles.smallLogoBacking}>
                 <Image source={welcomeLogo} style={styles.smallWelcomeLogo} resizeMode="contain" />
               </View>
-              <Text style={styles.authTitle}>{isRegister ? 'Create account' : 'Log in'}</Text>
+              <Text style={styles.authTitle}>
+                {isForgot ? 'Reset password' : isRegister ? 'Create account' : 'Log in'}
+              </Text>
             </View>
             <View style={styles.form}>
-              <Field
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Email"
-                autoCapitalize="none"
-              />
-              <Field
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Password"
-                secureTextEntry
-              />
-              {isRegister ? (
+              {isForgot ? (
                 <>
                   <Field
-                    value={username}
-                    onChangeText={setUsername}
-                    placeholder="Username"
+                    value={resetEmail}
+                    onChangeText={setResetEmail}
+                    placeholder="Account email"
+                    autoCapitalize="none"
+                  />
+                  <PrimaryButton
+                    label="Request reset token"
+                    onPress={requestPasswordReset}
+                    disabled={busy || !resetEmail.trim()}
+                  />
+                  {devResetToken ? (
+                    <View style={styles.notice}>
+                      <Text style={styles.label}>Beta reset token</Text>
+                      <Text selectable style={styles.devTokenText}>
+                        {devResetToken}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Field
+                    value={resetToken}
+                    onChangeText={setResetToken}
+                    placeholder="Reset token"
                     autoCapitalize="none"
                   />
                   <Field
-                    value={displayName}
-                    onChangeText={setDisplayName}
-                    placeholder="Display name"
+                    value={resetPassword}
+                    onChangeText={setResetPassword}
+                    placeholder="New password"
+                    secureTextEntry
                   />
                 </>
-              ) : null}
+              ) : (
+                <>
+                  <Field
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Email"
+                    autoCapitalize="none"
+                  />
+                  <Field
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Password"
+                    secureTextEntry
+                  />
+                  {isRegister ? (
+                    <>
+                      <Field
+                        value={username}
+                        onChangeText={setUsername}
+                        placeholder="Username"
+                        autoCapitalize="none"
+                      />
+                      <Field
+                        value={displayName}
+                        onChangeText={setDisplayName}
+                        placeholder="Display name"
+                      />
+                    </>
+                  ) : null}
+                </>
+              )}
+              {notice ? <Text style={styles.mutedText}>{notice}</Text> : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
-              <PrimaryButton
-                label={isRegister ? 'Create account' : 'Log in'}
-                onPress={submit}
-                disabled={busy}
-              />
+              {isForgot ? (
+                <PrimaryButton
+                  label="Set new password"
+                  onPress={submitPasswordReset}
+                  disabled={busy || !resetToken.trim() || resetPassword.length < 8}
+                />
+              ) : (
+                <PrimaryButton
+                  label={isRegister ? 'Create account' : 'Log in'}
+                  onPress={submit}
+                  disabled={busy}
+                />
+              )}
+              {!isRegister && !isForgot ? (
+                <Pressable style={styles.authLinkRow} onPress={() => chooseMode('forgot')}>
+                  <Text style={styles.authLinkText}>Forgot password?</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 style={styles.authLinkRow}
-                onPress={() => chooseMode(isRegister ? 'login' : 'register')}
+                onPress={() => chooseMode(isRegister || isForgot ? 'login' : 'register')}
               >
                 <Text style={styles.authLinkMuted}>
-                  {isRegister ? 'Already have an account? ' : 'Need an account? '}
+                  {isRegister
+                    ? 'Already have an account? '
+                    : isForgot
+                      ? 'Remembered it? '
+                      : 'Need an account? '}
                   <Text style={styles.authLinkText}>
-                    {isRegister ? 'Log in' : 'Create account'}
+                    {isRegister || isForgot ? 'Log in' : 'Create account'}
                   </Text>
                 </Text>
               </Pressable>
@@ -532,10 +636,12 @@ function AuthScreen({
 function AppShell({
   tokens,
   user,
+  onUserChange,
   onSignOut,
 }: {
   tokens: AuthTokens;
   user: AuthUser;
+  onUserChange: (user: AuthUser) => void;
   onSignOut: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('feed');
@@ -667,6 +773,7 @@ function AppShell({
               profileUser={selectedProfileUser}
               onOpenReview={openReview}
               onOpenUser={openUserProfile}
+              onUserChange={onUserChange}
               onSignOut={onSignOut}
             />
           )
@@ -2860,6 +2967,7 @@ function ProfileScreen({
   profileUser,
   onOpenReview,
   onOpenUser,
+  onUserChange,
   onSignOut,
 }: {
   tokens: AuthTokens;
@@ -2867,6 +2975,7 @@ function ProfileScreen({
   profileUser: FriendSummary | null;
   onOpenReview: (id: string) => void;
   onOpenUser: (user: FriendSummary) => void;
+  onUserChange: (user: AuthUser) => void;
   onSignOut: () => void;
 }) {
   const [reviews, setReviews] = useState<FeedItem[]>([]);
@@ -2877,6 +2986,7 @@ function ProfileScreen({
   const [reviewLoadError, setReviewLoadError] = useState<string | null>(null);
   const [reviewQuery, setReviewQuery] = useState('');
   const [friendCount, setFriendCount] = useState<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const activeProfile = profileUser ?? user;
   const isOwnProfile = !profileUser;
 
@@ -3002,7 +3112,19 @@ function ProfileScreen({
         title={`@${activeProfile.username}`}
         right={
           isOwnProfile ? (
-            <IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />
+            <View style={styles.headerActionRow}>
+              <IconButton
+                icon={<Settings size={20} color={showSettings ? colors.surface : colors.ink} />}
+                active={showSettings}
+                onPress={() => setShowSettings((current) => !current)}
+                accessibilityLabel="Account settings"
+              />
+              <IconButton
+                icon={<LogOut size={20} color={colors.ink} />}
+                onPress={onSignOut}
+                accessibilityLabel="Log out"
+              />
+            </View>
           ) : undefined
         }
       />
@@ -3040,6 +3162,14 @@ function ProfileScreen({
           ) : null}
         </View>
       </View>
+      {isOwnProfile && showSettings ? (
+        <AccountSettingsPanel
+          tokens={tokens}
+          user={user}
+          onUserChange={onUserChange}
+          onSignOut={onSignOut}
+        />
+      ) : null}
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent</Text>
@@ -3102,6 +3232,226 @@ function ProfileScreen({
         ) : null}
       </View>
     </ScrollView>
+  );
+}
+
+function AccountSettingsPanel({
+  tokens,
+  user,
+  onUserChange,
+  onSignOut,
+}: {
+  tokens: AuthTokens;
+  user: AuthUser;
+  onUserChange: (user: AuthUser) => void;
+  onSignOut: () => void;
+}) {
+  const [displayName, setDisplayName] = useState(user.displayName);
+  const [username, setUsername] = useState(user.username);
+  const [email, setEmail] = useState(user.pendingEmail ?? user.email);
+  const [bio, setBio] = useState(user.bio ?? '');
+  const [locale, setLocale] = useState(user.locale);
+  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [verificationToken, setVerificationToken] = useState('');
+  const [devVerificationToken, setDevVerificationToken] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteUsername, setDeleteUsername] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    setDisplayName(user.displayName);
+    setUsername(user.username);
+    setEmail(user.pendingEmail ?? user.email);
+    setBio(user.bio ?? '');
+    setLocale(user.locale);
+    setAvatarUrl(user.avatarUrl ?? '');
+  }, [
+    user.avatarUrl,
+    user.bio,
+    user.displayName,
+    user.email,
+    user.locale,
+    user.pendingEmail,
+    user.username,
+  ]);
+
+  const saveProfile = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const updated = await api.updateMe(tokens, {
+        displayName: displayName.trim(),
+        username: username.trim(),
+        email: email.trim(),
+        bio: bio.trim() || null,
+        locale: locale.trim() || 'en-US',
+        avatarUrl: avatarUrl.trim() || null,
+      });
+      onUserChange(updated);
+      setMessage(updated.pendingEmail ? 'Account updated. Verify the pending email.' : 'Account updated.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not update account');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestVerificationToken = async () => {
+    setVerifying(true);
+    setMessage(null);
+    setDevVerificationToken(null);
+    try {
+      const response = await api.requestEmailVerification(tokens);
+      if (response.devToken) {
+        setDevVerificationToken(response.devToken);
+        setVerificationToken(response.devToken);
+        setMessage('Verification token ready for this beta flow.');
+      } else {
+        setMessage(response.emailVerifiedAt ? 'Email is already verified.' : 'Verification requested.');
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not request verification');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const verifyEmail = async () => {
+    setVerifying(true);
+    setMessage(null);
+    try {
+      const response = await api.verifyEmailToken(verificationToken);
+      onUserChange(response.user);
+      setVerificationToken('');
+      setDevVerificationToken(null);
+      setMessage('Email verified.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not verify email');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    setMessage(null);
+    try {
+      await api.deleteMe(tokens, {
+        username: deleteUsername,
+        currentPassword: deletePassword,
+      });
+      onSignOut();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not delete account');
+      setDeleting(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete account permanently?',
+      'This removes your account and cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => void deleteAccount() },
+      ],
+    );
+  };
+
+  const saveDisabled = saving || !displayName.trim() || !username.trim() || !email.trim();
+  const deleteDisabled =
+    deleting || !deletePassword || deleteUsername.trim().toLowerCase() !== user.username;
+  const emailStatus = user.pendingEmail
+    ? 'Pending'
+    : user.emailVerifiedAt
+      ? 'Verified'
+      : 'Unverified';
+
+  return (
+    <Panel tint="cyan">
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Account settings</Text>
+        <Text style={styles.bubble}>{emailStatus}</Text>
+      </View>
+      <View style={styles.form}>
+        <Field value={displayName} onChangeText={setDisplayName} placeholder="Display name" />
+        <Field value={username} onChangeText={setUsername} placeholder="Username" autoCapitalize="none" />
+        <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
+        <Field value={locale} onChangeText={setLocale} placeholder="Locale" autoCapitalize="none" />
+        <Field value={avatarUrl} onChangeText={setAvatarUrl} placeholder="Avatar URL" autoCapitalize="none" />
+        <View style={[styles.fieldWrap, styles.settingsTextAreaWrap]}>
+          <TextInput
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Bio"
+            placeholderTextColor={colors.muted}
+            multiline
+            style={[styles.field, styles.settingsTextArea, webNoOutline]}
+          />
+        </View>
+        <PrimaryButton label={saving ? 'Saving...' : 'Save account'} onPress={saveProfile} disabled={saveDisabled} compact />
+      </View>
+      <View style={styles.notice}>
+        <Text style={styles.label}>Email verification</Text>
+        <Text style={styles.mutedText}>Current login email: {user.email}</Text>
+        {user.pendingEmail ? <Text style={styles.mutedText}>Pending email: {user.pendingEmail}</Text> : null}
+        <Pressable
+          style={styles.secondaryButton}
+          disabled={verifying}
+          onPress={requestVerificationToken}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {user.pendingEmail ? 'Get email-change token' : 'Get verification token'}
+          </Text>
+        </Pressable>
+        {devVerificationToken ? (
+          <Text selectable style={styles.devTokenText}>
+            {devVerificationToken}
+          </Text>
+        ) : null}
+        <Field
+          value={verificationToken}
+          onChangeText={setVerificationToken}
+          placeholder="Verification token"
+          autoCapitalize="none"
+        />
+        <PrimaryButton
+          label="Verify email"
+          onPress={verifyEmail}
+          disabled={verifying || !verificationToken.trim()}
+          compact
+        />
+      </View>
+      <View style={[styles.notice, styles.dangerZone]}>
+        <Text style={styles.label}>Delete account</Text>
+        <Text style={styles.mutedText}>Type {user.username} and your password.</Text>
+        <Field
+          value={deleteUsername}
+          onChangeText={setDeleteUsername}
+          placeholder="Username"
+          autoCapitalize="none"
+        />
+        <Field
+          value={deletePassword}
+          onChangeText={setDeletePassword}
+          placeholder="Current password"
+          secureTextEntry
+        />
+        <Pressable
+          style={[styles.secondaryButton, styles.dangerButton]}
+          disabled={deleteDisabled}
+          onPress={confirmDeleteAccount}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {deleting ? 'Deleting...' : 'Delete account permanently'}
+          </Text>
+        </Pressable>
+      </View>
+      {message ? <Text style={message.includes('Could not') ? styles.error : styles.mutedText}>{message}</Text> : null}
+    </Panel>
   );
 }
 
@@ -3853,6 +4203,17 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '700',
   },
+  settingsTextAreaWrap: {
+    minHeight: 92,
+    maxHeight: 120,
+    borderRadius: 18,
+    alignItems: 'stretch',
+    paddingVertical: 6,
+  },
+  settingsTextArea: {
+    minHeight: 78,
+    textAlignVertical: 'top',
+  },
   primaryButton: {
     minHeight: 46,
     borderRadius: 999,
@@ -4557,6 +4918,15 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: colors.surface,
     gap: 6,
+  },
+  dangerZone: {
+    backgroundColor: '#ffe0cf',
+  },
+  devTokenText: {
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
   },
   commentComposer: {
     borderWidth: 2,

@@ -6,6 +6,8 @@ export type AuthUser = {
   avatarUrl: string | null;
   bio: string | null;
   locale: string;
+  emailVerifiedAt: string | null;
+  pendingEmail: string | null;
 };
 
 export type AuthTokens = {

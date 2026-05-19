@@ -416,6 +416,83 @@ async function run() {
   );
 
   // ─── Logout ───
+  console.log('\n--- Account: Settings & Recovery ---');
+  const nextCarolEmail = `carol_new_${suffix}@test.local`;
+  const nextCarolUsername = `carolbeta_${suffix}`;
+  const updateCarolRes = await request('PATCH', '/me', {
+    token: userC.tokens.accessToken,
+    body: {
+      username: nextCarolUsername,
+      email: nextCarolEmail,
+      displayName: 'Carol Beta',
+      bio: 'Closed beta tester',
+      locale: 'pt-BR',
+      avatarUrl: 'https://example.com/carol.png',
+    },
+  });
+  assert(updateCarolRes.status === 200, `Profile update succeeds (status ${updateCarolRes.status})`);
+  assert(updateCarolRes.data.username === nextCarolUsername, 'Profile update changes username');
+  assert(updateCarolRes.data.email === `carol_${suffix}@test.local`, 'Email remains active until verification');
+  assert(updateCarolRes.data.pendingEmail === nextCarolEmail, 'Email change is stored as pending');
+  Object.assign(userC, updateCarolRes.data);
+
+  const requestVerifyRes = await request('POST', '/auth/email/verify/request', {
+    token: userC.tokens.accessToken,
+  });
+  assert(
+    requestVerifyRes.status === 201 || requestVerifyRes.status === 200,
+    `Verification token requested (status ${requestVerifyRes.status})`,
+  );
+  assert(!!requestVerifyRes.data.devToken, 'Verification request returns beta dev token');
+
+  const verifyEmailRes = await request('POST', '/auth/email/verify', {
+    body: { token: requestVerifyRes.data.devToken },
+  });
+  assert(
+    verifyEmailRes.status === 201 || verifyEmailRes.status === 200,
+    `Pending email verified (status ${verifyEmailRes.status})`,
+  );
+  assert(verifyEmailRes.data.user?.email === nextCarolEmail, 'Verified pending email becomes active email');
+  assert(verifyEmailRes.data.user?.pendingEmail === null, 'Pending email clears after verification');
+  Object.assign(userC, verifyEmailRes.data.user);
+
+  const forgotPasswordRes = await request('POST', '/auth/password/forgot', {
+    body: { email: nextCarolEmail },
+  });
+  assert(
+    forgotPasswordRes.status === 201 || forgotPasswordRes.status === 200,
+    `Password reset requested (status ${forgotPasswordRes.status})`,
+  );
+  assert(!!forgotPasswordRes.data.devToken, 'Password reset returns beta dev token');
+
+  const resetPasswordRes = await request('POST', '/auth/password/reset', {
+    body: { token: forgotPasswordRes.data.devToken, password: 'NewPassword3!' },
+  });
+  assert(
+    resetPasswordRes.status === 201 || resetPasswordRes.status === 200,
+    `Password reset succeeds (status ${resetPasswordRes.status})`,
+  );
+
+  const loginResetRes = await request('POST', '/auth/login', {
+    body: { email: nextCarolEmail, password: 'NewPassword3!' },
+  });
+  assert(
+    loginResetRes.status === 201 || loginResetRes.status === 200,
+    `Login with reset password succeeds (status ${loginResetRes.status})`,
+  );
+  userC.tokens = loginResetRes.data.tokens;
+
+  const deleteAccountRes = await request('DELETE', '/me', {
+    token: userC.tokens.accessToken,
+    body: { username: nextCarolUsername, currentPassword: 'NewPassword3!' },
+  });
+  assert(deleteAccountRes.status === 200, `Hard delete account succeeds (status ${deleteAccountRes.status})`);
+
+  const loginDeletedRes = await request('POST', '/auth/login', {
+    body: { email: nextCarolEmail, password: 'NewPassword3!' },
+  });
+  assert(loginDeletedRes.status === 401, `Deleted account cannot log in (status ${loginDeletedRes.status})`);
+
   console.log('\n--- Auth: Logout ---');
   const logoutRes = await request('POST', '/auth/logout', {
     body: { refreshToken: userA.tokens.refreshToken },

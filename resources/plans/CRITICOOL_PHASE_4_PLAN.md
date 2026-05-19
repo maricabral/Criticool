@@ -8,6 +8,16 @@ Phase 4 makes CritiCool safer to hand to closed beta testers by adding account s
 
 Primary outcome: a tester can edit their identity, verify or change email through a dev-token flow, reset a forgotten password, and permanently delete their account, then pass mobile QA on a restarted Expo app.
 
+## Implementation Status
+
+Implemented in this rollout:
+
+- Account lifecycle migration with verification/reset token storage.
+- Profile identity edit, pending-email verification, password reset, and hard-delete APIs.
+- Mobile forgot-password flow and `Me` account settings panel.
+- Shared user/account types and mobile API client methods.
+- Unit coverage plus smoke coverage for the new account lifecycle path.
+
 ## Key Changes
 
 - Add account lifecycle schema support:

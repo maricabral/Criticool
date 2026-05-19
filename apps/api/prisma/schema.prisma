@@ -32,11 +32,19 @@ enum ReportTargetType {
   comment
 }
 
+enum AccountTokenType {
+  email_verification
+  email_change
+  password_reset
+}
+
 model User {
   id           String        @id @default(uuid()) @db.Uuid
   username     String        @unique
   displayName  String        @map("display_name")
   email        String        @unique
+  emailVerifiedAt DateTime?  @map("email_verified_at")
+  pendingEmail String?       @unique @map("pending_email")
   avatarUrl    String?       @map("avatar_url")
   bio          String?
   locale       String        @default("en-US")
@@ -45,6 +53,7 @@ model User {
   deletedAt    DateTime?     @map("deleted_at")
   accounts     AuthAccount[]
   sessions     Session[]
+  accountTokens AccountToken[]
   reviews      Review[]
   comments     Comment[]
   commentVotes CommentVote[]
@@ -58,6 +67,22 @@ model User {
   blocksReceived       Block[]      @relation("blocked")
 
   @@map("users")
+}
+
+model AccountToken {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  type       AccountTokenType
+  tokenHash  String           @unique @map("token_hash")
+  email      String?
+  expiresAt  DateTime         @map("expires_at")
+  consumedAt DateTime?        @map("consumed_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, consumedAt])
+  @@index([expiresAt])
+  @@map("account_tokens")
 }
 
 model AuthAccount {
