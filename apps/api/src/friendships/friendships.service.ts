@@ -134,10 +134,23 @@ export class FriendshipsService {
       include: this.friendshipInclude(),
       orderBy: { respondedAt: 'desc' },
     });
-    return rows.map((row) => {
-      const friend = row.requesterId === userId ? row.addressee : row.requester;
-      return { id: friend.id, username: friend.username, displayName: friend.displayName, avatarUrl: friend.avatarUrl };
-    });
+    const friends = await Promise.all(
+      rows.map(async (row) => {
+        const friend = row.requesterId === userId ? row.addressee : row.requester;
+        const isBlocked = await this.visibility.isBlockedEitherWay(userId, friend.id);
+        return isBlocked
+          ? null
+          : {
+              id: friend.id,
+              username: friend.username,
+              displayName: friend.displayName,
+              avatarUrl: friend.avatarUrl,
+            };
+      }),
+    );
+    return friends.filter(
+      (friend): friend is NonNullable<(typeof friends)[number]> => friend !== null,
+    );
   }
 
   private friendshipInclude() {

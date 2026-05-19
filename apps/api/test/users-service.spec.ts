@@ -6,6 +6,7 @@ function createMockPrisma() {
     user: { findFirst: vi.fn() },
     friendship: { deleteMany: vi.fn() },
     block: {
+      findMany: vi.fn(),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -22,7 +23,7 @@ describe('UsersService block controls', () => {
     service = new UsersService(prisma as never);
   });
 
-  it('blocks a user and removes friendship state', async () => {
+  it('blocks a user and preserves accepted friendship state', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 'user-b' });
     prisma.friendship.deleteMany.mockResolvedValue({ count: 1 });
     prisma.block.upsert.mockResolvedValue({});
@@ -32,6 +33,7 @@ describe('UsersService block controls', () => {
     expect(result).toEqual({ ok: true });
     expect(prisma.friendship.deleteMany).toHaveBeenCalledWith({
       where: {
+        status: { not: 'accepted' },
         OR: [
           { requesterId: 'user-a', addresseeId: 'user-b' },
           { requesterId: 'user-b', addresseeId: 'user-a' },
@@ -47,5 +49,49 @@ describe('UsersService block controls', () => {
 
   it('rejects blocking yourself', async () => {
     await expect(service.block('user-a', 'user-a')).rejects.toThrow('You cannot block yourself');
+  });
+
+  it('lists users blocked by the viewer', async () => {
+    prisma.block.findMany.mockResolvedValue([
+      {
+        createdAt: new Date('2026-05-19T12:00:00.000Z'),
+        blocked: {
+          id: 'user-b',
+          username: 'blocked',
+          displayName: 'Blocked User',
+          avatarUrl: null,
+        },
+      },
+    ]);
+
+    const result = await service.blocked('user-a');
+
+    expect(prisma.block.findMany).toHaveBeenCalledWith({
+      where: { blockerId: 'user-a', blocked: { deletedAt: null } },
+      include: {
+        blocked: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(result).toEqual([
+      {
+        id: 'user-b',
+        username: 'blocked',
+        displayName: 'Blocked User',
+        avatarUrl: null,
+        blockedAt: '2026-05-19T12:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('unblocks a user blocked by the viewer', async () => {
+    prisma.block.deleteMany.mockResolvedValue({ count: 1 });
+
+    const result = await service.unblock('user-a', 'user-b');
+
+    expect(result).toEqual({ ok: true });
+    expect(prisma.block.deleteMany).toHaveBeenCalledWith({
+      where: { blockerId: 'user-a', blockedId: 'user-b' },
+    });
   });
 });

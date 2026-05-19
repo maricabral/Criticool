@@ -39,6 +39,10 @@ export type FriendSummary = {
   avatarUrl: string | null;
 };
 
+export type BlockedUserSummary = FriendSummary & {
+  blockedAt: string;
+};
+
 export async function loadTokens() {
   const value = await AsyncStorage.getItem(TOKENS_KEY);
   return value ? (JSON.parse(value) as AuthTokens) : null;
@@ -275,6 +279,7 @@ export const api = {
     apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST', tokens }),
   unblockUser: (tokens: AuthTokens, id: string) =>
     apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'DELETE', tokens }),
+  blockedUsers: (tokens: AuthTokens) => apiRequest<BlockedUserSummary[]>('/users/blocked', { tokens }),
   report: (
     tokens: AuthTokens,
     body: {

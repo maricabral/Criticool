@@ -205,5 +205,23 @@ describe('FriendshipsService', () => {
         { id: 'user-b', username: 'bob', displayName: 'Bob', avatarUrl: null },
       ]);
     });
+
+    it('hides accepted friends while either user has blocked the other', async () => {
+      prisma.friendship.findMany.mockResolvedValue([
+        {
+          requesterId: 'user-a',
+          addresseeId: 'user-b',
+          requester: userA,
+          addressee: userB,
+          status: 'accepted',
+        },
+      ]);
+      visibility.isBlockedEitherWay.mockResolvedValue(true);
+
+      const result = await service.friends('user-a');
+
+      expect(result).toEqual([]);
+      expect(visibility.isBlockedEitherWay).toHaveBeenCalledWith('user-a', 'user-b');
+    });
   });
 });

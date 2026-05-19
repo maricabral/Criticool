@@ -43,6 +43,7 @@ import type {
 } from '@criticool/shared';
 import {
   api,
+  BlockedUserSummary,
   FriendRequest,
   FriendSummary,
   loadTokens,
@@ -2499,6 +2500,7 @@ function FriendsScreen({
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<FriendSummary[]>([]);
+  const [blocked, setBlocked] = useState<BlockedUserSummary[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [reportReason, setReportReason] = useState('');
@@ -2508,14 +2510,16 @@ function FriendsScreen({
   const loadFriendState = useCallback(async () => {
     setLoadingRequests(true);
     try {
-      const [incomingRows, outgoingRows, friendRows] = await Promise.all([
+      const [incomingRows, outgoingRows, friendRows, blockedRows] = await Promise.all([
         api.incomingFriendRequests(tokens),
         api.outgoingFriendRequests(tokens),
         api.friends(tokens),
+        api.blockedUsers(tokens),
       ]);
       setIncoming(incomingRows);
       setOutgoing(outgoingRows);
       setFriends(friendRows);
+      setBlocked(blockedRows);
     } catch (err) {
       Alert.alert('Could not load friends', err instanceof Error ? err.message : 'Try again');
     } finally {
@@ -2576,9 +2580,21 @@ function FriendsScreen({
       await api.blockUser(tokens, id);
       setUsers((current) => current.filter((item) => item.id !== id));
       setFriends((current) => current.filter((item) => item.id !== id));
+      setOutgoing((current) => current.filter((request) => request.addressee.id !== id));
+      setIncoming((current) => current.filter((request) => request.requester.id !== id));
       await loadFriendState();
     } catch (err) {
       Alert.alert('Could not block user', err instanceof Error ? err.message : 'Try again');
+    }
+  };
+
+  const unblockUser = async (id: string) => {
+    try {
+      await api.unblockUser(tokens, id);
+      setBlocked((current) => current.filter((item) => item.id !== id));
+      await loadFriendState();
+    } catch (err) {
+      Alert.alert('Could not unblock user', err instanceof Error ? err.message : 'Try again');
     }
   };
 
@@ -2773,6 +2789,27 @@ function FriendsScreen({
                       <Text numberOfLines={1} style={styles.friendHandle}>
                         @{request.addressee.username}
                       </Text>
+                    </View>
+                  ))}
+                </View>
+              </Panel>
+            ) : null}
+            {blocked.length ? (
+              <Panel>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Blocked</Text>
+                  <Text style={styles.bubble}>{blocked.length}</Text>
+                </View>
+                <View style={styles.friendGrid}>
+                  {blocked.map((blockedUser) => (
+                    <View key={blockedUser.id} style={styles.friendBubble}>
+                      <Avatar label={blockedUser.displayName || blockedUser.username} large />
+                      <Text numberOfLines={1} style={styles.friendHandle}>
+                        @{blockedUser.username}
+                      </Text>
+                      <Pressable onPress={() => void unblockUser(blockedUser.id)}>
+                        <Text style={styles.commentReplyText}>Unblock</Text>
+                      </Pressable>
                     </View>
                   ))}
                 </View>
