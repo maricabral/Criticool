@@ -2167,43 +2167,51 @@ function CommentNode({
             )}
             {!isEditing ? (
               <View style={styles.commentActionRow}>
-                {canReply ? (
-                  <ActionIconButton
-                    accessibilityLabel="Reply to comment"
-                    onPress={() => onReply(comment)}
-                    icon={<Send size={15} color={colors.ink} />}
-                  />
-                ) : null}
-                {canTranslateComment ? (
-                  <ActionIconButton
-                    accessibilityLabel={commentTranslationLabel}
-                    active={showTranslatedComment}
-                    onPress={toggleCommentTranslation}
-                    disabled={translatingComment}
-                    icon={<Languages size={15} color={colors.ink} />}
-                  />
-                ) : null}
-                {canEdit ? (
-                  <>
+                <View style={styles.commentPrimaryActions}>
+                  {canReply ? (
                     <ActionIconButton
-                      accessibilityLabel="Edit comment"
-                      onPress={() => onStartEdit(comment)}
-                      icon={<Pencil size={15} color={colors.ink} />}
+                      accessibilityLabel="Reply to comment"
+                      onPress={() => onReply(comment)}
+                      icon={<Send size={15} color={colors.ink} />}
                     />
+                  ) : null}
+                </View>
+                <View style={styles.commentUtilityActions}>
+                  {canTranslateComment ? (
                     <ActionIconButton
-                      accessibilityLabel="Delete comment"
-                      disabled={isMutating}
-                      onPress={() => onDelete(comment)}
-                      icon={<Trash2 size={15} color={colors.ink} />}
+                      accessibilityLabel={commentTranslationLabel}
+                      active={showTranslatedComment}
+                      small
+                      onPress={toggleCommentTranslation}
+                      disabled={translatingComment}
+                      icon={<Languages size={13} color={colors.ink} />}
                     />
-                  </>
-                ) : !isDeleted ? (
-                  <ActionIconButton
-                    accessibilityLabel="Report comment"
-                    onPress={() => onReport(comment)}
-                    icon={<Flag size={15} color={colors.ink} />}
-                  />
-                ) : null}
+                  ) : null}
+                  {canEdit ? (
+                    <>
+                      <ActionIconButton
+                        accessibilityLabel="Edit comment"
+                        small
+                        onPress={() => onStartEdit(comment)}
+                        icon={<Pencil size={13} color={colors.ink} />}
+                      />
+                      <ActionIconButton
+                        accessibilityLabel="Delete comment"
+                        disabled={isMutating}
+                        small
+                        onPress={() => onDelete(comment)}
+                        icon={<Trash2 size={13} color={colors.ink} />}
+                      />
+                    </>
+                  ) : !isDeleted ? (
+                    <ActionIconButton
+                      accessibilityLabel="Report comment"
+                      small
+                      onPress={() => onReport(comment)}
+                      icon={<Flag size={13} color={colors.ink} />}
+                    />
+                  ) : null}
+                </View>
               </View>
             ) : null}
           </View>
@@ -3195,12 +3203,14 @@ function ActionIconButton({
   onPress,
   disabled,
   active,
+  small,
   accessibilityLabel,
 }: {
   icon: React.ReactNode;
   onPress: () => void;
   disabled?: boolean;
   active?: boolean;
+  small?: boolean;
   accessibilityLabel: string;
 }) {
   return (
@@ -3212,6 +3222,7 @@ function ActionIconButton({
       onPress={onPress}
       style={[
         styles.actionIconButton,
+        small && styles.actionIconButtonSmall,
         active && styles.actionIconButtonActive,
         disabled && styles.actionIconButtonDisabled,
       ]}
@@ -3575,6 +3586,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.yellow,
+  },
+  actionIconButtonSmall: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.surface,
   },
   actionIconButtonActive: {
     backgroundColor: colors.cyan,
@@ -4400,8 +4417,21 @@ const styles = StyleSheet.create({
   },
   commentActionRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  commentPrimaryActions: {
+    minWidth: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  commentUtilityActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 5,
+    marginLeft: 'auto',
   },
   commentEditBox: {
     gap: 8,
