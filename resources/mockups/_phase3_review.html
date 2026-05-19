@@ -149,6 +149,7 @@
         display: grid;
         gap: 12px;
         box-shadow: var(--shadow);
+        position: relative;
       }
 
       .review-top {
@@ -329,7 +330,6 @@
       }
 
       .menu {
-        margin-left: auto;
         min-width: 152px;
         border: 2px solid var(--ink);
         border-radius: 14px;
@@ -337,6 +337,19 @@
         padding: 7px;
         display: grid;
         gap: 6px;
+        position: absolute;
+        z-index: 20;
+        box-shadow: var(--shadow);
+      }
+
+      .menu-review {
+        right: 12px;
+        bottom: 58px;
+      }
+
+      .menu-comment {
+        right: 0;
+        bottom: 40px;
       }
 
       .menu-row {
@@ -519,6 +532,7 @@
         display: grid;
         gap: 7px;
         min-width: 0;
+        position: relative;
       }
 
       .comment-meta {
@@ -820,7 +834,7 @@
                     <span class="tag">best with snacks</span>
                     <span class="tag">date night chaos</span>
                   </div>
-                  <div class="menu">
+                  <div class="menu menu-review">
                     <button class="menu-row">Translate</button>
                     <button class="menu-row">Edit review</button>
                   </div>
@@ -970,7 +984,7 @@
                       <p class="comment-text">oi</p>
                       <div class="comment-actions">
                         <span class="reply-button">></span>
-                        <div class="menu">
+                        <div class="menu menu-comment">
                           <button class="menu-row">Edit comment</button>
                           <button class="menu-row">Delete comment</button>
                         </div>

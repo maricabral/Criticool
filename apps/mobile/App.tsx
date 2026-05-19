@@ -1944,7 +1944,11 @@ function ReviewDetailScreen({
           />
         </View>
         {reviewActionMenuOpen ? (
-          <ActionMenu actions={reviewActions} onSelect={() => setReviewActionMenuOpen(false)} />
+          <ActionMenu
+            actions={reviewActions}
+            placement="review"
+            onSelect={() => setReviewActionMenuOpen(false)}
+          />
         ) : null}
         {reportTarget ? (
           <ReportComposer
@@ -2265,6 +2269,7 @@ function CommentNode({
                   <ActionMenu
                     actions={commentActions}
                     compact
+                    placement="comment"
                     onSelect={() => setCommentMenuOpen(false)}
                   />
                 ) : null}
@@ -3298,13 +3303,21 @@ function ActionMenu({
   actions,
   onSelect,
   compact,
+  placement = 'comment',
 }: {
   actions: MenuAction[];
   onSelect?: () => void;
   compact?: boolean;
+  placement?: 'review' | 'comment';
 }) {
   return (
-    <View style={[styles.moreMenu, compact && styles.moreMenuCompact]}>
+    <View
+      style={[
+        styles.moreMenu,
+        placement === 'review' ? styles.moreMenuReviewOverlay : styles.moreMenuCommentOverlay,
+        compact && styles.moreMenuCompact,
+      ]}
+    >
       {actions.map((action) => (
         <Pressable
           key={action.label}
@@ -3702,7 +3715,9 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   moreMenu: {
-    alignSelf: 'flex-end',
+    position: 'absolute',
+    zIndex: 20,
+    elevation: 6,
     minWidth: 158,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -3710,6 +3725,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
     padding: 6,
     gap: 4,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.14,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 4 },
+  },
+  moreMenuReviewOverlay: {
+    right: 12,
+    bottom: 58,
+  },
+  moreMenuCommentOverlay: {
+    right: 0,
+    bottom: 40,
   },
   moreMenuCompact: {
     minWidth: 146,
