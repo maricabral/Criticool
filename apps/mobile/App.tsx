@@ -4616,10 +4616,10 @@ const styles = StyleSheet.create({
   },
   commentReplyThread: {
     gap: 8,
-    marginLeft: 22,
-    paddingLeft: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.ink,
+    marginLeft: 18,
+    paddingLeft: 9,
+    borderLeftWidth: 2,
+    borderLeftColor: '#d8c7aa',
   },
   commentCard: {
     gap: 10,
