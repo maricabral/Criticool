@@ -3583,7 +3583,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
-    paddingRight: 66,
+    paddingRight: 62,
   },
   reviewCardBody: {
     minHeight: 112,
@@ -3632,8 +3632,8 @@ const styles = StyleSheet.create({
   },
   reviewCommentCluster: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 5,
+    right: 5,
     width: 58,
     alignItems: 'flex-end',
     gap: 4,
