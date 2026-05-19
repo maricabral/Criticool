@@ -181,6 +181,12 @@ type ReportTarget = {
   label: string;
 };
 
+type ReviewTranslationState = {
+  quickTake: string | null;
+  body: string | null;
+  showTranslated: boolean;
+};
+
 type GenreBrowseItem = {
   title: string;
   subtitle: string;
@@ -1563,6 +1569,8 @@ function ReviewDetailScreen({
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
+  const [reviewTranslation, setReviewTranslation] = useState<ReviewTranslationState | null>(null);
+  const [translatingReview, setTranslatingReview] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
 
   const loadReview = useCallback(async () => {
@@ -1576,6 +1584,10 @@ function ReviewDetailScreen({
   useEffect(() => {
     void loadReview();
   }, [loadReview]);
+
+  useEffect(() => {
+    setReviewTranslation(null);
+  }, [reviewId]);
 
   useEffect(() => {
     if (!replyTo) {
@@ -1731,6 +1743,44 @@ function ReviewDetailScreen({
     }
   };
 
+  const toggleReviewTranslation = async () => {
+    if (!review || translatingReview) {
+      return;
+    }
+
+    if (reviewTranslation?.showTranslated) {
+      setReviewTranslation((current) =>
+        current ? { ...current, showTranslated: false } : current,
+      );
+      return;
+    }
+
+    if (reviewTranslation) {
+      setReviewTranslation({ ...reviewTranslation, showTranslated: true });
+      return;
+    }
+
+    setTranslatingReview(true);
+    try {
+      const sourceText = [review.quickTake, review.body].filter(Boolean).join('\n');
+      const response = await api.translate(tokens, {
+        targetType: 'review',
+        targetId: review.id,
+        targetLocale: viewerLocale,
+        sourceLocale: detectLikelyLocale(sourceText) ?? undefined,
+      });
+      setReviewTranslation({
+        quickTake: response.fields.quickTake ?? null,
+        body: response.fields.body ?? null,
+        showTranslated: true,
+      });
+    } catch (err) {
+      Alert.alert('Could not translate', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setTranslatingReview(false);
+    }
+  };
+
   const composer = (
     <CommentComposer
       body={commentBody}
@@ -1755,6 +1805,20 @@ function ReviewDetailScreen({
   }
 
   const showBody = !review.containsSpoilers || revealed;
+  const reviewText = [review.quickTake, review.body].filter(Boolean).join('\n');
+  const canTranslateReview = showBody && shouldOfferTranslation(reviewText, viewerLocale);
+  const showTranslatedReview = Boolean(reviewTranslation?.showTranslated);
+  const visibleQuickTake =
+    showTranslatedReview && reviewTranslation?.quickTake
+      ? reviewTranslation.quickTake
+      : review.quickTake;
+  const visibleBody =
+    showTranslatedReview && reviewTranslation?.body ? reviewTranslation.body : review.body;
+  const reviewTranslationLabel = translatingReview
+    ? 'Translating...'
+    : showTranslatedReview
+      ? 'Show original'
+      : 'Translate';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
@@ -1783,20 +1847,20 @@ function ReviewDetailScreen({
         </View>
       </View>
       <View style={styles.detailInline}>
-        {review.quickTake ? (
-          <TranslatableText
-            tokens={tokens}
-            targetType="review"
-            targetId={review.id}
-            field="quickTake"
-            text={review.quickTake}
-            targetLocale={viewerLocale}
-            style={styles.detailTitle}
-          />
-        ) : null}
+        {visibleQuickTake ? <Text style={styles.detailTitle}>{visibleQuickTake}</Text> : null}
         {review.tags?.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
         {review.author.id === currentUserId ? (
           <View style={styles.actionRow}>
+            {canTranslateReview ? (
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={toggleReviewTranslation}
+                disabled={translatingReview}
+              >
+                <Languages size={14} color={colors.ink} />
+                <Text style={styles.secondaryButtonText}>{reviewTranslationLabel}</Text>
+              </Pressable>
+            ) : null}
             <Pressable style={styles.secondaryButton} onPress={() => onEditReview(review)}>
               <Pencil size={14} color={colors.ink} />
               <Text style={styles.secondaryButtonText}>Edit</Text>
@@ -1804,6 +1868,16 @@ function ReviewDetailScreen({
           </View>
         ) : (
           <View style={styles.actionRow}>
+            {canTranslateReview ? (
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={toggleReviewTranslation}
+                disabled={translatingReview}
+              >
+                <Languages size={14} color={colors.ink} />
+                <Text style={styles.secondaryButtonText}>{reviewTranslationLabel}</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               style={styles.secondaryButton}
               onPress={() =>
@@ -1842,16 +1916,8 @@ function ReviewDetailScreen({
                 <Text style={styles.secondaryButtonText}>Hide spoilers</Text>
               </Pressable>
             ) : null}
-            {review.body ? (
-              <TranslatableText
-                tokens={tokens}
-                targetType="review"
-                targetId={review.id}
-                field="body"
-                text={review.body}
-                targetLocale={viewerLocale}
-                style={styles.bodyText}
-              />
+            {visibleBody ? (
+              <Text style={styles.bodyText}>{visibleBody}</Text>
             ) : (
               <Text style={styles.bodyText}>No full review.</Text>
             )}
