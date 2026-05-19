@@ -1832,54 +1832,75 @@ function ReviewDetailScreen({
         >
           {review.containsSpoilers ? 'Spoilers' : 'Spoiler-free'}
         </Text>
-        <Poster movie={review.movie} compact />
-        <View style={[styles.reviewCopy, styles.detailHeaderCopy]}>
-          <Pressable style={styles.authorRow} onPress={() => onOpenUser(review.author)}>
-            <Avatar label={review.author.displayName || review.author.username} mini />
-            <Text style={styles.author}>@{review.author.username}</Text>
-          </Pressable>
-          <Text numberOfLines={2} style={styles.detailMovieTitle}>
-            {review.movie.title}
-          </Text>
-          <View style={styles.takeRow}>
-            <Rating value={review.rating} size={22} />
+        <View style={styles.detailMovieRow}>
+          <Poster movie={review.movie} compact />
+          <View style={[styles.reviewCopy, styles.detailHeaderCopy]}>
+            <Pressable style={styles.authorRow} onPress={() => onOpenUser(review.author)}>
+              <Avatar label={review.author.displayName || review.author.username} mini />
+              <Text style={styles.author}>@{review.author.username}</Text>
+            </Pressable>
+            <Text numberOfLines={2} style={styles.detailMovieTitle}>
+              {review.movie.title}
+            </Text>
+            <View style={styles.takeRow}>
+              <Rating value={review.rating} size={22} />
+            </View>
           </View>
         </View>
-      </View>
-      <View style={styles.detailInline}>
-        {visibleQuickTake ? <Text style={styles.detailTitle}>{visibleQuickTake}</Text> : null}
-        {review.tags?.length ? <TagPills tags={review.tags} /> : null}
+        <View style={styles.detailReviewHighlight}>
+          {visibleQuickTake ? <Text style={styles.detailTitle}>{visibleQuickTake}</Text> : null}
+          {showBody ? (
+            <>
+              {visibleBody ? (
+                <Text style={styles.detailReviewBody}>{visibleBody}</Text>
+              ) : (
+                <Text style={styles.detailReviewBody}>No full review.</Text>
+              )}
+              {review.containsSpoilers ? (
+                <Pressable style={styles.secondaryButton} onPress={() => setRevealed(false)}>
+                  <Text style={styles.secondaryButtonText}>Hide spoilers</Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
+            <PrimaryButton label="Reveal spoilers" onPress={() => setRevealed(true)} />
+          )}
+        </View>
+        {review.tags?.length ? (
+          <View style={styles.detailTagBlock}>
+            <TagPills tags={review.tags} />
+          </View>
+        ) : null}
         {review.author.id === currentUserId ? (
           <View style={styles.actionRow}>
             {canTranslateReview ? (
-              <Pressable
-                style={styles.secondaryButton}
+              <ActionIconButton
+                accessibilityLabel={reviewTranslationLabel}
+                active={showTranslatedReview}
                 onPress={toggleReviewTranslation}
                 disabled={translatingReview}
-              >
-                <Languages size={14} color={colors.ink} />
-                <Text style={styles.secondaryButtonText}>{reviewTranslationLabel}</Text>
-              </Pressable>
+                icon={<Languages size={16} color={colors.ink} />}
+              />
             ) : null}
-            <Pressable style={styles.secondaryButton} onPress={() => onEditReview(review)}>
-              <Pencil size={14} color={colors.ink} />
-              <Text style={styles.secondaryButtonText}>Edit</Text>
-            </Pressable>
+            <ActionIconButton
+              accessibilityLabel="Edit review"
+              onPress={() => onEditReview(review)}
+              icon={<Pencil size={16} color={colors.ink} />}
+            />
           </View>
         ) : (
           <View style={styles.actionRow}>
             {canTranslateReview ? (
-              <Pressable
-                style={styles.secondaryButton}
+              <ActionIconButton
+                accessibilityLabel={reviewTranslationLabel}
+                active={showTranslatedReview}
                 onPress={toggleReviewTranslation}
                 disabled={translatingReview}
-              >
-                <Languages size={14} color={colors.ink} />
-                <Text style={styles.secondaryButtonText}>{reviewTranslationLabel}</Text>
-              </Pressable>
+                icon={<Languages size={16} color={colors.ink} />}
+              />
             ) : null}
-            <Pressable
-              style={styles.secondaryButton}
+            <ActionIconButton
+              accessibilityLabel="Report review"
               onPress={() =>
                 openReport({
                   targetType: 'review',
@@ -1887,14 +1908,13 @@ function ReviewDetailScreen({
                   label: `@${review.author.username}'s review`,
                 })
               }
-            >
-              <Flag size={14} color={colors.ink} />
-              <Text style={styles.secondaryButtonText}>Report</Text>
-            </Pressable>
-            <Pressable style={styles.secondaryButton} onPress={blockReviewAuthor}>
-              <Ban size={14} color={colors.ink} />
-              <Text style={styles.secondaryButtonText}>Block</Text>
-            </Pressable>
+              icon={<Flag size={16} color={colors.ink} />}
+            />
+            <ActionIconButton
+              accessibilityLabel="Block user"
+              onPress={blockReviewAuthor}
+              icon={<Ban size={16} color={colors.ink} />}
+            />
           </View>
         )}
         {reportTarget ? (
@@ -1909,22 +1929,6 @@ function ReviewDetailScreen({
             onSubmit={submitReport}
           />
         ) : null}
-        {showBody ? (
-          <>
-            {review.containsSpoilers ? (
-              <Pressable style={styles.secondaryButton} onPress={() => setRevealed(false)}>
-                <Text style={styles.secondaryButtonText}>Hide spoilers</Text>
-              </Pressable>
-            ) : null}
-            {visibleBody ? (
-              <Text style={styles.bodyText}>{visibleBody}</Text>
-            ) : (
-              <Text style={styles.bodyText}>No full review.</Text>
-            )}
-          </>
-        ) : (
-          <PrimaryButton label="Reveal spoilers" onPress={() => setRevealed(true)} />
-        )}
       </View>
       <View style={styles.commentsInline}>
         <View style={styles.sectionHeader}>
@@ -2156,53 +2160,49 @@ function CommentNode({
                   </Pressable>
                 </View>
               </View>
+            ) : isDeleted ? (
+              <Text style={[styles.bodyText, styles.deletedCommentText]}>{comment.body}</Text>
             ) : (
-              isDeleted ? (
-                <Text style={[styles.bodyText, styles.deletedCommentText]}>{comment.body}</Text>
-              ) : (
-                <Text style={styles.bodyText}>{visibleCommentBody}</Text>
-              )
+              <Text style={styles.bodyText}>{visibleCommentBody}</Text>
             )}
             {!isEditing ? (
               <View style={styles.commentActionRow}>
                 {canReply ? (
-                  <Pressable style={styles.commentReplyButton} onPress={() => onReply(comment)}>
-                    <Send size={14} color={colors.ink} />
-                    <Text style={styles.commentReplyText}>Reply</Text>
-                  </Pressable>
+                  <ActionIconButton
+                    accessibilityLabel="Reply to comment"
+                    onPress={() => onReply(comment)}
+                    icon={<Send size={15} color={colors.ink} />}
+                  />
                 ) : null}
                 {canTranslateComment ? (
-                  <Pressable
-                    style={styles.commentReplyButton}
+                  <ActionIconButton
+                    accessibilityLabel={commentTranslationLabel}
+                    active={showTranslatedComment}
                     onPress={toggleCommentTranslation}
                     disabled={translatingComment}
-                  >
-                    <Languages size={14} color={colors.ink} />
-                    <Text style={styles.commentReplyText}>{commentTranslationLabel}</Text>
-                  </Pressable>
+                    icon={<Languages size={15} color={colors.ink} />}
+                  />
                 ) : null}
                 {canEdit ? (
                   <>
-                    <Pressable
-                      style={styles.commentReplyButton}
+                    <ActionIconButton
+                      accessibilityLabel="Edit comment"
                       onPress={() => onStartEdit(comment)}
-                    >
-                      <Text style={styles.commentReplyText}>Edit</Text>
-                    </Pressable>
-                    <Pressable
+                      icon={<Pencil size={15} color={colors.ink} />}
+                    />
+                    <ActionIconButton
+                      accessibilityLabel="Delete comment"
                       disabled={isMutating}
-                      style={styles.commentReplyButton}
                       onPress={() => onDelete(comment)}
-                    >
-                      <Trash2 size={14} color={colors.ink} />
-                      <Text style={styles.commentReplyText}>Delete</Text>
-                    </Pressable>
+                      icon={<Trash2 size={15} color={colors.ink} />}
+                    />
                   </>
                 ) : !isDeleted ? (
-                  <Pressable style={styles.commentReplyButton} onPress={() => onReport(comment)}>
-                    <Flag size={14} color={colors.ink} />
-                    <Text style={styles.commentReplyText}>Report</Text>
-                  </Pressable>
+                  <ActionIconButton
+                    accessibilityLabel="Report comment"
+                    onPress={() => onReport(comment)}
+                    icon={<Flag size={15} color={colors.ink} />}
+                  />
                 ) : null}
               </View>
             ) : null}
@@ -3190,6 +3190,37 @@ function IconButton({
   );
 }
 
+function ActionIconButton({
+  icon,
+  onPress,
+  disabled,
+  active,
+  accessibilityLabel,
+}: {
+  icon: React.ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  accessibilityLabel: string;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      disabled={disabled}
+      hitSlop={6}
+      onPress={onPress}
+      style={[
+        styles.actionIconButton,
+        active && styles.actionIconButtonActive,
+        disabled && styles.actionIconButtonDisabled,
+      ]}
+    >
+      {icon}
+    </Pressable>
+  );
+}
+
 function TabBar({ current, onChange }: { current: Tab; onChange: (tab: Tab) => void }) {
   const tabs = useMemo(
     () => [
@@ -3534,6 +3565,22 @@ const styles = StyleSheet.create({
   },
   iconButtonActive: {
     backgroundColor: colors.pink,
+  },
+  actionIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.yellow,
+  },
+  actionIconButtonActive: {
+    backgroundColor: colors.cyan,
+  },
+  actionIconButtonDisabled: {
+    opacity: 0.45,
   },
   fieldWrap: {
     minHeight: 46,
@@ -4017,6 +4064,7 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
   },
   segmentedControl: {
@@ -4589,8 +4637,6 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   detailHeaderCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     gap: 12,
     position: 'relative',
     borderWidth: 3,
@@ -4599,8 +4645,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: 12,
   },
+  detailMovieRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
   detailHeaderCopy: {
     paddingRight: 92,
+  },
+  detailReviewHighlight: {
+    alignSelf: 'stretch',
+    marginHorizontal: -12,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.cream,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  detailTagBlock: {
+    alignSelf: 'stretch',
   },
   detailReviewStatus: {
     position: 'absolute',
@@ -4629,6 +4694,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: colors.ink,
     fontWeight: '900',
+  },
+  detailReviewBody: {
+    color: colors.ink,
+    fontSize: 16,
+    lineHeight: 23,
+    fontWeight: '600',
   },
   bodyText: {
     color: colors.ink,
