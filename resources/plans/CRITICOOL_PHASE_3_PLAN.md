@@ -6,12 +6,15 @@ Implementation commits:
 
 - `e64e4e6` Execute CritiCool phase 3
 - `b8b85c8` Fix review navigation and translation UX
+- `ca2057c` Restore unblock flow without removing friendships
 
 ## Summary
 
 Phase 3 turned the Phase 2 social foundation into a stronger MVP/beta candidate. The completed work stayed movie-review focused: privacy polish, review management, friend/profile clarity, on-demand translation, report/block improvements, and broader automated QA.
 
 Important product correction after implementation: CritiCool remains review-first in the mobile app. Review cards must open the review detail, not a movie detail screen. The mobile movie detail screen was removed from navigation after review because it made existing reviews harder to access. The API still exposes authenticated movie detail data for future use, but the mobile app does not route feed/profile review interactions there.
+
+Important friendship correction after implementation: blocking a friend must not delete the accepted friendship. Blocked friends are hidden from normal social/review surfaces while blocked and are available in a `Blocked` management section. Unblocking removes the block and restores the existing friend to `Your friends` without requiring a new friend request.
 
 ## Key Changes
 
@@ -21,7 +24,8 @@ Important product correction after implementation: CritiCool remains review-firs
 - Preserved review-first navigation: feed/profile review cards open review detail; own reviews are accessible without entering edit mode.
 - Restored friend/profile navigation from avatars. Friend avatars open a friend profile/reviews view backed by a visibility-aware `GET /feed/users/:id` endpoint.
 - Improved profile and friends polish with stable review/friend counts, average rating, top tags from loaded reviews, clearer incoming/outgoing/accepted friend states, and better empty/error states without showing email.
-- Improved report/block UX by collecting reason/details for reports and refreshing affected state after blocking.
+- Improved report/block UX by collecting reason/details for reports, refreshing affected state after blocking, and restoring a visible unblock path.
+- Preserved accepted friendships through block/unblock. Blocking may clear pending friend requests, but it must not delete an accepted friendship row.
 - Added on-demand translation for user-generated review and comment text. Original text is preserved, translated text can be toggled back to `Show original`, and movie catalog metadata is not translated.
 
 ## API And Type Changes
@@ -34,6 +38,9 @@ Important product correction after implementation: CritiCool remains review-firs
 - The translation adapter supports a custom `TRANSLATION_ENDPOINT_URL` and defaults to a provider-backed Google translate path. `TRANSLATION_PROVIDER="passthrough"` can be used for local no-op behavior.
 - Mobile uses the user locale when set and falls back to the device locale for translation target selection.
 - `GET /feed/users/:id` returns visible friend reviews for friend profile pages and rejects strangers/blocked relationships.
+- `GET /users/blocked` returns the viewer's blocked users for unblock management.
+- `POST /users/:id/block` preserves accepted friendships and only removes non-accepted/pending friendship state.
+- `DELETE /users/:id/block` removes the viewer's block. If the users were accepted friends before blocking, `GET /friends` should show that friend again after unblock.
 
 ## Test Plan
 
@@ -51,6 +58,7 @@ Automated coverage now includes:
 - Translation permission checks, deleted/inaccessible content rejection, cache reuse, and preserving original text.
 - Review edit/delete behavior.
 - Report details and block-driven refresh/privacy behavior.
+- Block/unblock behavior where accepted friends are hidden while blocked, listed in blocked-user management, and restored after unblock without re-adding.
 
 Manual mobile QA checklist for this completed phase:
 
@@ -63,6 +71,9 @@ Manual mobile QA checklist for this completed phase:
 - Translate/Show original works on review body, quick take, and comment text.
 - Report form collects reason/details.
 - Blocking a user removes their comments from visible counts and participant avatars.
+- Blocking an accepted friend does not destroy the friendship.
+- Blocked friends appear in the Friends screen's blocked-user management section.
+- Unblocking an accepted friend restores them to `Your friends` without sending a new request.
 
 ## Assumptions
 
@@ -72,3 +83,4 @@ Manual mobile QA checklist for this completed phase:
 - Push notifications, admin moderation dashboard, global explore feed, watchlist, public profiles, and multi-category review subjects stay deferred.
 - The existing visual/design contract in `README.md` remains authoritative for mobile UI work.
 - Review-first navigation is authoritative for mobile: movie metadata supports the review workflow, but review cards should not route to a movie-detail page.
+- Accepted friendship preservation is authoritative for block/unblock: privacy filtering should hide blocked users while blocked, but unblock must restore the previous accepted friend relationship.
