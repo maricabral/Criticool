@@ -745,28 +745,26 @@ function ReviewCard({ item, onPress }: { item: FeedItem; onPress: () => void }) 
           <View style={styles.cardRatingLine}>
             <PopcornRating value={item.rating} large />
           </View>
+          {visibleTags.length ? (
+            <View style={styles.cardTagRow}>
+              {visibleTags.map((tag) => (
+                <Text
+                  key={tag}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[
+                    styles.tagPill,
+                    styles.cardTagPill,
+                    visibleTags.length > 1 ? styles.cardTagPillPair : styles.cardTagPillSolo,
+                  ]}
+                >
+                  {tag}
+                </Text>
+              ))}
+            </View>
+          ) : null}
         </View>
       </View>
-      {visibleTags.length ? (
-        <View style={styles.feedTagFooter}>
-          <View style={styles.cardTagRow}>
-            {visibleTags.map((tag) => (
-              <Text
-                key={tag}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={[
-                  styles.tagPill,
-                  styles.cardTagPill,
-                  visibleTags.length > 1 ? styles.cardTagPillPair : styles.cardTagPillSolo,
-                ]}
-              >
-                {tag}
-              </Text>
-            ))}
-          </View>
-        </View>
-      ) : null}
     </Pressable>
   );
 }
@@ -3429,17 +3427,6 @@ const styles = StyleSheet.create({
   cardTagPillPair: {
     flexShrink: 1,
     maxWidth: '48%',
-  },
-  feedTagLane: {
-    width: '100%',
-    minHeight: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingRight: 56,
-  },
-  feedTagFooter: {
-    minHeight: 24,
-    paddingLeft: 95,
   },
   cardTagRow: {
     width: '100%',
