@@ -7,6 +7,9 @@ Implementation commits:
 - `e64e4e6` Execute CritiCool phase 3
 - `b8b85c8` Fix review navigation and translation UX
 - `ca2057c` Restore unblock flow without removing friendships
+- `f9dab86` Add half-popcorn review ratings
+- `031dd80` Use tap toggle for half-popcorn ratings
+- `990909c` Enlarge rating popcorns and collapse tag pills
 
 ## Summary
 
@@ -27,12 +30,15 @@ Important friendship correction after implementation: blocking a friend must not
 - Improved report/block UX by collecting reason/details for reports, refreshing affected state after blocking, and restoring a visible unblock path.
 - Preserved accepted friendships through block/unblock. Blocking may clear pending friend requests, but it must not delete an accepted friendship row.
 - Added on-demand translation for user-generated review and comment text. Original text is preserved, translated text can be toggled back to `Show original`, and movie catalog metadata is not translated.
+- Added half-popcorn review ratings. The mobile Post/Edit rating picker now supports `0.5` increments, renders half-filled popcorn icons, and uses repeated tapping on the selected popcorn to toggle between full and half values. Rating popcorns were enlarged for touch clarity.
+- Collapsed review tag pills in the Post/Edit form. Tags are still supported and capped at 5 selections, but the tag picker now stays hidden behind `Browse tags` until the user asks for it, keeping the review form less crowded.
 
 ## API And Type Changes
 
 - Shared types now include `MovieDetail`, `MovieReviewSummary`, translation target/response types, and user `locale`.
 - `GET /movies/:id` requires the current user and returns permission-aware `viewerReview` and `friendsReviews`.
 - Review edit/delete remain on `PATCH /reviews/:id` and `DELETE /reviews/:id`.
+- Review `rating` remains numeric and is now explicitly validated as a `0.5` increment between `0` and `5` on create/update. Existing whole-popcorn values remain valid.
 - `POST /translations` supports `review` and `comment` targets, runs the same visibility checks as review detail, returns only translated user-generated fields, and caches by target, target update version, source locale, and target locale.
 - Translation cache is persisted in the new `translation_caches` table.
 - The translation adapter supports a custom `TRANSLATION_ENDPOINT_URL` and defaults to a provider-backed Google translate path. `TRANSLATION_PROVIDER="passthrough"` can be used for local no-op behavior.
@@ -57,6 +63,7 @@ Automated coverage now includes:
 - Friend profile review visibility through `GET /feed/users/:id`.
 - Translation permission checks, deleted/inaccessible content rejection, cache reuse, and preserving original text.
 - Review edit/delete behavior.
+- Review DTO validation accepts half-popcorn ratings such as `3.5` and `4.5`, and rejects non-step values such as `4.7`.
 - Report details and block-driven refresh/privacy behavior.
 - Block/unblock behavior where accepted friends are hidden while blocked, listed in blocked-user management, and restored after unblock without re-adding.
 
@@ -66,6 +73,9 @@ Manual mobile QA checklist for this completed phase:
 - Profile review card opens review detail.
 - Own review detail exposes Edit, but edit is not required to read the review.
 - Search/Post still let a user pick a movie for a new review.
+- Post/Edit rating picker supports half-popcorn ratings: first tap selects the whole popcorn value, tapping the selected popcorn again toggles to the half value below it, and the numeric label reflects the selected score.
+- Post/Edit rating popcorns are large enough to tap comfortably on mobile.
+- Post/Edit tags are hidden by default and open only through `Browse tags`; selected tag count is shown in the section header.
 - Friend avatar opens friend profile/reviews.
 - Friend profile reviews hide from strangers and blocked users.
 - Translate/Show original works on review body, quick take, and comment text.
