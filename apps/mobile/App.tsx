@@ -3538,8 +3538,20 @@ function RatingPicker({ value, onChange }: { value: number; onChange: (value: nu
       {REVIEW_RATING_SLOTS.map((slot, index) => {
         const halfValue = slot - REVIEW_RATING_STEP;
         const fill = popcornFillFor(value, index);
+        const nextValue = value === slot ? halfValue : slot;
         return (
-          <View key={slot} style={styles.ratingButton}>
+          <Pressable
+            key={slot}
+            accessibilityHint={`Tap again after selecting to switch this popcorn to ${formatRating(
+              halfValue,
+            )}.`}
+            accessibilityLabel={`Set rating to ${formatRating(nextValue)} out of 5 popcorns`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: value === slot || value === halfValue }}
+            hitSlop={8}
+            onPress={() => onChange(nextValue)}
+            style={styles.ratingButton}
+          >
             <PopcornGlyph
               fill={fill}
               size={28}
@@ -3549,23 +3561,7 @@ function RatingPicker({ value, onChange }: { value: number; onChange: (value: nu
               activeStrokeWidth={3.4}
               inactiveStrokeWidth={2.6}
             />
-            <Pressable
-              accessibilityLabel={`Set rating to ${formatRating(halfValue)} out of 5 popcorns`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: value === halfValue }}
-              hitSlop={8}
-              onPress={() => onChange(halfValue)}
-              style={[styles.ratingHalfTarget, styles.ratingHalfTargetLeft]}
-            />
-            <Pressable
-              accessibilityLabel={`Set rating to ${formatRating(slot)} out of 5 popcorns`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: value === slot }}
-              hitSlop={8}
-              onPress={() => onChange(slot)}
-              style={[styles.ratingHalfTarget, styles.ratingHalfTargetRight]}
-            />
-          </View>
+          </Pressable>
         );
       })}
     </View>
@@ -4894,18 +4890,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  ratingHalfTarget: {
-    bottom: 0,
-    position: 'absolute',
-    top: 0,
-    width: '50%',
-  },
-  ratingHalfTargetLeft: {
-    left: 0,
-  },
-  ratingHalfTargetRight: {
-    right: 0,
   },
   popcornGlyph: {
     position: 'relative',
