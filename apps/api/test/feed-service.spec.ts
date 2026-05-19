@@ -11,6 +11,7 @@ function createMockPrisma() {
 function createMockVisibility() {
   return {
     acceptedFriendIds: vi.fn().mockResolvedValue([]),
+    areFriends: vi.fn().mockResolvedValue(true),
   };
 }
 
@@ -183,6 +184,27 @@ describe('FeedService', () => {
       expect(result.items).toHaveLength(1);
       const queryWhere = prisma.review.findMany.mock.calls[0][0].where;
       expect(queryWhere.userId).toBe('user-1');
+    });
+
+    it('returns visible friend reviews for a target friend', async () => {
+      visibility.areFriends.mockResolvedValue(true);
+      prisma.review.findMany.mockResolvedValue([makeReview({ userId: 'user-2' })]);
+
+      const result = await service.userReviews('user-1', 'user-2');
+
+      expect(result.items).toHaveLength(1);
+      const queryWhere = prisma.review.findMany.mock.calls[0][0].where;
+      expect(queryWhere.userId).toBe('user-2');
+      expect(queryWhere.visibility).toBe('friends');
+    });
+
+    it('hides target user reviews from non-friends', async () => {
+      visibility.areFriends.mockResolvedValue(false);
+
+      await expect(service.userReviews('user-1', 'user-2')).rejects.toThrow(
+        'User reviews not found',
+      );
+      expect(prisma.review.findMany).not.toHaveBeenCalled();
     });
   });
 });

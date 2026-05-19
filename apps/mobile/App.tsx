@@ -47,8 +47,6 @@ import {
   FriendRequest,
   FriendSummary,
   loadTokens,
-  MovieDetail,
-  MovieReviewSummary,
   NotificationItem,
   ReviewComment,
   ReviewDetail,
@@ -299,10 +297,6 @@ function deviceLocaleFallback() {
   }
 }
 
-function primaryLocale(locale: string) {
-  return locale.split(/[-_]/)[0]?.toLowerCase() || 'en';
-}
-
 function detectLikelyLocale(text: string) {
   const value = ` ${text.toLowerCase()} `;
   if (/[ãõçáéíóúâêôà]/i.test(text) || /\b(que|uma|para|com|não|muito|filme|achei)\b/.test(value)) {
@@ -318,8 +312,8 @@ function detectLikelyLocale(text: string) {
 }
 
 function shouldOfferTranslation(text: string, targetLocale: string) {
-  const detected = detectLikelyLocale(text);
-  return Boolean(detected && detected !== primaryLocale(targetLocale));
+  void targetLocale;
+  return Boolean(text.trim());
 }
 
 function toEditableReview(review: ReviewDetail, movie = review.movie): EditableReview {
@@ -331,18 +325,6 @@ function toEditableReview(review: ReviewDetail, movie = review.movie): EditableR
     body: review.body,
     tags: review.tags,
     containsSpoilers: review.containsSpoilers,
-  };
-}
-
-function movieSummaryFromDetail(movie: MovieDetail): MovieSummary {
-  return {
-    id: movie.id,
-    tmdbId: movie.tmdbId,
-    title: movie.title,
-    releaseYear: movie.releaseYear,
-    overview: movie.overview,
-    posterUrl: movie.posterUrl,
-    backdropUrl: movie.backdropUrl,
   };
 }
 
@@ -557,13 +539,14 @@ function AppShell({
 }) {
   const [tab, setTab] = useState<Tab>('feed');
   const [selectedMovie, setSelectedMovie] = useState<MovieSummary | null>(null);
-  const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<FriendSummary | null>(null);
   const [editingReview, setEditingReview] = useState<EditableReview | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const viewerLocale = user.locale || deviceLocaleFallback();
-  const showingOverlay = Boolean(selectedMovieId || showNotifications);
+  const deviceLocale = deviceLocaleFallback();
+  const viewerLocale = user.locale && user.locale !== 'en-US' ? user.locale : deviceLocale;
+  const showingOverlay = showNotifications;
 
   const refreshUnreadNotifications = useCallback(async () => {
     try {
@@ -583,36 +566,29 @@ function AppShell({
       setSelectedMovie(movie);
     }
     setEditingReview(null);
-    setSelectedMovieId(null);
+    setSelectedProfileUser(null);
     setShowNotifications(false);
     setTab('create');
   };
 
   const openReview = (id: string) => {
-    setSelectedMovieId(null);
+    setSelectedProfileUser(null);
     setShowNotifications(false);
     setSelectedReviewId(id);
     setTab('profile');
   };
 
-  const openMovie = async (movie: MovieSummary) => {
-    try {
-      const localMovie = movie.id ? movie : await api.importMovie(tokens, movie.tmdbId);
-      if (!localMovie.id) {
-        throw new Error('Movie is not available locally yet');
-      }
-      setSelectedReviewId(null);
-      setShowNotifications(false);
-      setSelectedMovieId(localMovie.id);
-    } catch (err) {
-      Alert.alert('Could not open movie', err instanceof Error ? err.message : 'Try again');
-    }
+  const openUserProfile = (profileUser: FriendSummary) => {
+    setSelectedProfileUser(profileUser.id === user.id ? null : profileUser);
+    setSelectedReviewId(null);
+    setShowNotifications(false);
+    setTab('profile');
   };
 
   const startEditReview = (review: EditableReview) => {
     setEditingReview(review);
     setSelectedMovie(review.movie);
-    setSelectedMovieId(null);
+    setSelectedProfileUser(null);
     setSelectedReviewId(null);
     setShowNotifications(false);
     setTab('create');
@@ -622,28 +598,7 @@ function AppShell({
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
       <View style={styles.app}>
-        {selectedMovieId ? (
-          <MovieDetailScreen
-            tokens={tokens}
-            currentUserId={user.id}
-            viewerLocale={viewerLocale}
-            movieId={selectedMovieId}
-            onBack={() => setSelectedMovieId(null)}
-            onWriteReview={(movie) => openCreate(movie)}
-            onEditReview={(review, movie) =>
-              startEditReview({
-                id: review.id,
-                movie,
-                rating: review.rating,
-                quickTake: review.quickTake,
-                body: review.body,
-                tags: review.tags,
-                containsSpoilers: review.containsSpoilers,
-              })
-            }
-            onOpenReview={openReview}
-          />
-        ) : showNotifications ? (
+        {showNotifications ? (
           <NotificationsScreen
             tokens={tokens}
             onUnreadCountChange={setUnreadNotifications}
@@ -658,15 +613,11 @@ function AppShell({
             onCreate={() => openCreate()}
             onOpenNotifications={() => setShowNotifications(true)}
             onOpenReview={openReview}
-            onOpenMovie={(movie) => void openMovie(movie)}
+            onOpenUser={openUserProfile}
           />
         ) : null}
         {!showingOverlay && tab === 'search' ? (
-          <SearchScreen
-            tokens={tokens}
-            onReviewMovie={openCreate}
-            onOpenMovie={(movie) => void openMovie(movie)}
-          />
+          <SearchScreen tokens={tokens} onReviewMovie={openCreate} />
         ) : null}
         {!showingOverlay && tab === 'create' ? (
           <CreateScreen
@@ -674,7 +625,6 @@ function AppShell({
             selectedMovie={selectedMovie}
             editingReview={editingReview}
             onSelectMovie={setSelectedMovie}
-            onOpenMovie={(movie) => void openMovie(movie)}
             onPosted={(id) => {
               setEditingReview(null);
               openReview(id);
@@ -695,7 +645,9 @@ function AppShell({
             }}
           />
         ) : null}
-        {!showingOverlay && tab === 'friends' ? <FriendsScreen tokens={tokens} /> : null}
+        {!showingOverlay && tab === 'friends' ? (
+          <FriendsScreen tokens={tokens} onOpenUser={openUserProfile} />
+        ) : null}
         {!showingOverlay && tab === 'profile' ? (
           selectedReviewId ? (
             <ReviewDetailScreen
@@ -704,15 +656,16 @@ function AppShell({
               viewerLocale={viewerLocale}
               reviewId={selectedReviewId}
               onBack={() => setSelectedReviewId(null)}
-              onOpenMovie={(movie) => void openMovie(movie)}
               onEditReview={(review) => startEditReview(toEditableReview(review))}
+              onOpenUser={openUserProfile}
             />
           ) : (
             <ProfileScreen
               tokens={tokens}
               user={user}
+              profileUser={selectedProfileUser}
               onOpenReview={openReview}
-              onOpenMovie={(movie) => void openMovie(movie)}
+              onOpenUser={openUserProfile}
               onSignOut={onSignOut}
             />
           )
@@ -722,7 +675,8 @@ function AppShell({
         current={tab}
         onChange={(nextTab) => {
           setShowNotifications(false);
-          setSelectedMovieId(null);
+          setSelectedProfileUser(null);
+          setSelectedReviewId(null);
           if (nextTab !== 'create') {
             setEditingReview(null);
           }
@@ -740,7 +694,7 @@ function FeedScreen({
   onCreate,
   onOpenNotifications,
   onOpenReview,
-  onOpenMovie,
+  onOpenUser,
 }: {
   tokens: AuthTokens;
   unreadNotifications: number;
@@ -748,7 +702,7 @@ function FeedScreen({
   onCreate: () => void;
   onOpenNotifications: () => void;
   onOpenReview: (id: string) => void;
-  onOpenMovie: (movie: MovieSummary) => void;
+  onOpenUser: (user: FriendSummary) => void;
 }) {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -829,7 +783,7 @@ function FeedScreen({
             <ReviewCard
               item={item}
               onPress={() => onOpenReview(item.reviewId)}
-              onOpenMovie={onOpenMovie}
+              onOpenUser={onOpenUser}
             />
           )}
         />
@@ -863,11 +817,11 @@ function EmptyFeed({ onCreate }: { onCreate: () => void }) {
 function ReviewCard({
   item,
   onPress,
-  onOpenMovie,
+  onOpenUser,
 }: {
   item: FeedItem;
   onPress: () => void;
-  onOpenMovie?: (movie: MovieSummary) => void;
+  onOpenUser?: (user: FriendSummary) => void;
 }) {
   const quickTake = item.containsSpoilers ? null : item.quickTake?.trim();
   const visibleTags = item.tags?.slice(0, 2) ?? [];
@@ -881,7 +835,13 @@ function ReviewCard({
   return (
     <Pressable style={styles.reviewFrame} onPress={onPress}>
       <View style={styles.reviewCardHeader}>
-        <View style={styles.feedReviewerRow}>
+        <Pressable
+          style={styles.feedReviewerRow}
+          onPress={(event) => {
+            event.stopPropagation();
+            onOpenUser?.(item.author);
+          }}
+        >
           <Avatar label={reviewerName} mini />
           <View style={styles.feedReviewerCopy}>
             <Text numberOfLines={1} style={styles.reviewerName}>
@@ -891,7 +851,7 @@ function ReviewCard({
               @{item.author.username} - {reviewDate}
             </Text>
           </View>
-        </View>
+        </Pressable>
         <View style={styles.reviewCommentCluster}>
           {item.containsSpoilers ? <Text style={styles.feedSpoilerText}>Spoilers</Text> : null}
           <View style={styles.commentBubble}>
@@ -912,24 +872,11 @@ function ReviewCard({
         </View>
       </View>
       <View style={styles.reviewCardBody}>
-        <Pressable
-          style={styles.feedPosterColumn}
-          onPress={(event) => {
-            event.stopPropagation();
-            onOpenMovie?.(item.movie);
-          }}
-        >
+        <View style={styles.feedPosterColumn}>
           <Poster movie={item.movie} feed />
-        </Pressable>
+        </View>
         <View style={styles.feedReviewMain}>
-          <Text
-            numberOfLines={1}
-            style={styles.movieTitle}
-            onPress={(event) => {
-              event.stopPropagation();
-              onOpenMovie?.(item.movie);
-            }}
-          >
+          <Text numberOfLines={1} style={styles.movieTitle}>
             {item.movie.title}
           </Text>
           {quickTake ? (
@@ -967,11 +914,9 @@ function ReviewCard({
 function SearchScreen({
   tokens,
   onReviewMovie,
-  onOpenMovie,
 }: {
   tokens: AuthTokens;
   onReviewMovie: (movie: MovieSummary) => void;
-  onOpenMovie: (movie: MovieSummary) => void;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MovieSummary[]>([]);
@@ -1083,7 +1028,7 @@ function SearchScreen({
                 <Text style={styles.sectionTitle}>Buzz movies</Text>
                 <Text style={styles.mutedText}>popular now</Text>
               </View>
-              <MoviePosterRow movies={buzzMovies} onPress={onOpenMovie} />
+              <MoviePosterRow movies={buzzMovies} onPress={selectMovie} />
             </Panel>
             <Panel tint="cyan">
               <View style={styles.sectionHeader}>
@@ -1126,21 +1071,14 @@ function SearchScreen({
               <Pressable
                 key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
                 style={styles.resultRow}
-                onPress={() => onOpenMovie(movie)}
+                onPress={() => selectMovie(movie)}
               >
                 <Poster movie={movie} />
                 <View style={styles.reviewCopy}>
                   <Text style={styles.movieTitle}>{movie.title}</Text>
                   <Text style={styles.mutedText}>{movie.releaseYear ?? 'TBA'}</Text>
                 </View>
-                <Pressable
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    void selectMovie(movie);
-                  }}
-                >
-                  <Text style={styles.pill}>Review</Text>
-                </Pressable>
+                <Text style={styles.pill}>Review</Text>
               </Pressable>
             ))}
             {!busy && results.length === 0 ? (
@@ -1161,7 +1099,6 @@ function CreateScreen({
   selectedMovie,
   editingReview,
   onSelectMovie,
-  onOpenMovie,
   onPosted,
   onUpdated,
   onDeleted,
@@ -1171,7 +1108,6 @@ function CreateScreen({
   selectedMovie: MovieSummary | null;
   editingReview: EditableReview | null;
   onSelectMovie: (movie: MovieSummary | null) => void;
-  onOpenMovie: (movie: MovieSummary) => void;
   onPosted: (id: string) => void;
   onUpdated: (id: string) => void;
   onDeleted: () => void;
@@ -1380,9 +1316,6 @@ function CreateScreen({
               {selectedMovie.releaseYear ?? 'TBA'} | {isEditing ? 'editing review' : 'selected movie'}
             </Text>
           </View>
-          <Pressable style={styles.pillButton} onPress={() => onOpenMovie(selectedMovie)}>
-            <Text style={styles.pillButtonText}>Details</Text>
-          </Pressable>
           {!isEditing ? (
             <Pressable style={styles.pillButton} onPress={clearSelectedMovie}>
               <Text style={styles.pillButtonText}>Change</Text>
@@ -1598,175 +1531,22 @@ function CreateScreen({
   );
 }
 
-function MovieDetailScreen({
-  tokens,
-  viewerLocale,
-  movieId,
-  onBack,
-  onWriteReview,
-  onEditReview,
-  onOpenReview,
-}: {
-  tokens: AuthTokens;
-  currentUserId: string;
-  viewerLocale: string;
-  movieId: string;
-  onBack: () => void;
-  onWriteReview: (movie: MovieSummary) => void;
-  onEditReview: (review: MovieReviewSummary, movie: MovieSummary) => void;
-  onOpenReview: (id: string) => void;
-}) {
-  const [detail, setDetail] = useState<MovieDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setDetail(await api.movie(tokens, movieId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Try again');
-    } finally {
-      setLoading(false);
-    }
-  }, [movieId, tokens]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (loading && !detail) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.pink} />
-      </View>
-    );
-  }
-
-  if (!detail) {
-    return (
-      <View style={styles.screen}>
-        <Header title="Movie" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
-        <View style={styles.notice}>
-          <Text style={styles.error}>Could not load movie.</Text>
-          {error ? <Text style={styles.mutedText}>{error}</Text> : null}
-          <PrimaryButton label="Try again" onPress={load} compact />
-        </View>
-      </View>
-    );
-  }
-
-  const movie = movieSummaryFromDetail(detail);
-  const metadata = [
-    detail.releaseYear?.toString(),
-    detail.runtimeMinutes ? `${detail.runtimeMinutes} min` : null,
-    detail.status,
-  ]
-    .filter(Boolean)
-    .join(' | ');
-
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
-      <Header title="Movie" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
-      <View style={styles.movieDetailHero}>
-        {detail.backdropUrl ? (
-          <Image source={{ uri: detail.backdropUrl }} style={styles.movieBackdrop} resizeMode="cover" />
-        ) : null}
-        <View style={styles.movieDetailHeader}>
-          <Poster movie={movie} compact />
-          <View style={styles.movieDetailCopy}>
-            <Text style={styles.movieDetailTitle}>{detail.title}</Text>
-            {metadata ? <Text style={styles.mutedText}>{metadata}</Text> : null}
-            {detail.genres.length ? <TagPills tags={detail.genres.slice(0, 3)} /> : null}
-          </View>
-        </View>
-      </View>
-      <View style={styles.detailInline}>
-        {detail.overview ? <Text style={styles.bodyText}>{detail.overview}</Text> : null}
-        {detail.viewerReview ? (
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => onEditReview(detail.viewerReview as MovieReviewSummary, movie)}
-          >
-            <Pencil size={16} color={colors.surface} />
-            <Text style={styles.primaryButtonText}>Edit your review</Text>
-          </Pressable>
-        ) : (
-          <PrimaryButton label="Write a review" onPress={() => onWriteReview(movie)} />
-        )}
-      </View>
-      <View style={styles.sectionBlock}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Friends reviews</Text>
-          <Text style={styles.bubble}>{detail.friendsReviews.length}</Text>
-        </View>
-        {detail.friendsReviews.length ? (
-          detail.friendsReviews.map((review) => (
-            <Pressable
-              key={review.id}
-              style={styles.friendReviewCard}
-              onPress={() => onOpenReview(review.id)}
-            >
-              <View style={styles.authorRow}>
-                <Avatar label={review.author.displayName || review.author.username} mini />
-                <Text style={styles.author}>@{review.author.username}</Text>
-                <Rating value={review.rating} size={18} />
-              </View>
-              {review.quickTake ? (
-                <TranslatableText
-                  tokens={tokens}
-                  targetType="review"
-                  targetId={review.id}
-                  field="quickTake"
-                  text={review.quickTake}
-                  targetLocale={viewerLocale}
-                  style={styles.detailTitle}
-                />
-              ) : null}
-              {review.body ? (
-                <TranslatableText
-                  tokens={tokens}
-                  targetType="review"
-                  targetId={review.id}
-                  field="body"
-                  text={review.body}
-                  targetLocale={viewerLocale}
-                  style={styles.bodyText}
-                  numberOfLines={4}
-                />
-              ) : null}
-              {review.tags.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
-            </Pressable>
-          ))
-        ) : (
-          <View style={styles.emptyProfileState}>
-            <Users size={28} color={colors.ink} />
-            <Text style={styles.emptyTitle}>No friend reviews yet</Text>
-            <Text style={styles.mutedText}>Your friends' takes will appear here.</Text>
-          </View>
-        )}
-      </View>
-    </ScrollView>
-  );
-}
-
 function ReviewDetailScreen({
   tokens,
   currentUserId,
   viewerLocale,
   reviewId,
   onBack,
-  onOpenMovie,
   onEditReview,
+  onOpenUser,
 }: {
   tokens: AuthTokens;
   currentUserId: string;
   viewerLocale: string;
   reviewId: string;
   onBack: () => void;
-  onOpenMovie: (movie: MovieSummary) => void;
   onEditReview: (review: ReviewDetail) => void;
+  onOpenUser: (user: FriendSummary) => void;
 }) {
   const [review, setReview] = useState<ReviewDetail | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -1988,14 +1768,12 @@ function ReviewDetailScreen({
         >
           {review.containsSpoilers ? 'Spoilers' : 'Spoiler-free'}
         </Text>
-        <Pressable onPress={() => onOpenMovie(review.movie)}>
-          <Poster movie={review.movie} compact />
-        </Pressable>
+        <Poster movie={review.movie} compact />
         <View style={[styles.reviewCopy, styles.detailHeaderCopy]}>
-          <View style={styles.authorRow}>
+          <Pressable style={styles.authorRow} onPress={() => onOpenUser(review.author)}>
             <Avatar label={review.author.displayName || review.author.username} mini />
             <Text style={styles.author}>@{review.author.username}</Text>
-          </View>
+          </Pressable>
           <Text numberOfLines={2} style={styles.detailMovieTitle}>
             {review.movie.title}
           </Text>
@@ -2120,6 +1898,7 @@ function ReviewDetailScreen({
                 currentUserId={currentUserId}
                 viewerLocale={viewerLocale}
                 tokens={tokens}
+                onOpenUser={onOpenUser}
                 editingCommentId={editingCommentId}
                 editingBody={editingBody}
                 mutatingCommentId={mutatingCommentId}
@@ -2162,6 +1941,7 @@ function CommentNode({
   currentUserId,
   viewerLocale,
   tokens,
+  onOpenUser,
   editingCommentId,
   editingBody,
   mutatingCommentId,
@@ -2181,6 +1961,7 @@ function CommentNode({
   currentUserId: string;
   viewerLocale: string;
   tokens: AuthTokens;
+  onOpenUser: (user: FriendSummary) => void;
   editingCommentId: string | null;
   editingBody: string;
   mutatingCommentId: string | null;
@@ -2236,12 +2017,12 @@ function CommentNode({
             </Pressable>
           </View>
           <View style={styles.commentCopy}>
-            <View style={styles.commentAuthorRow}>
+            <Pressable style={styles.commentAuthorRow} onPress={() => onOpenUser(comment.author)}>
               <Avatar label={comment.author.displayName || comment.author.username} mini />
               <View style={styles.reviewCopy}>
                 <Text style={styles.author}>@{comment.author.username}</Text>
               </View>
-            </View>
+            </Pressable>
             {isEditing ? (
               <View style={styles.commentEditBox}>
                 <TextInput
@@ -2324,6 +2105,7 @@ function CommentNode({
           currentUserId={currentUserId}
           viewerLocale={viewerLocale}
           tokens={tokens}
+          onOpenUser={onOpenUser}
           editingCommentId={editingCommentId}
           editingBody={editingBody}
           mutatingCommentId={mutatingCommentId}
@@ -2657,7 +2439,13 @@ function notificationTitle(notification: NotificationItem) {
   return messages[notification.type];
 }
 
-function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
+function FriendsScreen({
+  tokens,
+  onOpenUser,
+}: {
+  tokens: AuthTokens;
+  onOpenUser: (user: FriendSummary) => void;
+}) {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<
     Array<{
@@ -2902,7 +2690,11 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
               {friends.length ? (
                 <View style={styles.friendGrid}>
                   {friends.map((friend) => (
-                    <View key={friend.id} style={styles.friendBubble}>
+                    <Pressable
+                      key={friend.id}
+                      style={styles.friendBubble}
+                      onPress={() => onOpenUser(friend)}
+                    >
                       <Avatar label={friend.displayName || friend.username} large />
                       <Text numberOfLines={1} style={styles.friendHandle}>
                         @{friend.username}
@@ -2915,7 +2707,7 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
                           <Text style={styles.commentReplyText}>Block</Text>
                         </Pressable>
                       </View>
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               ) : (
@@ -2956,14 +2748,16 @@ function FriendsScreen({ tokens }: { tokens: AuthTokens }) {
 function ProfileScreen({
   tokens,
   user,
+  profileUser,
   onOpenReview,
-  onOpenMovie,
+  onOpenUser,
   onSignOut,
 }: {
   tokens: AuthTokens;
   user: AuthUser;
+  profileUser: FriendSummary | null;
   onOpenReview: (id: string) => void;
-  onOpenMovie: (movie: MovieSummary) => void;
+  onOpenUser: (user: FriendSummary) => void;
   onSignOut: () => void;
 }) {
   const [reviews, setReviews] = useState<FeedItem[]>([]);
@@ -2974,15 +2768,19 @@ function ProfileScreen({
   const [reviewLoadError, setReviewLoadError] = useState<string | null>(null);
   const [reviewQuery, setReviewQuery] = useState('');
   const [friendCount, setFriendCount] = useState<number | null>(null);
+  const activeProfile = profileUser ?? user;
+  const isOwnProfile = !profileUser;
 
   const loadReviews = useCallback(
     async (nextCursor?: string | null) => {
       setReviewLoadError(null);
-      const response = await api.myReviews(tokens, nextCursor);
+      const response = isOwnProfile
+        ? await api.myReviews(tokens, nextCursor)
+        : await api.userReviews(tokens, activeProfile.id, nextCursor);
       setReviews((current) => (nextCursor ? [...current, ...response.items] : response.items));
       setCursor(response.nextCursor);
     },
-    [tokens],
+    [activeProfile.id, isOwnProfile, tokens],
   );
 
   useEffect(() => {
@@ -2999,11 +2797,12 @@ function ProfileScreen({
   }, [loadReviews]);
 
   useEffect(() => {
-    void api
-      .friends(tokens)
-      .then((rows) => setFriendCount(rows.length))
-      .catch(() => setFriendCount(null));
-  }, [tokens]);
+    if (!isOwnProfile) {
+      setFriendCount(null);
+      return;
+    }
+    void api.friends(tokens).then((rows) => setFriendCount(rows.length)).catch(() => setFriendCount(null));
+  }, [isOwnProfile, tokens]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -3088,23 +2887,31 @@ function ProfileScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
       <Header
-        title={`@${user.username}`}
-        right={<IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />}
+        title={`@${activeProfile.username}`}
+        right={
+          isOwnProfile ? (
+            <IconButton icon={<LogOut size={20} color={colors.ink} />} onPress={onSignOut} />
+          ) : undefined
+        }
       />
       <View style={styles.profileBlock}>
-        <Avatar label={user.displayName} large />
+        <Avatar label={activeProfile.displayName || activeProfile.username} large />
         <View style={styles.profileCopy}>
           <Text numberOfLines={1} style={styles.profileName}>
-            {user.displayName}
+            {activeProfile.displayName || activeProfile.username}
           </Text>
           <View style={styles.profileInlineStats}>
             <Text style={styles.profileInlineText}>
               {loading || reviewLoadError ? '-' : reviews.length} reviews
             </Text>
-            <Text style={styles.profileInlineText}>|</Text>
-            <Text style={styles.profileInlineText}>
-              {friendCount === null ? '-' : friendCount} friends
-            </Text>
+            {isOwnProfile ? (
+              <>
+                <Text style={styles.profileInlineText}>|</Text>
+                <Text style={styles.profileInlineText}>
+                  {friendCount === null ? '-' : friendCount} friends
+                </Text>
+              </>
+            ) : null}
             <Text style={styles.profileInlineText}>|</Text>
             <Text style={styles.profileInlineText}>
               {averageRating === null ? '-' : averageRating.toFixed(1)} avg
@@ -3134,7 +2941,7 @@ function ProfileScreen({
           <Field
             value={reviewQuery}
             onChangeText={setReviewQuery}
-            placeholder="Search my reviews"
+            placeholder={isOwnProfile ? 'Search my reviews' : 'Search reviews'}
             autoCapitalize="none"
             icon={<Search size={18} color={colors.muted} />}
           />
@@ -3151,7 +2958,7 @@ function ProfileScreen({
               key={review.reviewId}
               item={review}
               onPress={() => onOpenReview(review.reviewId)}
-              onOpenMovie={onOpenMovie}
+              onOpenUser={onOpenUser}
             />
           ))
         )}
@@ -3166,7 +2973,11 @@ function ProfileScreen({
           <View style={styles.emptyProfileState}>
             <Popcorn size={30} color={colors.ink} />
             <Text style={styles.emptyTitle}>No reviews yet</Text>
-            <Text style={styles.mutedText}>Your movie takes will appear here after you post.</Text>
+            <Text style={styles.mutedText}>
+              {isOwnProfile
+                ? 'Your movie takes will appear here after you post.'
+                : 'No visible reviews from this friend yet.'}
+            </Text>
           </View>
         ) : null}
         {cursor && !reviewLoadError ? (
@@ -4719,44 +4530,6 @@ const styles = StyleSheet.create({
   detailInline: {
     gap: 12,
     paddingBottom: 4,
-  },
-  movieDetailHero: {
-    borderWidth: 3,
-    borderColor: colors.ink,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  movieBackdrop: {
-    width: '100%',
-    height: 132,
-    borderBottomWidth: 3,
-    borderBottomColor: colors.ink,
-  },
-  movieDetailHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: 12,
-  },
-  movieDetailCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 8,
-  },
-  movieDetailTitle: {
-    color: colors.ink,
-    fontSize: 25,
-    lineHeight: 28,
-    fontWeight: '900',
-  },
-  friendReviewCard: {
-    borderWidth: 3,
-    borderColor: colors.ink,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    gap: 10,
-    padding: 12,
   },
   detailHeaderCard: {
     flexDirection: 'row',

@@ -24,6 +24,6 @@ describe('FeedController', () => {
         { cursor: 'cursor' },
       ),
     ).resolves.toEqual({ items: [], nextCursor: null });
-    expect(service.userReviews).toHaveBeenCalledWith('user-id', 'cursor');
+    expect(service.userReviews).toHaveBeenCalledWith('user-id', 'user-id', 'cursor');
   });
 });

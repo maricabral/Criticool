@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { decodeCursor, encodeCursor } from '../common/ids';
 import { movieSummary } from '../common/movie-presenter';
@@ -71,25 +71,36 @@ export class FeedService {
     };
   }
 
-  async userReviews(userId: string, cursor?: string) {
+  async userReviews(viewerId: string, targetUserId = viewerId, cursor?: string) {
     const parsedCursor = decodeCursor(cursor);
     const blockedRows = await this.prisma.block.findMany({
       where: {
-        OR: [{ blockerId: userId }, { blockedId: userId }],
+        OR: [{ blockerId: viewerId }, { blockedId: viewerId }],
       },
       select: { blockerId: true, blockedId: true },
     });
     const hiddenCommentAuthorIds = blockedRows.map((row) =>
-      row.blockerId === userId ? row.blockedId : row.blockerId,
+      row.blockerId === viewerId ? row.blockedId : row.blockerId,
     );
+    const blockedUserIds = new Set(hiddenCommentAuthorIds);
+    const isOwnProfile = viewerId === targetUserId;
+    if (!isOwnProfile) {
+      const canSeeUser =
+        !blockedUserIds.has(targetUserId) &&
+        (await this.visibility.areFriends(viewerId, targetUserId));
+      if (!canSeeUser) {
+        throw new NotFoundException('User reviews not found');
+      }
+    }
     const visibleCommentWhere = {
       deletedAt: null,
       ...(hiddenCommentAuthorIds.length ? { userId: { notIn: hiddenCommentAuthorIds } } : {}),
     };
     const reviews = await this.prisma.review.findMany({
       where: {
-        userId,
+        userId: targetUserId,
         deletedAt: null,
+        ...(isOwnProfile ? {} : { visibility: 'friends' as const }),
         OR: parsedCursor
           ? [
               { createdAt: { lt: parsedCursor.createdAt } },

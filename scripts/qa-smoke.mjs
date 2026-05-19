@@ -193,12 +193,22 @@ async function run() {
     'Movie detail includes recent friend review',
   );
 
+  const friendReviewsRes = await request('GET', `/feed/users/${userA.id}`, { token: userB.tokens.accessToken });
+  assert(friendReviewsRes.status === 200, `Friend profile reviews load (status ${friendReviewsRes.status})`);
+  assert(
+    friendReviewsRes.data.items?.some?.((item) => item.reviewId === reviewId),
+    'Friend profile reviews include visible review',
+  );
+
   // ─── Feed Visibility: Stranger ───
   console.log('\n--- Feed: Stranger Exclusion ---');
   const feedCRes = await request('GET', '/feed', { token: userC.tokens.accessToken });
   assert(feedCRes.status === 200, `User C feed loads (status ${feedCRes.status})`);
   const cSeesReview = feedCRes.data.items?.some?.(item => item.reviewId === reviewId);
   assert(!cSeesReview, "User C (stranger) does NOT see User A's review");
+
+  const strangerProfileReviewsRes = await request('GET', `/feed/users/${userA.id}`, { token: userC.tokens.accessToken });
+  assert(strangerProfileReviewsRes.status === 404, `Stranger cannot load friend profile reviews (status ${strangerProfileReviewsRes.status})`);
 
   // ─── Review Detail Visibility ───
   console.log('\n--- Review Detail: Visibility ---');

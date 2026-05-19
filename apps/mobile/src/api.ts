@@ -4,8 +4,6 @@ import type {
   AuthTokens,
   AuthUser,
   FeedResponse,
-  MovieDetail,
-  MovieReviewSummary,
   MovieSummary,
   NotificationsResponse,
   NotificationItem,
@@ -16,8 +14,6 @@ import type {
 } from '@criticool/shared';
 
 export type {
-  MovieDetail,
-  MovieReviewSummary,
   NotificationItem,
   ReviewComment,
   ReviewDetail,
@@ -167,6 +163,13 @@ export const api = {
     apiRequest<FeedResponse>(`/feed/me${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, {
       tokens,
     }),
+  userReviews: (tokens: AuthTokens, userId: string, cursor?: string | null) =>
+    apiRequest<FeedResponse>(
+      `/feed/users/${encodeURIComponent(userId)}${
+        cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+      }`,
+      { tokens },
+    ),
   searchMovies: (tokens: AuthTokens, query: string) =>
     apiRequest<{ items: MovieSummary[]; source: string }>(
       `/movies/search?q=${encodeURIComponent(query)}`,
@@ -177,7 +180,6 @@ export const api = {
       `/movies/genre?genreId=${encodeURIComponent(String(genreId))}`,
       { tokens },
     ),
-  movie: (tokens: AuthTokens, id: string) => apiRequest<MovieDetail>(`/movies/${id}`, { tokens }),
   importMovie: (tokens: AuthTokens, tmdbId: number) =>
     apiRequest<MovieSummary>(`/movies/tmdb/${tmdbId}/import`, { method: 'POST', tokens }),
   createReview: (
