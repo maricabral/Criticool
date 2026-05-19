@@ -13,6 +13,8 @@ import {
   Min,
 } from 'class-validator';
 
+const REVIEW_RATING_VALUES = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+
 export class ReviewIdParamDto {
   @IsString()
   id: string;
@@ -35,6 +37,7 @@ export class CreateReviewDto {
 
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 1 })
+  @IsIn(REVIEW_RATING_VALUES, { message: 'rating must be in 0.5 increments between 0 and 5' })
   @Min(0)
   @Max(5)
   rating: number;
@@ -70,6 +73,7 @@ export class UpdateReviewDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 1 })
+  @IsIn(REVIEW_RATING_VALUES, { message: 'rating must be in 0.5 increments between 0 and 5' })
   @Min(0)
   @Max(5)
   rating?: number;

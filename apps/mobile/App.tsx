@@ -116,6 +116,9 @@ const REVIEW_TAG_CATEGORIES = [
     ],
   },
 ];
+const REVIEW_RATING_MAX = 5;
+const REVIEW_RATING_STEP = 0.5;
+const REVIEW_RATING_SLOTS = [1, 2, 3, 4, 5] as const;
 const FEATURED_REVIEW_TAGS = [
   'comfort watch',
   'date night',
@@ -1392,26 +1395,13 @@ function CreateScreen({
       )}
       {selectedMovie ? (
         <>
-          <Text style={styles.label}>Rating</Text>
-          <View style={styles.ratingPicker}>
-            {[1, 2, 3, 4, 5].map((value) => {
-              const active = rating >= value;
-              return (
-                <Pressable
-                  key={value}
-                  style={styles.ratingButton}
-                  onPress={() => setRating(value)}
-                  hitSlop={8}
-                >
-                  <Popcorn
-                    size={28}
-                    color={active ? colors.pink : colors.ink}
-                    strokeWidth={active ? 3.4 : 2.6}
-                  />
-                </Pressable>
-              );
-            })}
+          <View style={styles.ratingHeader}>
+            <Text style={styles.label}>Rating</Text>
+            <Text style={styles.ratingPickerValue}>
+              {rating > 0 ? `${formatRating(rating)}/5` : '--/5'}
+            </Text>
           </View>
+          <RatingPicker value={rating} onChange={setRating} />
           <Field value={quickTake} onChangeText={setQuickTake} placeholder="Quick take" />
           <Panel tint="cyan">
             <View style={styles.sectionHeader}>
@@ -3469,23 +3459,136 @@ function Rating({ value, size = 18 }: { value: number; size?: number }) {
   );
 }
 
+type PopcornFill = 'empty' | 'half' | 'full';
+
+function clampRating(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(REVIEW_RATING_MAX, value));
+}
+
+function roundRatingToStep(value: number) {
+  return Math.round(clampRating(value) / REVIEW_RATING_STEP) * REVIEW_RATING_STEP;
+}
+
+function formatRating(value: number) {
+  const score = clampRating(value);
+  return Number.isInteger(score) ? score.toFixed(0) : score.toFixed(1);
+}
+
+function popcornFillFor(value: number, index: number): PopcornFill {
+  const score = roundRatingToStep(value);
+  const amount = score - index;
+  if (amount >= 1) {
+    return 'full';
+  }
+  if (amount >= REVIEW_RATING_STEP) {
+    return 'half';
+  }
+  return 'empty';
+}
+
+function PopcornGlyph({
+  fill,
+  size,
+  activeColor,
+  inactiveColor,
+  fillColor,
+  activeStrokeWidth = 2.8,
+  inactiveStrokeWidth = 2.2,
+}: {
+  fill: PopcornFill;
+  size: number;
+  activeColor: string;
+  inactiveColor: string;
+  fillColor: string;
+  activeStrokeWidth?: number;
+  inactiveStrokeWidth?: number;
+}) {
+  const overlayWidth = fill === 'half' ? size / 2 : size;
+
+  return (
+    <View style={[styles.popcornGlyph, { width: size, height: size }]} pointerEvents="none">
+      <Popcorn
+        size={size}
+        color={inactiveColor}
+        fill="transparent"
+        strokeWidth={inactiveStrokeWidth}
+      />
+      {fill !== 'empty' ? (
+        <View style={[styles.popcornGlyphOverlay, { width: overlayWidth }]} pointerEvents="none">
+          <View style={{ width: size, height: size }}>
+            <Popcorn
+              size={size}
+              color={activeColor}
+              fill={fillColor}
+              strokeWidth={activeStrokeWidth}
+            />
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function RatingPicker({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <View style={styles.ratingPicker}>
+      {REVIEW_RATING_SLOTS.map((slot, index) => {
+        const halfValue = slot - REVIEW_RATING_STEP;
+        const fill = popcornFillFor(value, index);
+        return (
+          <View key={slot} style={styles.ratingButton}>
+            <PopcornGlyph
+              fill={fill}
+              size={28}
+              activeColor={colors.pink}
+              inactiveColor={colors.ink}
+              fillColor={colors.yellow}
+              activeStrokeWidth={3.4}
+              inactiveStrokeWidth={2.6}
+            />
+            <Pressable
+              accessibilityLabel={`Set rating to ${formatRating(halfValue)} out of 5 popcorns`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: value === halfValue }}
+              hitSlop={8}
+              onPress={() => onChange(halfValue)}
+              style={[styles.ratingHalfTarget, styles.ratingHalfTargetLeft]}
+            />
+            <Pressable
+              accessibilityLabel={`Set rating to ${formatRating(slot)} out of 5 popcorns`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: value === slot }}
+              hitSlop={8}
+              onPress={() => onChange(slot)}
+              style={[styles.ratingHalfTarget, styles.ratingHalfTargetRight]}
+            />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function PopcornRating({ value, large }: { value: number; large?: boolean }) {
   const score = Math.max(0, Math.min(5, value));
-  const count = Math.max(0, Math.min(5, Math.round(score)));
-  const scoreLabel = Number.isInteger(score) ? score.toFixed(0) : score.toFixed(1);
+  const scoreLabel = formatRating(score);
   const size = large ? 27 : 15;
 
   return (
     <View style={styles.popcornRating} accessibilityLabel={`${scoreLabel} out of 5`}>
       {Array.from({ length: 5 }).map((_, index) => {
-        const active = index < count;
+        const fill = popcornFillFor(score, index);
         return (
-          <Popcorn
+          <PopcornGlyph
             key={index}
+            fill={fill}
             size={size}
-            color={active ? colors.ink : colors.muted}
-            fill={active ? colors.yellow : 'transparent'}
-            strokeWidth={active ? 2.8 : 2.2}
+            activeColor={colors.ink}
+            inactiveColor={colors.muted}
+            fillColor={colors.yellow}
           />
         );
       })}
@@ -4770,6 +4873,17 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '900',
   },
+  ratingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  ratingPickerValue: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
   ratingPicker: {
     flexDirection: 'row',
     gap: 8,
@@ -4779,6 +4893,29 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  ratingHalfTarget: {
+    bottom: 0,
+    position: 'absolute',
+    top: 0,
+    width: '50%',
+  },
+  ratingHalfTargetLeft: {
+    left: 0,
+  },
+  ratingHalfTargetRight: {
+    right: 0,
+  },
+  popcornGlyph: {
+    position: 'relative',
+  },
+  popcornGlyphOverlay: {
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    top: 0,
   },
   tagPicker: {
     flexDirection: 'row',
