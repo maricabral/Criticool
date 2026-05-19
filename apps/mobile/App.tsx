@@ -1847,7 +1847,7 @@ function ReviewDetailScreen({
       </View>
       <View style={styles.detailInline}>
         {visibleQuickTake ? <Text style={styles.detailTitle}>{visibleQuickTake}</Text> : null}
-        {review.tags?.length ? <TagPills tags={review.tags.slice(0, 2)} /> : null}
+        {review.tags?.length ? <TagPills tags={review.tags} /> : null}
         {review.author.id === currentUserId ? (
           <View style={styles.actionRow}>
             {canTranslateReview ? (
