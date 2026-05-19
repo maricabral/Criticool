@@ -119,16 +119,6 @@ const REVIEW_TAG_CATEGORIES = [
 const REVIEW_RATING_MAX = 5;
 const REVIEW_RATING_STEP = 0.5;
 const REVIEW_RATING_SLOTS = [1, 2, 3, 4, 5] as const;
-const FEATURED_REVIEW_TAGS = [
-  'comfort watch',
-  'date night',
-  'great with friends',
-  'thought-provoking',
-  'instant rewatch',
-  'bring tissues',
-  'slow burn',
-  'best with snacks',
-];
 const BUZZ_MOVIES: MovieSummary[] = [
   {
     tmdbId: 558449,
@@ -1406,36 +1396,16 @@ function CreateScreen({
           <Panel tint="cyan">
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Pick up to 5 tags</Text>
-              <Text style={styles.mutedText}>optional</Text>
-            </View>
-            <View style={styles.tagPicker}>
-              {FEATURED_REVIEW_TAGS.map((tag) => {
-                const active = selectedTags.includes(tag);
-                const disabled = selectedTags.length >= 5 && !active;
-                return (
-                  <Pressable
-                    key={tag}
-                    disabled={disabled}
-                    style={[
-                      styles.tagChip,
-                      active && styles.tagChipActive,
-                      disabled && styles.tagChipDisabled,
-                    ]}
-                    onPress={() => toggleTag(tag)}
-                  >
-                    <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
-                      {tag}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              <Text style={styles.mutedText}>
+                {selectedTags.length ? `${selectedTags.length} selected` : 'optional'}
+              </Text>
             </View>
             <Pressable
               style={styles.secondaryButton}
               onPress={() => setShowAllTags((current) => !current)}
             >
               <Text style={styles.secondaryButtonText}>
-                {showAllTags ? 'Hide more tags' : 'Browse more tags'}
+                {showAllTags ? 'Hide tags' : 'Browse tags'}
               </Text>
             </Pressable>
             {showAllTags ? (
@@ -3554,7 +3524,7 @@ function RatingPicker({ value, onChange }: { value: number; onChange: (value: nu
           >
             <PopcornGlyph
               fill={fill}
-              size={28}
+              size={38}
               activeColor={colors.pink}
               inactiveColor={colors.ink}
               fillColor={colors.yellow}
@@ -4882,11 +4852,11 @@ const styles = StyleSheet.create({
   },
   ratingPicker: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   ratingButton: {
     flex: 1,
-    height: 48,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
