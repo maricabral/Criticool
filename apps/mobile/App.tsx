@@ -34,13 +34,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import type { StyleProp, TextStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
 import type {
   AuthTokens,
   AuthUser,
   FeedItem,
   MovieSummary,
-  TranslationTargetType,
 } from '@criticool/shared';
 import {
   api,
@@ -2049,6 +2048,52 @@ function CommentNode({
   const isEditing = editingCommentId === comment.id;
   const isMutating = mutatingCommentId === comment.id;
   const isRootComment = comment.depth === 0;
+  const [translatedComment, setTranslatedComment] = useState<string | null>(null);
+  const [showTranslatedComment, setShowTranslatedComment] = useState(false);
+  const [translatingComment, setTranslatingComment] = useState(false);
+  const canTranslateComment = !isDeleted && shouldOfferTranslation(comment.body, viewerLocale);
+  const visibleCommentBody =
+    showTranslatedComment && translatedComment ? translatedComment : comment.body;
+  const commentTranslationLabel = translatingComment
+    ? 'Translating...'
+    : showTranslatedComment
+      ? 'Show original'
+      : 'Translate';
+
+  useEffect(() => {
+    setTranslatedComment(null);
+    setShowTranslatedComment(false);
+  }, [comment.id, comment.updatedAt]);
+
+  const toggleCommentTranslation = async () => {
+    if (showTranslatedComment) {
+      setShowTranslatedComment(false);
+      return;
+    }
+    if (translatedComment) {
+      setShowTranslatedComment(true);
+      return;
+    }
+
+    setTranslatingComment(true);
+    try {
+      const response = await api.translate(tokens, {
+        targetType: 'comment',
+        targetId: comment.id,
+        targetLocale: viewerLocale,
+        sourceLocale: detectLikelyLocale(comment.body) ?? undefined,
+      });
+      const nextText = response.fields.body;
+      if (nextText) {
+        setTranslatedComment(nextText);
+        setShowTranslatedComment(true);
+      }
+    } catch (err) {
+      Alert.alert('Could not translate', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setTranslatingComment(false);
+    }
+  };
 
   return (
     <View style={isRootComment ? styles.commentThread : styles.commentReplyThread}>
@@ -2114,15 +2159,7 @@ function CommentNode({
               isDeleted ? (
                 <Text style={[styles.bodyText, styles.deletedCommentText]}>{comment.body}</Text>
               ) : (
-                <TranslatableText
-                  tokens={tokens}
-                  targetType="comment"
-                  targetId={comment.id}
-                  field="body"
-                  text={comment.body}
-                  targetLocale={viewerLocale}
-                  style={styles.bodyText}
-                />
+                <Text style={styles.bodyText}>{visibleCommentBody}</Text>
               )
             )}
             {!isEditing ? (
@@ -2131,6 +2168,16 @@ function CommentNode({
                   <Pressable style={styles.commentReplyButton} onPress={() => onReply(comment)}>
                     <Send size={14} color={colors.ink} />
                     <Text style={styles.commentReplyText}>Reply</Text>
+                  </Pressable>
+                ) : null}
+                {canTranslateComment ? (
+                  <Pressable
+                    style={styles.commentReplyButton}
+                    onPress={toggleCommentTranslation}
+                    disabled={translatingComment}
+                  >
+                    <Languages size={14} color={colors.ink} />
+                    <Text style={styles.commentReplyText}>{commentTranslationLabel}</Text>
                   </Pressable>
                 ) : null}
                 {canEdit ? (
@@ -2297,79 +2344,6 @@ function ReportComposer({
           <Text style={styles.declineButtonText}>Cancel</Text>
         </Pressable>
       </View>
-    </View>
-  );
-}
-
-function TranslatableText({
-  tokens,
-  targetType,
-  targetId,
-  field,
-  text,
-  targetLocale,
-  style,
-  numberOfLines,
-}: {
-  tokens: AuthTokens;
-  targetType: TranslationTargetType;
-  targetId: string;
-  field: 'quickTake' | 'body';
-  text: string;
-  targetLocale: string;
-  style: StyleProp<TextStyle>;
-  numberOfLines?: number;
-}) {
-  const [translated, setTranslated] = useState<string | null>(null);
-  const [showTranslated, setShowTranslated] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const detectedLocale = detectLikelyLocale(text);
-  const canTranslate = shouldOfferTranslation(text, targetLocale);
-  const visibleText = showTranslated && translated ? translated : text;
-
-  const toggleTranslation = async () => {
-    if (showTranslated) {
-      setShowTranslated(false);
-      return;
-    }
-    if (translated) {
-      setShowTranslated(true);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await api.translate(tokens, {
-        targetType,
-        targetId,
-        targetLocale,
-        sourceLocale: detectedLocale ?? undefined,
-      });
-      const nextText = response.fields[field];
-      if (nextText) {
-        setTranslated(nextText);
-        setShowTranslated(true);
-      }
-    } catch (err) {
-      Alert.alert('Could not translate', err instanceof Error ? err.message : 'Try again');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <View style={styles.translationBlock}>
-      <Text style={style} numberOfLines={numberOfLines}>
-        {visibleText}
-      </Text>
-      {canTranslate ? (
-        <Pressable style={styles.translationButton} onPress={toggleTranslation} disabled={loading}>
-          <Languages size={14} color={colors.ink} />
-          <Text style={styles.translationButtonText}>
-            {loading ? 'Translating...' : showTranslated ? 'Show original' : 'Translate'}
-          </Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -4239,26 +4213,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
     gap: 8,
     padding: 10,
-  },
-  translationBlock: {
-    gap: 6,
-  },
-  translationButton: {
-    alignSelf: 'flex-start',
-    minHeight: 28,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 999,
-    backgroundColor: colors.yellow,
-    paddingHorizontal: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  translationButtonText: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: '900',
   },
   activeReplyComposer: {
     marginTop: 10,
