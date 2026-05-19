@@ -1987,7 +1987,9 @@ function ReviewDetailScreen({
               <Text style={styles.joinDiscussionTitle}>Join discussion</Text>
               <Text style={styles.joinDiscussionHint}>Type or dictate a comment</Text>
             </View>
-            <MessageCircle size={20} color={colors.ink} />
+            <View style={styles.joinDiscussionIcon}>
+              <MessageCircle size={20} color={colors.surface} />
+            </View>
           </Pressable>
         )}
         {review.comments.length ? (
@@ -4469,31 +4471,47 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   joinDiscussionButton: {
-    minHeight: 54,
-    borderWidth: 2,
+    minHeight: 62,
+    borderWidth: 3,
     borderColor: colors.ink,
     borderRadius: 999,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.yellow,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-    paddingHorizontal: 14,
+    gap: 12,
+    paddingHorizontal: 13,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.13,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 4 },
   },
   joinDiscussionCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 1,
+    gap: 2,
   },
   joinDiscussionTitle: {
     color: colors.ink,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 18,
     fontWeight: '900',
   },
   joinDiscussionHint: {
     color: colors.muted,
     fontSize: 12,
+    lineHeight: 15,
     fontWeight: '800',
+  },
+  joinDiscussionIcon: {
+    width: 38,
+    height: 38,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 19,
+    backgroundColor: colors.pink,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   composerCancelButton: {
     alignSelf: 'center',
