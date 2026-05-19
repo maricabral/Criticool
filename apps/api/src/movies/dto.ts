@@ -6,6 +6,13 @@ export class MovieSearchQueryDto {
   q: string;
 }
 
+export class MovieGenreQueryDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  genreId: number;
+}
+
 export class TmdbIdParamDto {
   @Type(() => Number)
   @IsInt()

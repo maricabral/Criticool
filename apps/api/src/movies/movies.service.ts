@@ -67,6 +67,34 @@ export class MoviesService {
     }
   }
 
+  async browseGenre(genreTmdbId: number) {
+    const local = await this.prisma.movie.findMany({
+      where: { genres: { some: { genreTmdbId } } },
+      orderBy: [{ popularity: 'desc' }, { releaseDate: 'desc' }],
+      take: 8,
+    });
+
+    const token = this.config.get<string>('TMDB_ACCESS_TOKEN');
+    if (!token || local.length >= 8) {
+      return { items: local.map(movieSummary), source: token ? 'local' : 'local-only' };
+    }
+
+    try {
+      const remote = await this.tmdbDiscoverByGenre(genreTmdbId, token);
+      const localTmdbIds = new Set(local.map((movie) => movie.tmdbId));
+      const remoteItems = remote
+        .filter((movie) => !localTmdbIds.has(movie.id))
+        .slice(0, 8 - local.length)
+        .map((movie) => this.presentTmdbMovie(movie));
+      return { items: [...local.map(movieSummary), ...remoteItems], source: 'local+tmdb' };
+    } catch {
+      if (local.length) {
+        return { items: local.map(movieSummary), source: 'local-after-tmdb-failure' };
+      }
+      throw new ServiceUnavailableException('TMDB genre browse is unavailable');
+    }
+  }
+
   async getMovie(id: string) {
     const movie = await this.prisma.movie.findUniqueOrThrow({ where: { id } });
     return movieSummary(movie);
@@ -95,6 +123,27 @@ export class MoviesService {
     });
     if (!response.ok) {
       throw new Error(`TMDB search failed: ${response.status}`);
+    }
+    const data = (await response.json()) as { results?: TmdbSearchMovie[] };
+    return data.results ?? [];
+  }
+
+  private async tmdbDiscoverByGenre(
+    genreTmdbId: number,
+    token: string,
+  ): Promise<TmdbSearchMovie[]> {
+    const params = new URLSearchParams({
+      include_adult: 'false',
+      language: this.config.get<string>('TMDB_DEFAULT_LANGUAGE') ?? 'en-US',
+      page: '1',
+      sort_by: 'popularity.desc',
+      with_genres: String(genreTmdbId),
+    });
+    const response = await fetch(`https://api.themoviedb.org/3/discover/movie?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`TMDB genre browse failed: ${response.status}`);
     }
     const data = (await response.json()) as { results?: TmdbSearchMovie[] };
     return data.results ?? [];

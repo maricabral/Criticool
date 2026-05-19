@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../common/auth.guard';
-import { MovieIdParamDto, MovieSearchQueryDto, TmdbIdParamDto } from './dto';
+import { MovieGenreQueryDto, MovieIdParamDto, MovieSearchQueryDto, TmdbIdParamDto } from './dto';
 import { MoviesService } from './movies.service';
 
 @Controller('movies')
@@ -11,6 +11,11 @@ export class MoviesController {
   @Get('search')
   search(@Query() query: MovieSearchQueryDto) {
     return this.movies.search(query.q);
+  }
+
+  @Get('genre')
+  browseGenre(@Query() query: MovieGenreQueryDto) {
+    return this.movies.browseGenre(query.genreId);
   }
 
   @Get(':id')

@@ -161,6 +161,11 @@ export const api = {
       `/movies/search?q=${encodeURIComponent(query)}`,
       { tokens },
     ),
+  browseMoviesByGenre: (tokens: AuthTokens, genreId: number) =>
+    apiRequest<{ items: MovieSummary[]; source: string }>(
+      `/movies/genre?genreId=${encodeURIComponent(String(genreId))}`,
+      { tokens },
+    ),
   importMovie: (tokens: AuthTokens, tmdbId: number) =>
     apiRequest<MovieSummary>(`/movies/tmdb/${tmdbId}/import`, { method: 'POST', tokens }),
   createReview: (

@@ -157,11 +157,17 @@ const BUZZ_MOVIES: MovieSummary[] = [
     backdropUrl: null,
   },
 ];
-const GENRE_BROWSE = [
-  { title: 'Comedy', subtitle: 'easy watches' },
-  { title: 'Horror', subtitle: 'late night' },
-  { title: 'Drama', subtitle: 'big feelings' },
-  { title: 'Sci-fi', subtitle: 'weird worlds' },
+type GenreBrowseItem = {
+  title: string;
+  subtitle: string;
+  tmdbGenreId: number;
+};
+
+const GENRE_BROWSE: GenreBrowseItem[] = [
+  { title: 'Comedy', subtitle: 'easy watches', tmdbGenreId: 35 },
+  { title: 'Horror', subtitle: 'late night', tmdbGenreId: 27 },
+  { title: 'Drama', subtitle: 'big feelings', tmdbGenreId: 18 },
+  { title: 'Sci-fi', subtitle: 'weird worlds', tmdbGenreId: 878 },
 ];
 
 type SpeechRecognitionInstance = {
@@ -779,28 +785,84 @@ function SearchScreen({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MovieSummary[]>([]);
   const [busy, setBusy] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState<GenreBrowseItem | null>(null);
+  const searchRequestId = useRef(0);
   const buzzMovies = useBuzzMovies(tokens);
+  const trimmedQuery = query.trim();
+  const showingResults = trimmedQuery.length >= 2 || selectedGenre !== null;
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
+    if (selectedGenre) {
       return;
     }
+
+    const requestId = ++searchRequestId.current;
+    if (trimmedQuery.length < 2) {
+      setResults([]);
+      setBusy(false);
+      return;
+    }
+    let cancelled = false;
     const timeout = setTimeout(() => {
       void (async () => {
         setBusy(true);
         try {
-          const response = await api.searchMovies(tokens, query);
-          setResults(response.items);
+          const response = await api.searchMovies(tokens, trimmedQuery);
+          if (!cancelled && searchRequestId.current === requestId) {
+            setResults(response.items);
+          }
         } catch (err) {
-          Alert.alert('Search failed', err instanceof Error ? err.message : 'Try again');
+          if (!cancelled && searchRequestId.current === requestId) {
+            Alert.alert('Search failed', err instanceof Error ? err.message : 'Try again');
+          }
         } finally {
-          setBusy(false);
+          if (!cancelled && searchRequestId.current === requestId) {
+            setBusy(false);
+          }
         }
       })();
     }, 350);
-    return () => clearTimeout(timeout);
-  }, [query, tokens]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [selectedGenre, tokens, trimmedQuery]);
+
+  const handleQueryChange = (text: string) => {
+    if (selectedGenre) {
+      setSelectedGenre(null);
+    }
+    setQuery(text);
+  };
+
+  const clearGenre = () => {
+    searchRequestId.current += 1;
+    setSelectedGenre(null);
+    setResults([]);
+    setBusy(false);
+  };
+
+  const browseGenre = async (genre: GenreBrowseItem) => {
+    const requestId = ++searchRequestId.current;
+    setSelectedGenre(genre);
+    setQuery('');
+    setResults([]);
+    setBusy(true);
+    try {
+      const response = await api.browseMoviesByGenre(tokens, genre.tmdbGenreId);
+      if (searchRequestId.current === requestId) {
+        setResults(response.items);
+      }
+    } catch (err) {
+      if (searchRequestId.current === requestId) {
+        Alert.alert('Genre search failed', err instanceof Error ? err.message : 'Try again');
+      }
+    } finally {
+      if (searchRequestId.current === requestId) {
+        setBusy(false);
+      }
+    }
+  };
 
   const selectMovie = async (movie: MovieSummary) => {
     try {
@@ -816,14 +878,14 @@ function SearchScreen({
       <Header title="Search" />
       <Field
         value={query}
-        onChangeText={setQuery}
+        onChangeText={handleQueryChange}
         placeholder="Find a movie"
         autoCapitalize="none"
         icon={<Search size={18} color={colors.muted} />}
       />
       {busy ? <ActivityIndicator color={colors.pink} style={styles.inlineLoader} /> : null}
       <ScrollView contentContainerStyle={[styles.stack, styles.afterSearchFieldStack]}>
-        {query.trim().length < 2 ? (
+        {!showingResults ? (
           <>
             <Panel tint="yellow">
               <View style={styles.sectionHeader}>
@@ -839,29 +901,57 @@ function SearchScreen({
               </View>
               <View style={styles.genreGrid}>
                 {GENRE_BROWSE.map((genre) => (
-                  <View key={genre.title} style={styles.genreTile}>
+                  <Pressable
+                    key={genre.title}
+                    style={({ pressed }) => [
+                      styles.genreTile,
+                      pressed ? styles.genreTilePressed : null,
+                    ]}
+                    onPress={() => browseGenre(genre)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Browse ${genre.title} movies`}
+                  >
                     <Text style={styles.genreTitle}>{genre.title}</Text>
                     <Text style={styles.mutedText}>{genre.subtitle}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             </Panel>
           </>
         ) : (
-          results.map((movie) => (
-            <Pressable
-              key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
-              style={styles.resultRow}
-              onPress={() => selectMovie(movie)}
-            >
-              <Poster movie={movie} />
-              <View style={styles.reviewCopy}>
-                <Text style={styles.movieTitle}>{movie.title}</Text>
-                <Text style={styles.mutedText}>{movie.releaseYear ?? 'TBA'}</Text>
+          <>
+            {selectedGenre ? (
+              <View style={styles.sectionHeader}>
+                <View style={styles.genreResultTitleGroup}>
+                  <Text style={styles.sectionTitle}>{selectedGenre.title} movies</Text>
+                  <Text style={styles.mutedText}>{selectedGenre.subtitle}</Text>
+                </View>
+                <Pressable style={styles.pillButton} onPress={clearGenre}>
+                  <Text style={styles.pillButtonText}>Clear</Text>
+                </Pressable>
               </View>
-              <Text style={styles.pill}>Review</Text>
-            </Pressable>
-          ))
+            ) : null}
+            {results.map((movie) => (
+              <Pressable
+                key={`${movie.tmdbId}-${movie.id ?? 'tmdb'}`}
+                style={styles.resultRow}
+                onPress={() => selectMovie(movie)}
+              >
+                <Poster movie={movie} />
+                <View style={styles.reviewCopy}>
+                  <Text style={styles.movieTitle}>{movie.title}</Text>
+                  <Text style={styles.mutedText}>{movie.releaseYear ?? 'TBA'}</Text>
+                </View>
+                <Text style={styles.pill}>Review</Text>
+              </Pressable>
+            ))}
+            {!busy && results.length === 0 ? (
+              <Panel tint="yellow">
+                <Text style={styles.sectionTitle}>No movies found</Text>
+                <Text style={styles.mutedText}>Try another search.</Text>
+              </Panel>
+            ) : null}
+          </>
         )}
       </ScrollView>
     </View>
@@ -3367,11 +3457,19 @@ const styles = StyleSheet.create({
     gap: 4,
     padding: 10,
   },
+  genreTilePressed: {
+    transform: [{ translateY: 1 }],
+    backgroundColor: colors.yellow,
+  },
   genreTitle: {
     color: colors.ink,
     fontSize: 15,
     lineHeight: 17,
     fontWeight: '900',
+  },
+  genreResultTitleGroup: {
+    flex: 1,
+    paddingRight: 12,
   },
   acceptButton: {
     minHeight: 34,
