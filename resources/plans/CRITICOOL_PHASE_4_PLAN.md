@@ -14,6 +14,7 @@ Primary outcome: a tester can edit only the MVP account identity fields, verify 
 - Every future UX design change must be approved by the user before app implementation.
 - The proposed UX must be published as a visual HTML preview under `resources/mockups/preview/`.
 - The implementation summary must link the preview path so the user can inspect the visual change directly, not only through a text description.
+- The official mobile back control is the right-side pink `Back` pill shown in the approved preview.
 - Current Phase 4 preview: `resources/mockups/preview/phase-4-profile-settings.html`.
 
 ## Implementation Status
@@ -23,7 +24,7 @@ Implemented in this rollout:
 - Account lifecycle migration with verification/reset token storage.
 - Profile identity edit, pending-email verification, password reset, and hard-delete APIs.
 - Logged-out forgot-password flow.
-- Separate mobile account settings page opened from `Me`, with a back button.
+- Separate mobile account settings page opened from `Me`, with the official `Back` pill.
 - MVP settings fields limited to display name, username, and email.
 - Letter-only avatars in the mobile UX; avatar URL editing is not part of the MVP.
 - Profile stats without average rating.
@@ -43,7 +44,7 @@ Implemented in this rollout:
   - Add request/consume endpoints for email verification and password reset.
   - `DELETE /me` hard-deletes the authenticated account after a destructive confirmation in the app.
 - Add mobile account settings:
-  - Settings is a separate screen with a back button, not an embedded panel inside `Me`.
+  - Settings is a separate screen with the official `Back` pill, not an embedded panel inside `Me`.
   - Support editing display name, username, and email.
   - Remove bio, locale, and avatar URL inputs from the MVP settings UX.
   - Show email verification status, pending email status, dev token output, and token entry controls.
@@ -52,7 +53,7 @@ Implemented in this rollout:
 - Update profile navigation:
   - Remove average rating from user profiles.
   - When a friend profile is opened from Friends, keep Friends selected in the tab bar.
-  - Add a back button on friend profiles opened from another tab.
+  - Add the official `Back` pill on friend profiles opened from another tab.
 
 ## Public API And Type Changes
 

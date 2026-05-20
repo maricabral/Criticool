@@ -1,6 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
 import {
-  ArrowLeft,
   Ban,
   Bell,
   ChevronDown,
@@ -1970,7 +1969,7 @@ function ReviewDetailScreen({
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
-      <Header title="Review" right={<PrimaryButton label="Back" onPress={onBack} compact />} />
+      <Header title="Review" right={<BackButton onPress={onBack} />} />
       <View style={styles.detailHeaderCard}>
         <Text
           style={[
@@ -2585,7 +2584,7 @@ function NotificationsScreen({
             ) : loading ? (
               <ActivityIndicator color={colors.pink} />
             ) : null}
-            <PrimaryButton label="Back" onPress={onBack} compact />
+            <BackButton onPress={onBack} />
           </View>
         }
       />
@@ -3134,17 +3133,10 @@ function ProfileScreen({
     >
       <Header
         title={`@${activeProfile.username}`}
-        left={
-          onBack ? (
-            <IconButton
-              icon={<ArrowLeft size={20} color={colors.ink} />}
-              onPress={onBack}
-              accessibilityLabel="Back"
-            />
-          ) : undefined
-        }
         right={
-          isOwnProfile ? (
+          onBack ? (
+            <BackButton onPress={onBack} />
+          ) : isOwnProfile ? (
             <View style={styles.headerActionRow}>
               <IconButton
                 icon={<Settings size={20} color={colors.ink} />}
@@ -3370,18 +3362,12 @@ function AccountSettingsScreen({
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
-      <Header
-        title="Account settings"
-        left={
-          <IconButton
-            icon={<ArrowLeft size={20} color={colors.ink} />}
-            onPress={onBack}
-            accessibilityLabel="Back"
-          />
-        }
-        right={<Text style={styles.bubble}>{emailStatus}</Text>}
-      />
+      <Header title="Account settings" right={<BackButton onPress={onBack} />} />
       <Panel tint="cyan">
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Profile</Text>
+          <Text style={styles.bubble}>{emailStatus}</Text>
+        </View>
         <View style={styles.form}>
           <Field value={displayName} onChangeText={setDisplayName} placeholder="Display name" />
           <Field
@@ -3454,18 +3440,9 @@ function AccountSettingsScreen({
   );
 }
 
-function Header({
-  title,
-  left,
-  right,
-}: {
-  title: string;
-  left?: React.ReactNode;
-  right?: React.ReactNode;
-}) {
+function Header({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <View style={styles.header}>
-      {left}
       <Text numberOfLines={1} style={styles.headerTitle}>
         {title}
       </Text>
@@ -3561,6 +3538,10 @@ function PrimaryButton({
       </Text>
     </Pressable>
   );
+}
+
+function BackButton({ onPress }: { onPress: () => void }) {
+  return <PrimaryButton label="Back" onPress={onPress} compact />;
 }
 
 function IconButton({
