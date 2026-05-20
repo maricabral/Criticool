@@ -4,6 +4,7 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { RequestUser } from '../common/auth-user';
 import { AuthService } from './auth.service';
 import {
+  BootstrapMeDto,
   ForgotPasswordDto,
   LoginDto,
   LogoutDto,
@@ -50,6 +51,12 @@ export class AuthController {
   @UseGuards(AuthGuard)
   me(@CurrentUser() user: RequestUser) {
     return this.auth.me(user.id);
+  }
+
+  @Post('me/bootstrap')
+  @UseGuards(AuthGuard)
+  bootstrapMe(@CurrentUser() user: RequestUser, @Body() dto: BootstrapMeDto) {
+    return this.auth.bootstrapMe(user, dto);
   }
 
   @Patch('me')

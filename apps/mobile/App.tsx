@@ -25,6 +25,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -57,6 +58,15 @@ import {
   type AppNavigationState,
   type Tab,
 } from './src/navigationState';
+import {
+  supabase,
+  supabaseAuthEnabled,
+  supabaseRedirectUrl,
+  supabaseResetRedirectUrl,
+  supabaseSessionParamsFromUrl,
+  tokensFromSupabaseSession,
+  type SupabaseSession,
+} from './src/supabase';
 import { colors } from './src/theme';
 
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
@@ -340,11 +350,68 @@ export default function App() {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [booting, setBooting] = useState(true);
+  const [passwordUpdateRequired, setPasswordUpdateRequired] = useState(false);
+
+  const loadUserForTokens = useCallback(async (nextTokens: AuthTokens) => {
+    setTokens(nextTokens);
+    try {
+      setUser(await api.me(nextTokens));
+    } catch {
+      setUser(null);
+    }
+  }, []);
+
+  const onSupabaseSession = useCallback(
+    async (session: SupabaseSession) => {
+      await loadUserForTokens(tokensFromSupabaseSession(session));
+    },
+    [loadUserForTokens],
+  );
+
+  const handleSupabaseUrl = useCallback(
+    async (url: string | null) => {
+      if (!url || !supabase) {
+        return;
+      }
+      const params = supabaseSessionParamsFromUrl(url);
+      if (!params) {
+        return;
+      }
+      if (url.includes('type=recovery')) {
+        setPasswordUpdateRequired(true);
+      }
+      const { data, error } = await supabase.auth.setSession({
+        access_token: params.accessToken,
+        refresh_token: params.refreshToken,
+      });
+      if (error) {
+        Alert.alert('Could not restore session', error.message);
+        return;
+      }
+      if (data.session) {
+        await onSupabaseSession(data.session);
+      }
+    },
+    [onSupabaseSession],
+  );
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      if (supabaseAuthEnabled && supabase) {
+        await saveTokens(null);
+        const { data } = await supabase.auth.getSession();
+        if (!cancelled && data.session) {
+          await onSupabaseSession(data.session);
+        }
+        if (!cancelled) {
+          setBooting(false);
+        }
+        return;
+      }
+
       const stored = await loadTokens();
-      if (stored) {
+      if (!cancelled && stored) {
         try {
           setUser(await api.me(stored));
           setTokens(stored);
@@ -352,11 +419,43 @@ export default function App() {
           await saveTokens(null);
         }
       }
-      setBooting(false);
+      if (!cancelled) {
+        setBooting(false);
+      }
     })();
-  }, []);
 
-  const onAuth = async (response: { user: AuthUser; tokens: AuthTokens }) => {
+    if (!supabaseAuthEnabled || !supabase) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordUpdateRequired(true);
+      }
+      if (session) {
+        void onSupabaseSession(session);
+      } else {
+        setTokens(null);
+        setUser(null);
+      }
+    });
+    const linkSubscription = Linking.addEventListener('url', (event) => {
+      void handleSupabaseUrl(event.url);
+    });
+    void Linking.getInitialURL().then(handleSupabaseUrl);
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+      linkSubscription.remove();
+    };
+  }, [handleSupabaseUrl, onSupabaseSession]);
+
+  const onLegacyAuth = async (response: { user: AuthUser; tokens: AuthTokens }) => {
     await saveTokens(response.tokens);
     setTokens(response.tokens);
     setUser(response.user);
@@ -365,12 +464,17 @@ export default function App() {
   const signOut = async () => {
     if (tokens) {
       try {
-        await api.logout(tokens);
+        if (tokens.provider === 'supabase') {
+          await supabase?.auth.signOut();
+        } else {
+          await api.logout(tokens);
+        }
       } catch {
         // Clear local state even if server logout fails
       }
     }
     await saveTokens(null);
+    setPasswordUpdateRequired(false);
     setTokens(null);
     setUser(null);
   };
@@ -393,7 +497,33 @@ export default function App() {
   }
 
   if (!tokens || !user) {
-    return <AuthScreen onAuth={onAuth} />;
+    if (tokens?.provider === 'supabase' && passwordUpdateRequired) {
+      return (
+        <PasswordUpdateScreen
+          onComplete={() => setPasswordUpdateRequired(false)}
+          onSignOut={signOut}
+        />
+      );
+    }
+    if (tokens?.provider === 'supabase') {
+      return (
+        <ProfileBootstrapScreen
+          tokens={tokens}
+          onUserChange={setUser}
+          onSignOut={signOut}
+        />
+      );
+    }
+    return <AuthScreen onLegacyAuth={onLegacyAuth} onSupabaseSession={onSupabaseSession} />;
+  }
+
+  if (tokens.provider === 'supabase' && passwordUpdateRequired) {
+    return (
+      <PasswordUpdateScreen
+        onComplete={() => setPasswordUpdateRequired(false)}
+        onSignOut={signOut}
+      />
+    );
   }
 
   return <AppShell tokens={tokens} user={user} onUserChange={setUser} onSignOut={signOut} />;
@@ -410,10 +540,144 @@ function LoadingScreen() {
   );
 }
 
-function AuthScreen({
-  onAuth,
+function ProfileBootstrapScreen({
+  tokens,
+  onUserChange,
+  onSignOut,
 }: {
-  onAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void;
+  tokens: AuthTokens;
+  onUserChange: (user: AuthUser) => void;
+  onSignOut: () => void;
+}) {
+  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const user = await api.bootstrapMe(tokens, {
+        displayName: displayName.trim(),
+        username: username.trim(),
+      });
+      onUserChange(user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not finish profile');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={[styles.auth, styles.authFormScreen]}>
+        <View style={styles.authPanel}>
+          <View style={styles.authFormHeader}>
+            <View style={styles.smallLogoBacking}>
+              <Image source={welcomeLogo} style={styles.smallWelcomeLogo} resizeMode="contain" />
+            </View>
+            <Text style={styles.authTitle}>Finish profile</Text>
+          </View>
+          <View style={styles.form}>
+            <Text style={styles.mutedText}>
+              Supabase owns login. CritiCool keeps the username and display name friends see.
+            </Text>
+            <Field value={displayName} onChangeText={setDisplayName} placeholder="Display name" />
+            <Field
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Username"
+              autoCapitalize="none"
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <PrimaryButton
+              label={busy ? 'Saving...' : 'Start using CritiCool'}
+              onPress={submit}
+              disabled={busy || !displayName.trim() || !username.trim()}
+            />
+            <Pressable style={styles.authLinkRow} onPress={onSignOut}>
+              <Text style={styles.authLinkText}>Log out</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function PasswordUpdateScreen({
+  onComplete,
+  onSignOut,
+}: {
+  onComplete: () => void;
+  onSignOut: () => void;
+}) {
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!supabase) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await supabase.auth.updateUser({ password });
+      if (response.error) {
+        throw response.error;
+      }
+      onComplete();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update password');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={[styles.auth, styles.authFormScreen]}>
+        <View style={styles.authPanel}>
+          <View style={styles.authFormHeader}>
+            <View style={styles.smallLogoBacking}>
+              <Image source={welcomeLogo} style={styles.smallWelcomeLogo} resizeMode="contain" />
+            </View>
+            <Text style={styles.authTitle}>Set new password</Text>
+          </View>
+          <View style={styles.form}>
+            <Field
+              value={password}
+              onChangeText={setPassword}
+              placeholder="New password"
+              secureTextEntry
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <PrimaryButton
+              label={busy ? 'Saving...' : 'Save password'}
+              onPress={submit}
+              disabled={busy || password.length < 8}
+            />
+            <Pressable style={styles.authLinkRow} onPress={onSignOut}>
+              <Text style={styles.authLinkText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function AuthScreen({
+  onLegacyAuth,
+  onSupabaseSession,
+}: {
+  onLegacyAuth: (response: { user: AuthUser; tokens: AuthTokens }) => void;
+  onSupabaseSession: (session: SupabaseSession) => void | Promise<void>;
 }) {
   const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'forgot'>('welcome');
   const [email, setEmail] = useState('');
@@ -430,6 +694,7 @@ function AuthScreen({
   const isWelcome = mode === 'welcome';
   const isRegister = mode === 'register';
   const isForgot = mode === 'forgot';
+  const usingSupabaseAuth = supabaseAuthEnabled && Boolean(supabase);
 
   const submit = async () => {
     if (isWelcome || isForgot) {
@@ -438,10 +703,28 @@ function AuthScreen({
     setBusy(true);
     setError(null);
     try {
+      if (usingSupabaseAuth && supabase) {
+        const response = isRegister
+          ? await supabase.auth.signUp({
+              email: email.trim(),
+              password,
+              options: { emailRedirectTo: supabaseRedirectUrl },
+            })
+          : await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (response.error) {
+          throw response.error;
+        }
+        if (response.data.session) {
+          await onSupabaseSession(response.data.session);
+        } else {
+          setNotice('Check your email to verify this account.');
+        }
+        return;
+      }
       const response = isRegister
         ? await api.register({ email, password, username, displayName })
         : await api.login({ email, password });
-      await onAuth(response);
+      await onLegacyAuth(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -455,6 +738,16 @@ function AuthScreen({
     setNotice(null);
     setDevResetToken(null);
     try {
+      if (usingSupabaseAuth && supabase) {
+        const response = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+          redirectTo: supabaseResetRedirectUrl,
+        });
+        if (response.error) {
+          throw response.error;
+        }
+        setNotice('Check your email for a password reset link.');
+        return;
+      }
       const response = await api.forgotPassword(resetEmail);
       if (response.devToken) {
         setDevResetToken(response.devToken);
@@ -509,9 +802,7 @@ function AuthScreen({
                 <Image source={welcomeLogo} style={styles.welcomeLogo} resizeMode="contain" />
               </View>
               <Text style={styles.logo}>CritiCool</Text>
-              <Text style={styles.tagline}>
-                Movie takes from your friends.{'\n'}Cute, quick, and private first.
-              </Text>
+              <Text style={styles.tagline}>be the critic, be cool</Text>
             </View>
             <View style={styles.authActions}>
               <PrimaryButton label="Create account" onPress={() => chooseMode('register')} />
@@ -540,30 +831,34 @@ function AuthScreen({
                     autoCapitalize="none"
                   />
                   <PrimaryButton
-                    label="Request reset token"
+                    label={usingSupabaseAuth ? 'Send reset email' : 'Request reset token'}
                     onPress={requestPasswordReset}
                     disabled={busy || !resetEmail.trim()}
                   />
-                  {devResetToken ? (
-                    <View style={styles.notice}>
-                      <Text style={styles.label}>Beta reset token</Text>
-                      <Text selectable style={styles.devTokenText}>
-                        {devResetToken}
-                      </Text>
-                    </View>
+                  {!usingSupabaseAuth ? (
+                    <>
+                      {devResetToken ? (
+                        <View style={styles.notice}>
+                          <Text style={styles.label}>Beta reset token</Text>
+                          <Text selectable style={styles.devTokenText}>
+                            {devResetToken}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <Field
+                        value={resetToken}
+                        onChangeText={setResetToken}
+                        placeholder="Reset token"
+                        autoCapitalize="none"
+                      />
+                      <Field
+                        value={resetPassword}
+                        onChangeText={setResetPassword}
+                        placeholder="New password"
+                        secureTextEntry
+                      />
+                    </>
                   ) : null}
-                  <Field
-                    value={resetToken}
-                    onChangeText={setResetToken}
-                    placeholder="Reset token"
-                    autoCapitalize="none"
-                  />
-                  <Field
-                    value={resetPassword}
-                    onChangeText={setResetPassword}
-                    placeholder="New password"
-                    secureTextEntry
-                  />
                 </>
               ) : (
                 <>
@@ -579,7 +874,7 @@ function AuthScreen({
                     placeholder="Password"
                     secureTextEntry
                   />
-                  {isRegister ? (
+                  {isRegister && !usingSupabaseAuth ? (
                     <>
                       <Field
                         value={username}
@@ -599,11 +894,13 @@ function AuthScreen({
               {notice ? <Text style={styles.mutedText}>{notice}</Text> : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
               {isForgot ? (
-                <PrimaryButton
-                  label="Set new password"
-                  onPress={submitPasswordReset}
-                  disabled={busy || !resetToken.trim() || resetPassword.length < 8}
-                />
+                usingSupabaseAuth ? null : (
+                  <PrimaryButton
+                    label="Set new password"
+                    onPress={submitPasswordReset}
+                    disabled={busy || !resetToken.trim() || resetPassword.length < 8}
+                  />
+                )
               ) : (
                 <PrimaryButton
                   label={isRegister ? 'Create account' : 'Log in'}
@@ -3300,6 +3597,7 @@ function AccountSettingsScreen({
   const [devVerificationToken, setDevVerificationToken] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const usingSupabaseAuth = tokens.provider === 'supabase' && Boolean(supabase);
 
   useEffect(() => {
     setDisplayName(user.displayName);
@@ -3314,7 +3612,7 @@ function AccountSettingsScreen({
       const updated = await api.updateMe(tokens, {
         displayName: displayName.trim(),
         username: username.trim(),
-        email: email.trim(),
+        ...(usingSupabaseAuth ? {} : { email: email.trim() }),
       });
       onUserChange(updated);
       setMessage(
@@ -3324,6 +3622,27 @@ function AccountSettingsScreen({
       setMessage(err instanceof Error ? err.message : 'Could not update account');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const sendPasswordReset = async () => {
+    if (!supabase) {
+      return;
+    }
+    setVerifying(true);
+    setMessage(null);
+    try {
+      const response = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: supabaseResetRedirectUrl,
+      });
+      if (response.error) {
+        throw response.error;
+      }
+      setMessage('Password reset email sent.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not send password reset');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -3384,7 +3703,8 @@ function AccountSettingsScreen({
     ]);
   };
 
-  const saveDisabled = saving || !displayName.trim() || !username.trim() || !email.trim();
+  const saveDisabled =
+    saving || !displayName.trim() || !username.trim() || (!usingSupabaseAuth && !email.trim());
   const emailStatus = user.pendingEmail
     ? 'Pending'
     : user.emailVerifiedAt
@@ -3407,50 +3727,70 @@ function AccountSettingsScreen({
             placeholder="Username"
             autoCapitalize="none"
           />
-          <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
+          {!usingSupabaseAuth ? (
+            <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
+          ) : null}
           <PrimaryButton
-            label={saving ? 'Saving...' : 'Save account'}
+            label={saving ? 'Saving...' : usingSupabaseAuth ? 'Save profile' : 'Save account'}
             onPress={saveProfile}
             disabled={saveDisabled}
             compact
           />
         </View>
       </Panel>
-      <Panel>
-        <View style={styles.form}>
-          <Text style={styles.label}>Email verification</Text>
-          <Text style={styles.mutedText}>Current login email: {user.email}</Text>
-          {user.pendingEmail ? (
-            <Text style={styles.mutedText}>Pending email: {user.pendingEmail}</Text>
-          ) : null}
-          <Pressable
-            style={styles.secondaryButton}
-            disabled={verifying}
-            onPress={requestVerificationToken}
-          >
-            <Text style={styles.secondaryButtonText}>
-              {user.pendingEmail ? 'Get email-change token' : 'Get verification token'}
-            </Text>
-          </Pressable>
-          {devVerificationToken ? (
-            <Text selectable style={styles.devTokenText}>
-              {devVerificationToken}
-            </Text>
-          ) : null}
-          <Field
-            value={verificationToken}
-            onChangeText={setVerificationToken}
-            placeholder="Verification token"
-            autoCapitalize="none"
-          />
-          <PrimaryButton
-            label="Verify email"
-            onPress={verifyEmail}
-            disabled={verifying || !verificationToken.trim()}
-            compact
-          />
-        </View>
-      </Panel>
+      {usingSupabaseAuth ? (
+        <Panel>
+          <View style={styles.form}>
+            <Text style={styles.label}>Login email</Text>
+            <Text style={styles.mutedText}>{user.email}</Text>
+            <Pressable
+              style={[styles.secondaryButton, styles.centeredButton]}
+              disabled={verifying}
+              onPress={sendPasswordReset}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {verifying ? 'Sending...' : 'Send pwd reset'}
+              </Text>
+            </Pressable>
+          </View>
+        </Panel>
+      ) : (
+        <Panel>
+          <View style={styles.form}>
+            <Text style={styles.label}>Email verification</Text>
+            <Text style={styles.mutedText}>Current login email: {user.email}</Text>
+            {user.pendingEmail ? (
+              <Text style={styles.mutedText}>Pending email: {user.pendingEmail}</Text>
+            ) : null}
+            <Pressable
+              style={styles.secondaryButton}
+              disabled={verifying}
+              onPress={requestVerificationToken}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {user.pendingEmail ? 'Get email-change token' : 'Get verification token'}
+              </Text>
+            </Pressable>
+            {devVerificationToken ? (
+              <Text selectable style={styles.devTokenText}>
+                {devVerificationToken}
+              </Text>
+            ) : null}
+            <Field
+              value={verificationToken}
+              onChangeText={setVerificationToken}
+              placeholder="Verification token"
+              autoCapitalize="none"
+            />
+            <PrimaryButton
+              label="Verify email"
+              onPress={verifyEmail}
+              disabled={verifying || !verificationToken.trim()}
+              compact
+            />
+          </View>
+        </Panel>
+      )}
       {message ? (
         <Text style={message.includes('Could not') ? styles.error : styles.mutedText}>
           {message}
@@ -5310,6 +5650,9 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: colors.yellow,
     paddingHorizontal: 12,
+  },
+  centeredButton: {
+    alignSelf: 'center',
   },
   dangerButton: {
     backgroundColor: '#ffd8bd',

@@ -13,6 +13,7 @@ export type AuthUser = {
 export type AuthTokens = {
   accessToken: string;
   refreshToken: string;
+  provider?: 'legacy' | 'supabase';
 };
 
 export type AuthResponse = {

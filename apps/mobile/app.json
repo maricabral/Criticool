@@ -13,9 +13,11 @@
       "backgroundColor": "#fff0d2"
     },
     "ios": {
+      "bundleIdentifier": "com.criticool.app",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.criticool.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/criticool-icon.png",
         "backgroundColor": "#fff0d2"

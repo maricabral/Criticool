@@ -380,4 +380,110 @@ describe('AuthService', () => {
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } });
     });
   });
+
+  describe('managed auth mode', () => {
+    const managedConfig = {
+      get: vi.fn((key: string) => (key === 'AUTH_PROVIDER' ? 'supabase' : 'test-secret')),
+    };
+
+    beforeEach(() => {
+      service = new AuthService(prisma as never, jwt as never, managedConfig as never);
+    });
+
+    it('disables legacy registration when Supabase Auth is active', async () => {
+      await expect(
+        service.register(
+          {
+            email: 'alice@example.com',
+            password: 'securepass123',
+            username: 'alice',
+            displayName: 'Alice',
+          },
+          {},
+        ),
+      ).rejects.toThrow('Managed auth is enabled');
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a CritiCool profile from Supabase identity claims', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'alice@example.com',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+        bio: null,
+        locale: 'en-US',
+        emailVerifiedAt: new Date('2026-05-20T12:00:00.000Z'),
+        pendingEmail: null,
+      });
+
+      const result = await service.bootstrapMe(
+        {
+          id: '00000000-0000-0000-0000-000000000001',
+          email: 'Alice@Example.com',
+          username: '',
+          profileReady: false,
+        },
+        { username: 'Alice', displayName: 'Alice' },
+      );
+
+      expect(result.username).toBe('alice');
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        data: {
+          id: '00000000-0000-0000-0000-000000000001',
+          email: 'alice@example.com',
+          username: 'alice',
+          displayName: 'Alice',
+          emailVerifiedAt: expect.any(Date),
+          accounts: {
+            create: {
+              provider: 'supabase',
+              providerUserId: '00000000-0000-0000-0000-000000000001',
+            },
+          },
+        },
+      });
+    });
+
+    it('rejects username conflicts during Supabase profile bootstrap', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: '00000000-0000-0000-0000-000000000002',
+        email: 'other@example.com',
+        username: 'alice',
+      });
+
+      await expect(
+        service.bootstrapMe(
+          {
+            id: '00000000-0000-0000-0000-000000000001',
+            email: 'alice@example.com',
+            username: '',
+          },
+          { username: 'alice', displayName: 'Alice' },
+        ),
+      ).rejects.toThrow('Username is already taken');
+    });
+
+    it('keeps email changes out of the API profile update path', async () => {
+      prisma.user.findFirstOrThrow.mockResolvedValue({
+        id: 'user-1',
+        email: 'alice@example.com',
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+        bio: null,
+        locale: 'en-US',
+        emailVerifiedAt: null,
+        pendingEmail: null,
+        deletedAt: null,
+      });
+
+      await expect(
+        service.updateMe('user-1', { email: 'new@example.com' }),
+      ).rejects.toThrow('Email changes are managed by Supabase Auth');
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+  });
 });

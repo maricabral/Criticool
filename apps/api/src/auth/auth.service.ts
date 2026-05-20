@@ -9,8 +9,10 @@ import { JwtService } from '@nestjs/jwt';
 import { AccountTokenType, Prisma, User } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
+import { RequestUser } from '../common/auth-user';
 import { PrismaService } from '../prisma.service';
-import { LoginDto, RegisterDto, ResetPasswordDto, UpdateMeDto } from './dto';
+import { BootstrapMeDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateMeDto } from './dto';
+import { SupabaseAuthService } from './supabase-auth.service';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_DAYS = 30;
@@ -24,12 +26,14 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly supabaseAuth?: SupabaseAuthService,
   ) {}
 
   async register(
     dto: RegisterDto,
     meta: { deviceName?: string; userAgent?: string; ipAddress?: string },
   ) {
+    this.assertLegacyAuthEnabled();
     const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim().toLowerCase();
     const displayName = dto.displayName.trim();
@@ -68,6 +72,7 @@ export class AuthService {
     dto: LoginDto,
     meta: { deviceName?: string; userAgent?: string; ipAddress?: string },
   ) {
+    this.assertLegacyAuthEnabled();
     const email = dto.email.trim().toLowerCase();
     const account = await this.prisma.authAccount.findUnique({
       where: { provider_providerUserId: { provider: 'email', providerUserId: email } },
@@ -86,6 +91,7 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
+    this.assertLegacyAuthEnabled();
     const refreshTokenHash = this.hashRefreshToken(refreshToken);
     const session = await this.prisma.session.findUnique({
       where: { refreshTokenHash },
@@ -120,6 +126,7 @@ export class AuthService {
   }
 
   async logout(refreshToken: string) {
+    this.assertLegacyAuthEnabled();
     if (!refreshToken) {
       throw new BadRequestException('refreshToken is required');
     }
@@ -162,6 +169,9 @@ export class AuthService {
 
     const nextEmail = dto.email?.trim().toLowerCase();
     if (nextEmail) {
+      if (this.managedAuthEnabled()) {
+        throw new BadRequestException('Email changes are managed by Supabase Auth');
+      }
       if (nextEmail === user.email) {
         data.pendingEmail = null;
       } else if (nextEmail !== user.pendingEmail) {
@@ -192,6 +202,7 @@ export class AuthService {
   }
 
   async requestEmailVerification(userId: string) {
+    this.assertLegacyAuthEnabled();
     const user = await this.prisma.user.findFirstOrThrow({
       where: { id: userId, deletedAt: null },
     });
@@ -220,6 +231,7 @@ export class AuthService {
   }
 
   async verifyEmailToken(token: string) {
+    this.assertLegacyAuthEnabled();
     const row = await this.findUsableToken(token, [
       AccountTokenType.email_verification,
       AccountTokenType.email_change,
@@ -280,6 +292,7 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string) {
+    this.assertLegacyAuthEnabled();
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prisma.user.findFirst({
       where: { email: normalizedEmail, deletedAt: null },
@@ -307,6 +320,7 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
+    this.assertLegacyAuthEnabled();
     const row = await this.findUsableToken(dto.token, [AccountTokenType.password_reset]);
     const passwordHash = await hash(dto.password, 12);
     const now = new Date();
@@ -370,7 +384,56 @@ export class AuthService {
       this.prisma.user.delete({ where: { id: userId } }),
     ]);
 
+    await this.supabaseAuth?.deleteAuthUser(userId);
+
     return { ok: true };
+  }
+
+  async bootstrapMe(authUser: RequestUser, dto: BootstrapMeDto) {
+    if (!this.managedAuthEnabled()) {
+      throw new BadRequestException('Profile bootstrap requires Supabase Auth');
+    }
+
+    const email = authUser.email.trim().toLowerCase();
+    if (!email) {
+      throw new BadRequestException('Supabase email claim is required');
+    }
+
+    const username = dto.username.trim().toLowerCase();
+    const displayName = dto.displayName.trim();
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ id: authUser.id }, { email }, { username }],
+      },
+    });
+
+    if (existing) {
+      if (existing.id === authUser.id) {
+        return this.presentUser(existing);
+      }
+      if (existing.username === username) {
+        throw new ConflictException('Username is already taken');
+      }
+      throw new ConflictException('Email is already registered');
+    }
+
+    const created = await this.prisma.user.create({
+      data: {
+        id: authUser.id,
+        email,
+        username,
+        displayName,
+        emailVerifiedAt: new Date(),
+        accounts: {
+          create: {
+            provider: 'supabase',
+            providerUserId: authUser.id,
+          },
+        },
+      },
+    });
+
+    return this.presentUser(created);
   }
 
   private async issueSession(
@@ -493,7 +556,17 @@ export class AuthService {
 
   private devAccountTokensEnabled() {
     const value = this.config.get<string>('ACCOUNT_DEV_TOKENS') ?? 'true';
-    return value.trim().toLowerCase() !== 'false';
+    return !this.managedAuthEnabled() && value.trim().toLowerCase() !== 'false';
+  }
+
+  private managedAuthEnabled() {
+    return (this.config.get<string>('AUTH_PROVIDER') ?? 'legacy').trim().toLowerCase() === 'supabase';
+  }
+
+  private assertLegacyAuthEnabled() {
+    if (this.managedAuthEnabled()) {
+      throw new BadRequestException('Managed auth is enabled; use Supabase Auth');
+    }
   }
 
   private presentUser(

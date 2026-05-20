@@ -64,6 +64,17 @@ export class UpdateMeDto {
   displayName?: string;
 }
 
+export class BootstrapMeDto {
+  @IsString()
+  @Length(3, 24)
+  @Matches(/^[a-zA-Z0-9_]+$/)
+  username: string;
+
+  @IsString()
+  @Length(1, 80)
+  displayName: string;
+}
+
 export class VerifyEmailDto {
   @IsString()
   @IsNotEmpty()

@@ -2,12 +2,14 @@
 
 Private-first social movie reviews. CritiCool starts with movies and a friends-only feed, then opens each review into a threaded discussion space.
 
-Phase 2 is now the working baseline: session refresh, logout, active-review uniqueness, comment edit/delete/sort/vote removal, notifications, reports, blocks, focused backend tests, and a repeatable API smoke script are in place.
+Phase 5 is the current readiness track: move the local MVP to a production-backed phone beta with Supabase Auth/Postgres, Render API hosting, Resend auth email delivery, and EAS internal builds.
 
 ## Current Status
 
 - Phase 1 core loop: register, find/import a movie, post a review, become friends, and see friend reviews in the feed.
 - Phase 2 social layer: review detail comments, replies, comment voting, notifications, report/block entry points, and mobile review-detail controls.
+- Phase 4 account lifecycle: local profile settings, verification/reset token flows, hard delete, and friend-review navigation provenance.
+- Phase 5 beta readiness: plan and deployment scaffolding are in progress; mobile UX changes require approval of `resources/mockups/preview/phase-5-auth-beta.html`.
 - Verified locally with `npm test` and `npm run build --workspaces --if-present`.
 - Known Phase 2 follow-up: blocked-user comments are hidden from review detail rows, but feed/review comment counts and feed participant avatars should also exclude blocked comment authors.
 
@@ -17,6 +19,8 @@ Phase 2 is now the working baseline: session refresh, logout, active-review uniq
 - Phase 1 plan: `resources/plans/CRITICOOL_PHASE_1.md`
 - Phase 2 plan and audit: `resources/plans/CRITICOOL_PHASE_2_PLAN.md`
 - Phase 3 plan: `resources/plans/CRITICOOL_PHASE_3_PLAN.md`
+- Phase 4 plan: `resources/plans/CRITICOOL_PHASE_4_PLAN.md`
+- Phase 5 plan: `resources/plans/CRITICOOL_PHASE_5_PLAN.md`
 
 ## Stack
 
@@ -69,6 +73,23 @@ npm run qa:smoke -- http://localhost:3000
 ```
 
 No secrets should be committed. Keep real values only in `.env` files.
+
+## Phase 5 Hosted Beta Setup
+
+Phase 5 production-backed beta defaults:
+
+- Auth and database: Supabase Auth + Supabase Postgres.
+- API host: Render Web Service using `render.yaml`.
+- Mobile build: EAS internal distribution using `eas.json`.
+- Auth email delivery: Resend SMTP configured in Supabase, not in this repo.
+
+Important environment choices:
+
+- Set `AUTH_PROVIDER=supabase` only for hosted beta/prod API environments.
+- Keep `AUTH_PROVIDER=legacy` locally until the Supabase mobile flow is approved and implemented.
+- Set `ACCOUNT_DEV_TOKENS=false` anywhere real testers can reach the API.
+- Store `SUPABASE_SERVICE_ROLE_KEY` only on the API host; never expose it to Expo.
+- Configure EAS `preview` environment variables for `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
 ## UX And Visual Standards
 

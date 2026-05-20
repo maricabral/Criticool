@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: criticool-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run prisma:generate -w @criticool/api && npm run build --workspaces --if-present
+    preDeployCommand: npm run prisma:migrate:deploy -w @criticool/api
+    startCommand: npm run start:prod -w @criticool/api
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_PROVIDER
+        value: supabase
+      - key: ACCOUNT_DEV_TOKENS
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWKS_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: TMDB_ACCESS_TOKEN
+        sync: false
+      - key: TMDB_DEFAULT_LANGUAGE
+        value: en-US
+      - key: TMDB_DEFAULT_REGION
+        value: US
+      - key: TRANSLATION_PROVIDER
+        value: google
+      - key: TRANSLATION_ENDPOINT_URL
+        sync: false
+      - key: TRANSLATION_API_KEY
+        sync: false

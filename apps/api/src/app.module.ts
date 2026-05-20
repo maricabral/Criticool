@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
+import { SupabaseAuthService } from './auth/supabase-auth.service';
 import { FeedController } from './feed/feed.controller';
 import { FeedService } from './feed/feed.service';
 import { FriendshipsController } from './friendships/friendships.controller';
@@ -44,6 +45,7 @@ import { VisibilityService } from './visibility/visibility.service';
   providers: [
     PrismaService,
     AuthService,
+    SupabaseAuthService,
     MoviesService,
     ReviewsService,
     FriendshipsService,

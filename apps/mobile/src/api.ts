@@ -115,6 +115,10 @@ export async function apiRequest<T>(
   const data = text ? JSON.parse(text) : null;
 
   if (response.status === 401 && options.tokens?.refreshToken) {
+    if (options.tokens.provider === 'supabase') {
+      onSessionExpired?.();
+      throw new Error('Session expired');
+    }
     // Deduplicate concurrent refresh attempts
     if (!refreshPromise) {
       refreshPromise = refreshAccessToken(options.tokens).finally(() => {
@@ -163,6 +167,12 @@ export const api = {
       body: JSON.stringify({ refreshToken: tokens.refreshToken }),
     }),
   me: (tokens: AuthTokens) => apiRequest<AuthUser>('/me', { tokens }),
+  bootstrapMe: (tokens: AuthTokens, body: { username: string; displayName: string }) =>
+    apiRequest<AuthUser>('/me/bootstrap', {
+      method: 'POST',
+      tokens,
+      body: JSON.stringify(body),
+    }),
   updateMe: (
     tokens: AuthTokens,
     body: {
