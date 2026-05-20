@@ -7,7 +7,7 @@ Last updated: 2026-05-20
 
 Phase 4 makes CritiCool safer to hand to closed beta testers by adding account settings and recovery flows. The phase stays focused: no push notifications, invite system, TMDB jobs, watchlist, admin dashboard, or feed redesign.
 
-Primary outcome: a tester can edit only the MVP account identity fields, verify or change email through a dev-token flow, reset a forgotten password, and permanently delete their account, then pass mobile QA on a restarted API and Expo app.
+Primary outcome: a tester can edit only the MVP account identity fields, verify or change email through a dev-token flow, reset a forgotten password, permanently delete their account, and move through friend profile review detail without losing source-tab context, then pass mobile QA on a restarted API and Expo app.
 
 ## UX Approval Rule
 
@@ -32,6 +32,11 @@ Implemented in this rollout:
 - Shared user/account types and mobile API client methods.
 - Unit coverage plus smoke coverage for the new account lifecycle path.
 
+Required follow-up before Phase 4 sign-off:
+
+- Fix the friend-review navigation regression where `Friends -> friend profile -> review detail` highlights the `Me` tab on review detail.
+- Add focused tests for the source-tab behavior so future profile/review navigation changes cannot reintroduce the regression.
+
 ## Key Changes
 
 - Add account lifecycle schema support:
@@ -53,7 +58,35 @@ Implemented in this rollout:
 - Update profile navigation:
   - Remove average rating from user profiles.
   - When a friend profile is opened from Friends, keep Friends selected in the tab bar.
+  - When a review is opened from that friend profile, keep Friends selected on review detail instead of switching the tab bar to Me.
+  - The review detail `Back` pill must return to the friend profile with Friends still selected; the friend profile `Back` pill then returns to Friends.
+  - Treat friend profile and friend review detail as overlays over their source tab. Do not infer the bottom-tab state only from the internal profile route.
   - Add the official `Back` pill on friend profiles opened from another tab.
+
+## Friend Review Detail Regression Fix
+
+Reproduction path:
+
+1. Open `Friends`.
+2. Pick a friend.
+3. Pick one of that friend's reviews.
+4. Observe that the review detail screen currently marks `Me` as the active bottom tab.
+
+Required behavior:
+
+- Review detail opened from a friend profile must keep the originating tab active. For the reproduction path above, the active tab remains `Friends`.
+- Review detail opened from the viewer's own `Me` profile still keeps `Me` active.
+- Review detail opened from `Feed` or notifications should preserve that entry source where possible, instead of pretending the user is on `Me`.
+- `Back` on friend review detail clears only the selected review and returns to the friend profile. It must not clear the selected friend profile or jump to the viewer's own profile.
+- The friend profile `Back` pill remains the right-side pink `Back` pill from `resources/mockups/preview/phase-4-profile-settings.html`.
+
+Implementation approach:
+
+- Store explicit navigation provenance for review detail, such as `reviewBackTab` or a shared `sourceTab`, when opening a review.
+- When opening a review from a friend profile, copy the friend profile source tab (`Friends` in the bug path) into review detail provenance.
+- Resolve the tab bar's active tab from review-detail provenance first, then friend-profile provenance, then the current top-level tab.
+- Keep `selectedProfileUser` intact while review detail is open so returning from review detail lands on the same friend profile.
+- Prefer extracting the profile/review navigation transitions into a small pure helper or reducer so this behavior can be unit tested without relying only on emulator QA.
 
 ## Public API And Type Changes
 
@@ -67,13 +100,20 @@ Implemented in this rollout:
 ## Test Plan
 
 - Backend tests cover profile updates, duplicate identity conflicts, pending-email promotion, token hashing/expiry/reuse prevention, password reset session revocation, and hard-delete cleanup.
+- Mobile navigation regression tests cover:
+  - `Friends -> friend profile -> review detail` keeps `Friends` active on the tab bar.
+  - Pressing the review detail `Back` pill returns to the same friend profile with `Friends` still active.
+  - Pressing the friend profile `Back` pill returns to the Friends list.
+  - `Me -> own review -> review detail` keeps `Me` active, proving the fix does not break own-profile review navigation.
+  - A review opened from `Feed` keeps `Feed` active, proving review detail source-tab provenance is not hard-coded to Friends.
+- If mobile component testing remains unavailable, add a pure navigation-state helper/reducer and cover these cases with Vitest before app-level QA.
 - Mobile verification:
   - `npm run build --workspaces --if-present`
   - `npm test`
   - `npm run qa:smoke`
   - Restart API with `npm run dev:api` because the app-facing account API changed.
   - Restart Expo with `npm run dev:mobile` because the mobile UX changed.
-  - Manually QA register, verify email, edit display name/username/email, change pending email, reset password from logged-out state, login with new password, open a friend profile from Friends and return with Back, and hard-delete account.
+  - Manually QA register, verify email, edit display name/username/email, change pending email, reset password from logged-out state, login with new password, open a friend profile from Friends, open that friend's review, confirm the Review screen keeps Friends selected, return with Back to the friend profile, return with Back to Friends, and hard-delete account.
 
 ## Assumptions
 

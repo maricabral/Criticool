@@ -345,6 +345,89 @@
         font-weight: 900;
       }
 
+      .detail-card {
+        border: 3px solid var(--ink);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        padding: 10px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .detail-top {
+        display: grid;
+        grid-template-columns: 70px minmax(0, 1fr);
+        gap: 10px;
+      }
+
+      .detail-poster {
+        width: 70px;
+        height: 96px;
+        border: 3px solid var(--ink);
+        border-radius: 8px;
+        background: linear-gradient(160deg, #21212b 0 38%, #7e3030 38% 62%, #c99246 62% 100%);
+      }
+
+      .detail-copy {
+        display: grid;
+        align-content: start;
+        gap: 7px;
+      }
+
+      .detail-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .detail-author {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .mini-avatar {
+        width: 30px;
+        height: 30px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--cyan);
+        color: var(--surface);
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        font-size: 15px;
+        font-weight: 900;
+      }
+
+      .detail-body {
+        font-size: 16px;
+        line-height: 1.35;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+      }
+
+      .comment-strip {
+        border: 3px solid var(--ink);
+        border-radius: 18px;
+        background: var(--yellow);
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-weight: 900;
+      }
+
       .rating {
         display: flex;
         align-items: center;
@@ -404,7 +487,7 @@
         <p>
           Visual preview for the MVP account cleanup: settings is a separate backable page, profile
           stats no longer show average rating, avatars stay letter-only, and friend profiles opened
-          from Friends keep the Friends tab active.
+          from Friends keep the Friends tab active through review detail.
         </p>
       </section>
 
@@ -528,6 +611,57 @@
                       </div>
                     </div>
                   </div>
+                </div>
+              </section>
+              <nav class="tabbar" aria-label="Main tabs">
+                <div class="tab"><span class="tab-icon">F</span><span>Feed</span></div>
+                <div class="tab"><span class="tab-icon">Q</span><span>Search</span></div>
+                <div class="tab"><span class="tab-icon">+</span><span>Post</span></div>
+                <div class="tab active"><span class="tab-icon">2</span><span>Friends</span></div>
+                <div class="tab"><span class="tab-icon">M</span><span>Me</span></div>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="mock">
+          <h2 class="mock-title">Friend review detail preserves Friends</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <h2>Review</h2>
+                <div class="back-pill">Back</div>
+              </header>
+              <section class="detail-card">
+                <div class="detail-meta">
+                  <div class="detail-author">
+                    <span class="mini-avatar">L</span>
+                    <span>@choci</span>
+                  </div>
+                  <span>Spoiler-free</span>
+                </div>
+                <div class="detail-top">
+                  <div class="detail-poster"></div>
+                  <div class="detail-copy">
+                    <div class="review-title">Gladiator II</div>
+                    <div class="rating">4.0</div>
+                    <p class="muted">DONDUS</p>
+                  </div>
+                </div>
+                <p class="detail-body">the first one is better, as always</p>
+                <div class="tags">
+                  <span class="tag">comfort watch</span>
+                  <span class="tag">great with friends</span>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="section-head">
+                  <h3>Comments</h3>
+                  <span class="pill">0 chats</span>
+                </div>
+                <div class="comment-strip">
+                  <span>Join discussion</span>
+                  <span class="pill">Best</span>
                 </div>
               </section>
               <nav class="tabbar" aria-label="Main tabs">
