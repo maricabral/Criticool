@@ -50,9 +50,15 @@ import {
   setOnSessionExpired,
   setOnTokensChanged,
 } from './src/api';
+import {
+  closeReviewNavigation,
+  openReviewNavigation,
+  resolveActiveTab,
+  type AppNavigationState,
+  type Tab,
+} from './src/navigationState';
 import { colors } from './src/theme';
 
-type Tab = 'feed' | 'search' | 'create' | 'friends' | 'profile';
 const welcomeLogo = require('./assets/criticool-logo.png') as number;
 const webNoOutline =
   Platform.OS === 'web'
@@ -649,12 +655,29 @@ function AppShell({
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [selectedProfileUser, setSelectedProfileUser] = useState<FriendSummary | null>(null);
   const [profileBackTab, setProfileBackTab] = useState<Tab | null>(null);
+  const [reviewBackTab, setReviewBackTab] = useState<Tab | null>(null);
   const [editingReview, setEditingReview] = useState<EditableReview | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const deviceLocale = deviceLocaleFallback();
   const viewerLocale = user.locale && user.locale !== 'en-US' ? user.locale : deviceLocale;
   const showingOverlay = showNotifications;
+  const navigationState: AppNavigationState<FriendSummary> = {
+    tab,
+    selectedProfileUser,
+    profileBackTab,
+    selectedReviewId,
+    reviewBackTab,
+  };
+  const activeTab = resolveActiveTab(navigationState);
+
+  const applyNavigationState = (nextState: AppNavigationState<FriendSummary>) => {
+    setTab(nextState.tab);
+    setSelectedProfileUser(nextState.selectedProfileUser);
+    setProfileBackTab(nextState.profileBackTab);
+    setSelectedReviewId(nextState.selectedReviewId);
+    setReviewBackTab(nextState.reviewBackTab);
+  };
 
   const refreshUnreadNotifications = useCallback(async () => {
     try {
@@ -676,23 +699,23 @@ function AppShell({
     setEditingReview(null);
     setSelectedProfileUser(null);
     setProfileBackTab(null);
+    setReviewBackTab(null);
     setShowNotifications(false);
     setTab('create');
   };
 
-  const openReview = (id: string) => {
-    setSelectedProfileUser(null);
-    setProfileBackTab(null);
+  const openReview = (id: string, sourceTab?: Tab) => {
     setShowNotifications(false);
-    setSelectedReviewId(id);
-    setTab('profile');
+    applyNavigationState(openReviewNavigation(navigationState, id, sourceTab));
   };
 
   const openUserProfile = (profileUser: FriendSummary) => {
     const isOwnProfile = profileUser.id === user.id;
+    const sourceTab = resolveActiveTab(navigationState);
     setSelectedProfileUser(isOwnProfile ? null : profileUser);
-    setProfileBackTab(isOwnProfile || tab === 'profile' ? null : tab);
+    setProfileBackTab(isOwnProfile || sourceTab === 'profile' ? null : sourceTab);
     setSelectedReviewId(null);
+    setReviewBackTab(null);
     setShowNotifications(false);
     setTab('profile');
   };
@@ -703,6 +726,7 @@ function AppShell({
     setSelectedProfileUser(null);
     setProfileBackTab(null);
     setSelectedReviewId(null);
+    setReviewBackTab(null);
     setShowNotifications(false);
     setTab('create');
   };
@@ -712,7 +736,12 @@ function AppShell({
     setSelectedProfileUser(null);
     setSelectedReviewId(null);
     setProfileBackTab(null);
+    setReviewBackTab(null);
     setTab(nextTab);
+  };
+
+  const closeReview = () => {
+    applyNavigationState(closeReviewNavigation(navigationState));
   };
 
   return (
@@ -748,17 +777,18 @@ function AppShell({
             onSelectMovie={setSelectedMovie}
             onPosted={(id) => {
               setEditingReview(null);
-              openReview(id);
+              openReview(id, 'profile');
             }}
             onUpdated={(id) => {
               setEditingReview(null);
-              openReview(id);
+              openReview(id, 'profile');
             }}
             onDeleted={() => {
               setEditingReview(null);
               setSelectedMovie(null);
               setSelectedReviewId(null);
               setProfileBackTab(null);
+              setReviewBackTab(null);
               setTab('profile');
             }}
             onCancelEdit={() => {
@@ -777,7 +807,7 @@ function AppShell({
               currentUserId={user.id}
               viewerLocale={viewerLocale}
               reviewId={selectedReviewId}
-              onBack={() => setSelectedReviewId(null)}
+              onBack={closeReview}
               onEditReview={(review) => startEditReview(toEditableReview(review))}
               onOpenUser={openUserProfile}
             />
@@ -796,12 +826,13 @@ function AppShell({
         ) : null}
       </View>
       <TabBar
-        current={selectedProfileUser && profileBackTab ? profileBackTab : tab}
+        current={activeTab}
         onChange={(nextTab) => {
           setShowNotifications(false);
           setSelectedProfileUser(null);
           setProfileBackTab(null);
           setSelectedReviewId(null);
+          setReviewBackTab(null);
           if (nextTab !== 'create') {
             setEditingReview(null);
           }
