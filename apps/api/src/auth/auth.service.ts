@@ -10,7 +10,7 @@ import { AccountTokenType, Prisma, User } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
-import { DeleteMeDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateMeDto } from './dto';
+import { LoginDto, RegisterDto, ResetPasswordDto, UpdateMeDto } from './dto';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_DAYS = 30;
@@ -26,7 +26,10 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto, meta: { deviceName?: string; userAgent?: string; ipAddress?: string }) {
+  async register(
+    dto: RegisterDto,
+    meta: { deviceName?: string; userAgent?: string; ipAddress?: string },
+  ) {
     const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim().toLowerCase();
     const displayName = dto.displayName.trim();
@@ -61,7 +64,10 @@ export class AuthService {
     return this.issueSession(user, meta);
   }
 
-  async login(dto: LoginDto, meta: { deviceName?: string; userAgent?: string; ipAddress?: string }) {
+  async login(
+    dto: LoginDto,
+    meta: { deviceName?: string; userAgent?: string; ipAddress?: string },
+  ) {
     const email = dto.email.trim().toLowerCase();
     const account = await this.prisma.authAccount.findUnique({
       where: { provider_providerUserId: { provider: 'email', providerUserId: email } },
@@ -125,20 +131,21 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    const user = await this.prisma.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
+    });
     return this.presentUser(user);
   }
 
   async updateMe(userId: string, dto: UpdateMeDto) {
-    const user = await this.prisma.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
+    });
     const data: Partial<{
       email: string;
       pendingEmail: string | null;
       username: string;
       displayName: string;
-      bio: string | null;
-      locale: string;
-      avatarUrl: string | null;
     }> = {};
 
     const nextUsername = dto.username?.trim().toLowerCase();
@@ -175,15 +182,6 @@ export class AuthService {
     if (typeof dto.displayName === 'string') {
       data.displayName = dto.displayName.trim();
     }
-    if (dto.bio !== undefined) {
-      data.bio = this.optionalText(dto.bio);
-    }
-    if (typeof dto.locale === 'string') {
-      data.locale = dto.locale.trim() || 'en-US';
-    }
-    if (dto.avatarUrl !== undefined) {
-      data.avatarUrl = this.optionalText(dto.avatarUrl);
-    }
 
     if (!Object.keys(data).length) {
       return this.presentUser(user);
@@ -194,7 +192,9 @@ export class AuthService {
   }
 
   async requestEmailVerification(userId: string) {
-    const user = await this.prisma.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
+    });
     if (user.emailVerifiedAt && !user.pendingEmail) {
       return {
         ok: true,
@@ -329,19 +329,10 @@ export class AuthService {
     return { ok: true };
   }
 
-  async deleteMe(userId: string, dto: DeleteMeDto) {
-    const user = await this.prisma.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
-    if (dto.username.trim().toLowerCase() !== user.username) {
-      throw new BadRequestException('Username confirmation does not match');
-    }
-
-    const account = await this.prisma.authAccount.findUnique({
-      where: { provider_providerUserId: { provider: 'email', providerUserId: user.email } },
+  async deleteMe(userId: string) {
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
     });
-    if (!account?.passwordHash || !(await compare(dto.currentPassword, account.passwordHash))) {
-      throw new UnauthorizedException('Invalid password');
-    }
-
     const [reviews, comments] = await Promise.all([
       this.prisma.review.findMany({ where: { userId }, select: { id: true } }),
       this.prisma.comment.findMany({
@@ -358,9 +349,7 @@ export class AuthService {
         this.prisma.translationCache.deleteMany({
           where: {
             OR: [
-              ...(reviewIds.length
-                ? [{ targetType: 'review', targetId: { in: reviewIds } }]
-                : []),
+              ...(reviewIds.length ? [{ targetType: 'review', targetId: { in: reviewIds } }] : []),
               ...(commentIds.length
                 ? [{ targetType: 'comment', targetId: { in: commentIds } }]
                 : []),
@@ -505,14 +494,6 @@ export class AuthService {
   private devAccountTokensEnabled() {
     const value = this.config.get<string>('ACCOUNT_DEV_TOKENS') ?? 'true';
     return value.trim().toLowerCase() !== 'false';
-  }
-
-  private optionalText(value: string | null | undefined) {
-    if (value === null || value === undefined) {
-      return null;
-    }
-    const trimmed = value.trim();
-    return trimmed ? trimmed : null;
   }
 
   private presentUser(

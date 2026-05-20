@@ -249,9 +249,6 @@ describe('AuthService', () => {
         ...user,
         username: 'maria',
         displayName: 'Maria',
-        bio: 'movie person',
-        locale: 'pt-BR',
-        avatarUrl: null,
         pendingEmail: 'new@example.com',
       });
 
@@ -259,9 +256,6 @@ describe('AuthService', () => {
         username: 'Maria',
         email: 'New@Example.com',
         displayName: 'Maria',
-        bio: ' movie person ',
-        locale: 'pt-BR',
-        avatarUrl: '',
       });
 
       expect(result.username).toBe('maria');
@@ -272,9 +266,6 @@ describe('AuthService', () => {
           username: 'maria',
           pendingEmail: 'new@example.com',
           displayName: 'Maria',
-          bio: 'movie person',
-          locale: 'pt-BR',
-          avatarUrl: null,
         },
       });
     });
@@ -341,7 +332,9 @@ describe('AuthService', () => {
     it('does not reveal whether an unknown password reset email exists', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
 
-      await expect(service.requestPasswordReset('nobody@example.com')).resolves.toEqual({ ok: true });
+      await expect(service.requestPasswordReset('nobody@example.com')).resolves.toEqual({
+        ok: true,
+      });
       expect(prisma.accountToken.create).not.toHaveBeenCalled();
     });
 
@@ -372,14 +365,8 @@ describe('AuthService', () => {
       });
     });
 
-    it('hard-deletes an account after password and username confirmation', async () => {
-      const { hash } = await import('bcryptjs');
+    it('hard-deletes an authenticated account', async () => {
       prisma.user.findFirstOrThrow.mockResolvedValue(user);
-      prisma.authAccount.findUnique.mockResolvedValue({
-        provider: 'email',
-        providerUserId: 'alice@example.com',
-        passwordHash: await hash('securepass123', 4),
-      });
       prisma.review.findMany.mockResolvedValue([{ id: 'review-1' }]);
       prisma.comment.findMany.mockResolvedValue([{ id: 'comment-1' }]);
       prisma.translationCache.deleteMany.mockResolvedValue({ count: 2 });
@@ -387,10 +374,7 @@ describe('AuthService', () => {
       prisma.notification.deleteMany.mockResolvedValue({ count: 1 });
       prisma.user.delete.mockResolvedValue(user);
 
-      const result = await service.deleteMe('user-1', {
-        username: 'Alice',
-        currentPassword: 'securepass123',
-      });
+      const result = await service.deleteMe('user-1');
 
       expect(result).toEqual({ ok: true });
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } });

@@ -62,21 +62,6 @@ export class UpdateMeDto {
   @IsString()
   @Length(1, 80)
   displayName?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(0, 280)
-  bio?: string | null;
-
-  @IsOptional()
-  @IsString()
-  @Length(2, 32)
-  locale?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(0, 2048)
-  avatarUrl?: string | null;
 }
 
 export class VerifyEmailDto {
@@ -98,14 +83,4 @@ export class ResetPasswordDto {
   @IsString()
   @Length(8, 128)
   password: string;
-}
-
-export class DeleteMeDto {
-  @IsString()
-  @IsNotEmpty()
-  currentPassword: string;
-
-  @IsString()
-  @IsNotEmpty()
-  username: string;
 }

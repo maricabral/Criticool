@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import {
+  ArrowLeft,
   Ban,
   Bell,
   ChevronDown,
@@ -648,6 +649,7 @@ function AppShell({
   const [selectedMovie, setSelectedMovie] = useState<MovieSummary | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [selectedProfileUser, setSelectedProfileUser] = useState<FriendSummary | null>(null);
+  const [profileBackTab, setProfileBackTab] = useState<Tab | null>(null);
   const [editingReview, setEditingReview] = useState<EditableReview | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -674,19 +676,23 @@ function AppShell({
     }
     setEditingReview(null);
     setSelectedProfileUser(null);
+    setProfileBackTab(null);
     setShowNotifications(false);
     setTab('create');
   };
 
   const openReview = (id: string) => {
     setSelectedProfileUser(null);
+    setProfileBackTab(null);
     setShowNotifications(false);
     setSelectedReviewId(id);
     setTab('profile');
   };
 
   const openUserProfile = (profileUser: FriendSummary) => {
-    setSelectedProfileUser(profileUser.id === user.id ? null : profileUser);
+    const isOwnProfile = profileUser.id === user.id;
+    setSelectedProfileUser(isOwnProfile ? null : profileUser);
+    setProfileBackTab(isOwnProfile || tab === 'profile' ? null : tab);
     setSelectedReviewId(null);
     setShowNotifications(false);
     setTab('profile');
@@ -696,9 +702,18 @@ function AppShell({
     setEditingReview(review);
     setSelectedMovie(review.movie);
     setSelectedProfileUser(null);
+    setProfileBackTab(null);
     setSelectedReviewId(null);
     setShowNotifications(false);
     setTab('create');
+  };
+
+  const returnFromExternalProfile = () => {
+    const nextTab = profileBackTab ?? 'friends';
+    setSelectedProfileUser(null);
+    setSelectedReviewId(null);
+    setProfileBackTab(null);
+    setTab(nextTab);
   };
 
   return (
@@ -744,6 +759,7 @@ function AppShell({
               setEditingReview(null);
               setSelectedMovie(null);
               setSelectedReviewId(null);
+              setProfileBackTab(null);
               setTab('profile');
             }}
             onCancelEdit={() => {
@@ -771,6 +787,7 @@ function AppShell({
               tokens={tokens}
               user={user}
               profileUser={selectedProfileUser}
+              onBack={selectedProfileUser ? returnFromExternalProfile : undefined}
               onOpenReview={openReview}
               onOpenUser={openUserProfile}
               onUserChange={onUserChange}
@@ -780,10 +797,11 @@ function AppShell({
         ) : null}
       </View>
       <TabBar
-        current={tab}
+        current={selectedProfileUser && profileBackTab ? profileBackTab : tab}
         onChange={(nextTab) => {
           setShowNotifications(false);
           setSelectedProfileUser(null);
+          setProfileBackTab(null);
           setSelectedReviewId(null);
           if (nextTab !== 'create') {
             setEditingReview(null);
@@ -2965,6 +2983,7 @@ function ProfileScreen({
   tokens,
   user,
   profileUser,
+  onBack,
   onOpenReview,
   onOpenUser,
   onUserChange,
@@ -2973,6 +2992,7 @@ function ProfileScreen({
   tokens: AuthTokens;
   user: AuthUser;
   profileUser: FriendSummary | null;
+  onBack?: () => void;
   onOpenReview: (id: string) => void;
   onOpenUser: (user: FriendSummary) => void;
   onUserChange: (user: AuthUser) => void;
@@ -3094,13 +3114,17 @@ function ProfileScreen({
       .map(([tag]) => tag);
     return topTags;
   }, [reviews]);
-  const averageRating = useMemo(() => {
-    if (!reviews.length) {
-      return null;
-    }
-    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
-    return total / reviews.length;
-  }, [reviews]);
+  if (isOwnProfile && showSettings) {
+    return (
+      <AccountSettingsScreen
+        tokens={tokens}
+        user={user}
+        onBack={() => setShowSettings(false)}
+        onUserChange={onUserChange}
+        onSignOut={onSignOut}
+      />
+    );
+  }
 
   return (
     <ScrollView
@@ -3110,13 +3134,21 @@ function ProfileScreen({
     >
       <Header
         title={`@${activeProfile.username}`}
+        left={
+          onBack ? (
+            <IconButton
+              icon={<ArrowLeft size={20} color={colors.ink} />}
+              onPress={onBack}
+              accessibilityLabel="Back"
+            />
+          ) : undefined
+        }
         right={
           isOwnProfile ? (
             <View style={styles.headerActionRow}>
               <IconButton
-                icon={<Settings size={20} color={showSettings ? colors.surface : colors.ink} />}
-                active={showSettings}
-                onPress={() => setShowSettings((current) => !current)}
+                icon={<Settings size={20} color={colors.ink} />}
+                onPress={() => setShowSettings(true)}
                 accessibilityLabel="Account settings"
               />
               <IconButton
@@ -3146,10 +3178,6 @@ function ProfileScreen({
                 </Text>
               </>
             ) : null}
-            <Text style={styles.profileInlineText}>|</Text>
-            <Text style={styles.profileInlineText}>
-              {averageRating === null ? '-' : averageRating.toFixed(1)} avg
-            </Text>
           </View>
           {tasteTags.length ? (
             <View style={styles.profileTasteRow}>
@@ -3162,14 +3190,6 @@ function ProfileScreen({
           ) : null}
         </View>
       </View>
-      {isOwnProfile && showSettings ? (
-        <AccountSettingsPanel
-          tokens={tokens}
-          user={user}
-          onUserChange={onUserChange}
-          onSignOut={onSignOut}
-        />
-      ) : null}
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent</Text>
@@ -3235,48 +3255,34 @@ function ProfileScreen({
   );
 }
 
-function AccountSettingsPanel({
+function AccountSettingsScreen({
   tokens,
   user,
+  onBack,
   onUserChange,
   onSignOut,
 }: {
   tokens: AuthTokens;
   user: AuthUser;
+  onBack: () => void;
   onUserChange: (user: AuthUser) => void;
   onSignOut: () => void;
 }) {
   const [displayName, setDisplayName] = useState(user.displayName);
   const [username, setUsername] = useState(user.username);
   const [email, setEmail] = useState(user.pendingEmail ?? user.email);
-  const [bio, setBio] = useState(user.bio ?? '');
-  const [locale, setLocale] = useState(user.locale);
-  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState('');
   const [devVerificationToken, setDevVerificationToken] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteUsername, setDeleteUsername] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setDisplayName(user.displayName);
     setUsername(user.username);
     setEmail(user.pendingEmail ?? user.email);
-    setBio(user.bio ?? '');
-    setLocale(user.locale);
-    setAvatarUrl(user.avatarUrl ?? '');
-  }, [
-    user.avatarUrl,
-    user.bio,
-    user.displayName,
-    user.email,
-    user.locale,
-    user.pendingEmail,
-    user.username,
-  ]);
+  }, [user.displayName, user.email, user.pendingEmail, user.username]);
 
   const saveProfile = async () => {
     setSaving(true);
@@ -3286,12 +3292,11 @@ function AccountSettingsPanel({
         displayName: displayName.trim(),
         username: username.trim(),
         email: email.trim(),
-        bio: bio.trim() || null,
-        locale: locale.trim() || 'en-US',
-        avatarUrl: avatarUrl.trim() || null,
       });
       onUserChange(updated);
-      setMessage(updated.pendingEmail ? 'Account updated. Verify the pending email.' : 'Account updated.');
+      setMessage(
+        updated.pendingEmail ? 'Account updated. Verify the pending email.' : 'Account updated.',
+      );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not update account');
     } finally {
@@ -3310,7 +3315,9 @@ function AccountSettingsPanel({
         setVerificationToken(response.devToken);
         setMessage('Verification token ready for this beta flow.');
       } else {
-        setMessage(response.emailVerifiedAt ? 'Email is already verified.' : 'Verification requested.');
+        setMessage(
+          response.emailVerifiedAt ? 'Email is already verified.' : 'Verification requested.',
+        );
       }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not request verification');
@@ -3339,10 +3346,7 @@ function AccountSettingsPanel({
     setDeleting(true);
     setMessage(null);
     try {
-      await api.deleteMe(tokens, {
-        username: deleteUsername,
-        currentPassword: deletePassword,
-      });
+      await api.deleteMe(tokens);
       onSignOut();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not delete account');
@@ -3351,19 +3355,13 @@ function AccountSettingsPanel({
   };
 
   const confirmDeleteAccount = () => {
-    Alert.alert(
-      'Delete account permanently?',
-      'This removes your account and cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => void deleteAccount() },
-      ],
-    );
+    Alert.alert('Delete account permanently?', 'This removes your account and cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void deleteAccount() },
+    ]);
   };
 
   const saveDisabled = saving || !displayName.trim() || !username.trim() || !email.trim();
-  const deleteDisabled =
-    deleting || !deletePassword || deleteUsername.trim().toLowerCase() !== user.username;
   const emailStatus = user.pendingEmail
     ? 'Pending'
     : user.emailVerifiedAt
@@ -3371,78 +3369,80 @@ function AccountSettingsPanel({
       : 'Unverified';
 
   return (
-    <Panel tint="cyan">
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Account settings</Text>
-        <Text style={styles.bubble}>{emailStatus}</Text>
-      </View>
-      <View style={styles.form}>
-        <Field value={displayName} onChangeText={setDisplayName} placeholder="Display name" />
-        <Field value={username} onChangeText={setUsername} placeholder="Username" autoCapitalize="none" />
-        <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
-        <Field value={locale} onChangeText={setLocale} placeholder="Locale" autoCapitalize="none" />
-        <Field value={avatarUrl} onChangeText={setAvatarUrl} placeholder="Avatar URL" autoCapitalize="none" />
-        <View style={[styles.fieldWrap, styles.settingsTextAreaWrap]}>
-          <TextInput
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Bio"
-            placeholderTextColor={colors.muted}
-            multiline
-            style={[styles.field, styles.settingsTextArea, webNoOutline]}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
+      <Header
+        title="Account settings"
+        left={
+          <IconButton
+            icon={<ArrowLeft size={20} color={colors.ink} />}
+            onPress={onBack}
+            accessibilityLabel="Back"
+          />
+        }
+        right={<Text style={styles.bubble}>{emailStatus}</Text>}
+      />
+      <Panel tint="cyan">
+        <View style={styles.form}>
+          <Field value={displayName} onChangeText={setDisplayName} placeholder="Display name" />
+          <Field
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Username"
+            autoCapitalize="none"
+          />
+          <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
+          <PrimaryButton
+            label={saving ? 'Saving...' : 'Save account'}
+            onPress={saveProfile}
+            disabled={saveDisabled}
+            compact
           />
         </View>
-        <PrimaryButton label={saving ? 'Saving...' : 'Save account'} onPress={saveProfile} disabled={saveDisabled} compact />
-      </View>
-      <View style={styles.notice}>
-        <Text style={styles.label}>Email verification</Text>
-        <Text style={styles.mutedText}>Current login email: {user.email}</Text>
-        {user.pendingEmail ? <Text style={styles.mutedText}>Pending email: {user.pendingEmail}</Text> : null}
+      </Panel>
+      <Panel>
+        <View style={styles.form}>
+          <Text style={styles.label}>Email verification</Text>
+          <Text style={styles.mutedText}>Current login email: {user.email}</Text>
+          {user.pendingEmail ? (
+            <Text style={styles.mutedText}>Pending email: {user.pendingEmail}</Text>
+          ) : null}
+          <Pressable
+            style={styles.secondaryButton}
+            disabled={verifying}
+            onPress={requestVerificationToken}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {user.pendingEmail ? 'Get email-change token' : 'Get verification token'}
+            </Text>
+          </Pressable>
+          {devVerificationToken ? (
+            <Text selectable style={styles.devTokenText}>
+              {devVerificationToken}
+            </Text>
+          ) : null}
+          <Field
+            value={verificationToken}
+            onChangeText={setVerificationToken}
+            placeholder="Verification token"
+            autoCapitalize="none"
+          />
+          <PrimaryButton
+            label="Verify email"
+            onPress={verifyEmail}
+            disabled={verifying || !verificationToken.trim()}
+            compact
+          />
+        </View>
+      </Panel>
+      {message ? (
+        <Text style={message.includes('Could not') ? styles.error : styles.mutedText}>
+          {message}
+        </Text>
+      ) : null}
+      <View style={styles.deleteAccountRow}>
         <Pressable
-          style={styles.secondaryButton}
-          disabled={verifying}
-          onPress={requestVerificationToken}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {user.pendingEmail ? 'Get email-change token' : 'Get verification token'}
-          </Text>
-        </Pressable>
-        {devVerificationToken ? (
-          <Text selectable style={styles.devTokenText}>
-            {devVerificationToken}
-          </Text>
-        ) : null}
-        <Field
-          value={verificationToken}
-          onChangeText={setVerificationToken}
-          placeholder="Verification token"
-          autoCapitalize="none"
-        />
-        <PrimaryButton
-          label="Verify email"
-          onPress={verifyEmail}
-          disabled={verifying || !verificationToken.trim()}
-          compact
-        />
-      </View>
-      <View style={[styles.notice, styles.dangerZone]}>
-        <Text style={styles.label}>Delete account</Text>
-        <Text style={styles.mutedText}>Type {user.username} and your password.</Text>
-        <Field
-          value={deleteUsername}
-          onChangeText={setDeleteUsername}
-          placeholder="Username"
-          autoCapitalize="none"
-        />
-        <Field
-          value={deletePassword}
-          onChangeText={setDeletePassword}
-          placeholder="Current password"
-          secureTextEntry
-        />
-        <Pressable
-          style={[styles.secondaryButton, styles.dangerButton]}
-          disabled={deleteDisabled}
+          style={[styles.secondaryButton, styles.dangerButton, styles.deleteAccountButton]}
+          disabled={deleting}
           onPress={confirmDeleteAccount}
         >
           <Text style={styles.secondaryButtonText}>
@@ -3450,15 +3450,25 @@ function AccountSettingsPanel({
           </Text>
         </Pressable>
       </View>
-      {message ? <Text style={message.includes('Could not') ? styles.error : styles.mutedText}>{message}</Text> : null}
-    </Panel>
+    </ScrollView>
   );
 }
 
-function Header({ title, right }: { title: string; right?: React.ReactNode }) {
+function Header({
+  title,
+  left,
+  right,
+}: {
+  title: string;
+  left?: React.ReactNode;
+  right?: React.ReactNode;
+}) {
   return (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>{title}</Text>
+      {left}
+      <Text numberOfLines={1} style={styles.headerTitle}>
+        {title}
+      </Text>
       {right ?? <View style={styles.headerSpacer} />}
     </View>
   );
@@ -4079,9 +4089,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     paddingHorizontal: 2,
   },
   headerTitle: {
+    flex: 1,
     fontSize: 27,
     fontWeight: '900',
     color: colors.ink,
@@ -4202,17 +4214,6 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     color: colors.ink,
     fontWeight: '700',
-  },
-  settingsTextAreaWrap: {
-    minHeight: 92,
-    maxHeight: 120,
-    borderRadius: 18,
-    alignItems: 'stretch',
-    paddingVertical: 6,
-  },
-  settingsTextArea: {
-    minHeight: 78,
-    textAlignVertical: 'top',
   },
   primaryButton: {
     minHeight: 46,
@@ -4919,7 +4920,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: 6,
   },
-  dangerZone: {
+  deleteAccountRow: {
+    alignItems: 'flex-start',
+    paddingBottom: 12,
+  },
+  deleteAccountButton: {
     backgroundColor: '#ffe0cf',
   },
   devTokenText: {

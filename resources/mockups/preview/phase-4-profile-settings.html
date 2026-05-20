@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CritiCool Phase 4 Profile and Settings Preview</title>
+    <style>
+      :root {
+        --ink: #171217;
+        --paper: #f8dfb9;
+        --cream: #ffe8bb;
+        --surface: #fff0d2;
+        --pink: #dd6aa5;
+        --cyan: #45c2dc;
+        --yellow: #ffd668;
+        --green: #83ce9f;
+        --muted: #736b73;
+        --danger: #ffe0cf;
+        --shadow: 3px 4px 0 rgba(23, 18, 23, 0.12);
+        font-family: 'Arial Rounded MT Bold', 'Trebuchet MS', Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .page {
+        width: min(1260px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 28px 0 44px;
+      }
+
+      .intro {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 22px;
+      }
+
+      .intro h1 {
+        font-size: clamp(28px, 4vw, 48px);
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .intro p {
+        max-width: 780px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.35;
+        font-weight: 900;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 22px;
+        align-items: start;
+      }
+
+      .mock {
+        display: grid;
+        gap: 10px;
+      }
+
+      .mock-title {
+        font-size: 18px;
+        line-height: 1.1;
+        font-weight: 900;
+      }
+
+      .phone {
+        width: 390px;
+        max-width: 100%;
+        min-height: 780px;
+        border: 3px solid var(--ink);
+        border-radius: 26px;
+        overflow: hidden;
+        background: var(--cream);
+        box-shadow: var(--shadow);
+      }
+
+      .screen {
+        min-height: 780px;
+        padding: 12px 10px 72px;
+        display: grid;
+        align-content: start;
+        gap: 12px;
+        position: relative;
+      }
+
+      .header {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .header h2 {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 27px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .icon-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .icon-button {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--ink);
+        border-radius: 999px;
+        background: var(--surface);
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        font-weight: 900;
+        box-shadow: 2px 3px 0 rgba(23, 18, 23, 0.12);
+      }
+
+      .pill {
+        min-height: 30px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        padding: 6px 10px;
+        display: inline-grid;
+        place-items: center;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 12px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .profile-card,
+      .panel,
+      .review-card {
+        border: 3px solid var(--ink);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .profile-card {
+        min-height: 214px;
+        border-radius: 24px;
+        padding: 18px;
+        display: grid;
+        place-items: center;
+        gap: 10px;
+        text-align: center;
+      }
+
+      .panel {
+        border-radius: 12px;
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .panel.cyan {
+        background: #c7f4fb;
+      }
+
+      .panel h3 {
+        font-size: 19px;
+        line-height: 1.1;
+        font-weight: 900;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .avatar {
+        width: 88px;
+        height: 88px;
+        border: 3px solid var(--ink);
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: var(--green);
+        color: var(--ink);
+        font-size: 36px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .avatar.blue {
+        background: var(--cyan);
+        color: var(--surface);
+      }
+
+      .name {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 26px;
+        line-height: 1.05;
+        font-weight: 900;
+      }
+
+      .stats {
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .tags {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .tag {
+        border: 1px solid var(--ink);
+        border-radius: 999px;
+        background: #9bddea;
+        padding: 4px 8px;
+        font-size: 10px;
+        font-weight: 900;
+      }
+
+      .field {
+        min-height: 46px;
+        border: 3px solid var(--ink);
+        border-radius: 999px;
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .button {
+        min-height: 42px;
+        border: 3px solid var(--ink);
+        border-radius: 999px;
+        background: var(--pink);
+        display: grid;
+        place-items: center;
+        color: var(--surface);
+        font-size: 13px;
+        font-weight: 900;
+        box-shadow: var(--shadow);
+      }
+
+      .button.secondary {
+        width: fit-content;
+        background: var(--yellow);
+        color: var(--ink);
+        padding: 0 14px;
+      }
+
+      .button.danger {
+        width: fit-content;
+        background: var(--danger);
+        color: var(--ink);
+        padding: 0 14px;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+        font-weight: 900;
+      }
+
+      .review-card {
+        border-radius: 12px;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .review-top {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 12px;
+      }
+
+      .poster {
+        width: 76px;
+        height: 104px;
+        border: 3px solid var(--ink);
+        border-radius: 9px;
+        background: linear-gradient(160deg, #21212b 0 38%, #7e3030 38% 62%, #c99246 62% 100%);
+      }
+
+      .review-copy {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+      }
+
+      .review-title {
+        font-size: 19px;
+        line-height: 1.1;
+        font-weight: 900;
+      }
+
+      .rating {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 20px;
+        font-weight: 900;
+      }
+
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        min-height: 68px;
+        border-top: 3px solid var(--ink);
+        background: var(--paper);
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        padding: 8px 0;
+      }
+
+      .tab {
+        display: grid;
+        justify-items: center;
+        align-content: center;
+        gap: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .tab-icon {
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--muted);
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+      }
+
+      .tab.active {
+        color: var(--pink);
+      }
+
+      .tab.active .tab-icon {
+        border-color: var(--pink);
+        background: var(--pink);
+        color: var(--surface);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="intro">
+        <h1>Phase 4 profile and settings preview</h1>
+        <p>
+          Visual preview for the MVP account cleanup: settings is a separate backable page, profile
+          stats no longer show average rating, avatars stay letter-only, and friend profiles opened
+          from Friends keep the Friends tab active.
+        </p>
+      </section>
+
+      <section class="grid" aria-label="Phase 4 mobile screens">
+        <article class="mock">
+          <h2 class="mock-title">Me profile after cleanup</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <h2>@guba</h2>
+                <div class="icon-row">
+                  <div class="icon-button">S</div>
+                  <div class="icon-button">L</div>
+                </div>
+              </header>
+              <section class="profile-card">
+                <div class="avatar">G</div>
+                <div class="name">Guba</div>
+                <div class="stats">
+                  <span>2 reviews</span>
+                  <span>|</span>
+                  <span>2 friends</span>
+                </div>
+                <div class="tags">
+                  <span class="tag">beautifully shot</span>
+                  <span class="tag">feel-good</span>
+                  <span class="tag">great performances</span>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="section-head">
+                  <h3>Recent</h3>
+                  <span class="pill">2</span>
+                </div>
+                <div class="field">Search my reviews</div>
+              </section>
+              <nav class="tabbar" aria-label="Main tabs">
+                <div class="tab"><span class="tab-icon">F</span><span>Feed</span></div>
+                <div class="tab"><span class="tab-icon">Q</span><span>Search</span></div>
+                <div class="tab"><span class="tab-icon">+</span><span>Post</span></div>
+                <div class="tab"><span class="tab-icon">2</span><span>Friends</span></div>
+                <div class="tab active"><span class="tab-icon">M</span><span>Me</span></div>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="mock">
+          <h2 class="mock-title">Separate settings page</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <div class="icon-button">&lt;</div>
+                <h2>Account settings</h2>
+                <span class="pill">Unverified</span>
+              </header>
+              <section class="panel cyan">
+                <div class="field">Guba</div>
+                <div class="field">guba</div>
+                <div class="field">g@g.com</div>
+                <div class="button">Save account</div>
+              </section>
+              <section class="panel">
+                <h3>Email verification</h3>
+                <p class="muted">Current login email: g@g.com</p>
+                <div class="button secondary">Get verification token</div>
+                <div class="field">Verification token</div>
+                <div class="button">Verify email</div>
+              </section>
+              <div class="button danger">Delete account permanently</div>
+              <nav class="tabbar" aria-label="Main tabs">
+                <div class="tab"><span class="tab-icon">F</span><span>Feed</span></div>
+                <div class="tab"><span class="tab-icon">Q</span><span>Search</span></div>
+                <div class="tab"><span class="tab-icon">+</span><span>Post</span></div>
+                <div class="tab"><span class="tab-icon">2</span><span>Friends</span></div>
+                <div class="tab active"><span class="tab-icon">M</span><span>Me</span></div>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="mock">
+          <h2 class="mock-title">Friend profile opened from Friends</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <div class="icon-button">&lt;</div>
+                <h2>@choci</h2>
+                <span></span>
+              </header>
+              <section class="profile-card">
+                <div class="avatar blue">L</div>
+                <div class="name">lucas chociay</div>
+                <div class="stats">
+                  <span>1 reviews</span>
+                </div>
+                <div class="tags">
+                  <span class="tag">comfort watch</span>
+                  <span class="tag">great with friends</span>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="section-head">
+                  <h3>Recent</h3>
+                  <span class="pill">1</span>
+                </div>
+                <div class="field">Search reviews</div>
+                <div class="review-card">
+                  <div class="review-top">
+                    <div class="poster"></div>
+                    <div class="review-copy">
+                      <p class="muted">@choci - May 19</p>
+                      <div class="review-title">Gladiator II</div>
+                      <p class="muted">DONDUS</p>
+                      <div class="rating">4/5</div>
+                      <div class="tags">
+                        <span class="tag">comfort watch</span>
+                        <span class="tag">great with friends</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <nav class="tabbar" aria-label="Main tabs">
+                <div class="tab"><span class="tab-icon">F</span><span>Feed</span></div>
+                <div class="tab"><span class="tab-icon">Q</span><span>Search</span></div>
+                <div class="tab"><span class="tab-icon">+</span><span>Post</span></div>
+                <div class="tab active"><span class="tab-icon">2</span><span>Friends</span></div>
+                <div class="tab"><span class="tab-icon">M</span><span>Me</span></div>
+              </nav>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

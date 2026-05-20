@@ -4,7 +4,6 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { RequestUser } from '../common/auth-user';
 import { AuthService } from './auth.service';
 import {
-  DeleteMeDto,
   ForgotPasswordDto,
   LoginDto,
   LogoutDto,
@@ -61,8 +60,8 @@ export class AuthController {
 
   @Delete('me')
   @UseGuards(AuthGuard)
-  deleteMe(@CurrentUser() user: RequestUser, @Body() dto: DeleteMeDto) {
-    return this.auth.deleteMe(user.id, dto);
+  deleteMe(@CurrentUser() user: RequestUser) {
+    return this.auth.deleteMe(user.id);
   }
 
   @Post('auth/email/verify/request')

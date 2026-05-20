@@ -13,12 +13,7 @@ import type {
   TranslationTargetType,
 } from '@criticool/shared';
 
-export type {
-  NotificationItem,
-  ReviewComment,
-  ReviewDetail,
-  TranslationResponse,
-};
+export type { NotificationItem, ReviewComment, ReviewDetail, TranslationResponse };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 const TOKENS_KEY = 'criticool.tokens';
@@ -174,9 +169,6 @@ export const api = {
       email?: string;
       username?: string;
       displayName?: string;
-      bio?: string | null;
-      locale?: string;
-      avatarUrl?: string | null;
     },
   ) =>
     apiRequest<AuthUser>('/me', {
@@ -184,8 +176,8 @@ export const api = {
       tokens,
       body: JSON.stringify(body),
     }),
-  deleteMe: (tokens: AuthTokens, body: { username: string; currentPassword: string }) =>
-    apiRequest<{ ok: boolean }>('/me', { method: 'DELETE', tokens, body: JSON.stringify(body) }),
+  deleteMe: (tokens: AuthTokens) =>
+    apiRequest<{ ok: boolean }>('/me', { method: 'DELETE', tokens }),
   requestEmailVerification: (tokens: AuthTokens) =>
     apiRequest<AccountTokenResponse>('/auth/email/verify/request', {
       method: 'POST',
@@ -326,7 +318,8 @@ export const api = {
     apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST', tokens }),
   unblockUser: (tokens: AuthTokens, id: string) =>
     apiRequest<{ ok: boolean }>(`/users/${id}/block`, { method: 'DELETE', tokens }),
-  blockedUsers: (tokens: AuthTokens) => apiRequest<BlockedUserSummary[]>('/users/blocked', { tokens }),
+  blockedUsers: (tokens: AuthTokens) =>
+    apiRequest<BlockedUserSummary[]>('/users/blocked', { tokens }),
   report: (
     tokens: AuthTokens,
     body: {
@@ -335,7 +328,8 @@ export const api = {
       reason: string;
       details?: string;
     },
-  ) => apiRequest<{ id: string }>('/reports', { method: 'POST', tokens, body: JSON.stringify(body) }),
+  ) =>
+    apiRequest<{ id: string }>('/reports', { method: 'POST', tokens, body: JSON.stringify(body) }),
   searchUsers: (tokens: AuthTokens, query: string) =>
     apiRequest<
       Array<{
