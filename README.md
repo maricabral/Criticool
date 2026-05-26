@@ -21,6 +21,7 @@ Phase 5 is the current readiness track: move the local MVP to a production-backe
 - Phase 3 plan: `resources/plans/CRITICOOL_PHASE_3_PLAN.md`
 - Phase 4 plan: `resources/plans/CRITICOOL_PHASE_4_PLAN.md`
 - Phase 5 plan: `resources/plans/CRITICOOL_PHASE_5_PLAN.md`
+- Phase 5 deployment runbook: `resources/plans/CRITICOOL_PHASE_5_DEPLOYMENT_RUNBOOK.md`
 
 ## Stack
 
@@ -63,6 +64,8 @@ Expo reads `EXPO_PUBLIC_API_URL` from `apps/mobile/.env`. For a physical phone, 
 - `npm run build` builds packages that expose a build script.
 - `npm test` runs workspace tests.
 - `npm run qa:smoke` runs the API smoke flow against `http://localhost:3000` by default.
+- `npm run phase5:preflight` checks Phase 5 repo deployment config without reading secrets.
+- `npm run phase5:preflight:env` also validates local hosted-beta `.env` values without printing them.
 - `npm run prisma:generate` generates the Prisma client.
 - `npm run prisma:migrate` applies local migrations.
 - `npm run prisma:migrate:deploy` applies production migrations during hosted deploy.
@@ -92,6 +95,17 @@ Important environment choices:
 - Store `SUPABASE_SERVICE_ROLE_KEY` only on the API host; never expose it to Expo.
 - Configure EAS `preview` environment variables for `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - Verify `GET /health/ready` after Render deploy; it checks that the API can query the hosted database.
+
+Deployment checklist:
+
+```bash
+npm run phase5:preflight
+npm run build --workspaces --if-present
+npm test
+```
+
+Then follow `resources/plans/CRITICOOL_PHASE_5_DEPLOYMENT_RUNBOOK.md` for the
+Supabase, Render, Resend, and EAS hosted-beta setup.
 
 ## UX And Visual Standards
 

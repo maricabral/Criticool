@@ -22,6 +22,8 @@ Date: 2026-05-20
 - Add Render deployment config/scripts: build API, generate Prisma client, run `prisma migrate deploy`, start `apps/api/dist/main.js`, and expose a DB-backed readiness check.
 - Configure Supabase fresh beta DB with existing Prisma migrations, Resend custom SMTP, redirect URLs for `criticool://`, and no committed secrets.
 - Add EAS config for Android+iOS internal distribution with `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Add the Phase 5 deployment runbook at `resources/plans/CRITICOOL_PHASE_5_DEPLOYMENT_RUNBOOK.md` so Supabase, Render, Resend, and EAS setup can be repeated without committing secrets.
+- Add the `scripts/phase5-preflight.mjs` repository/hosted-beta checker and root package scripts for config, env, and hosted API readiness validation.
 
 ## Public APIs And Config
 
@@ -36,7 +38,7 @@ Date: 2026-05-20
 - Unit tests: Supabase JWT guard, profile bootstrap conflicts, username/display name update, account deletion cleanup including moderation/notification rows, Supabase auth-user deletion handoff, and disabled legacy auth behavior in production.
 - Mobile tests: auth state restoration, signed-out reset flow state, profile bootstrap fallback, and existing navigation regression coverage.
 - Smoke QA: update `scripts/qa-smoke.mjs` or add hosted smoke support using Supabase test-user setup, then run against the Render API.
-- Verification commands: `npm run build --workspaces --if-present`, `npm test`, hosted smoke QA, Render health/readiness checks, and EAS preview build validation.
+- Verification commands: `npm run phase5:preflight`, `npm run build --workspaces --if-present`, `npm test`, hosted smoke QA, Render health/readiness checks, and EAS preview build validation.
 - Manual real-phone QA: install Android+iOS internal builds, sign up, verify email, log in, create friendship/review/comment, reset password, confirm settings behavior, and hard-delete the test account.
 
 ## Assumptions

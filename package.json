@@ -13,6 +13,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "qa:smoke": "node scripts/qa-smoke.mjs",
+    "phase5:preflight": "node scripts/phase5-preflight.mjs",
+    "phase5:preflight:env": "node scripts/phase5-preflight.mjs --env",
     "prisma:generate": "npm run prisma:generate -w @criticool/api",
     "prisma:migrate": "npm run prisma:migrate -w @criticool/api",
     "prisma:migrate:deploy": "npm run prisma:migrate:deploy -w @criticool/api"
