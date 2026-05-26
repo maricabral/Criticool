@@ -3801,7 +3801,12 @@ function AccountSettingsScreen({
       ) : null}
       <View style={styles.deleteAccountRow}>
         <Pressable
-          style={[styles.secondaryButton, styles.dangerButton, styles.deleteAccountButton]}
+          style={[
+            styles.secondaryButton,
+            styles.centeredButton,
+            styles.dangerButton,
+            styles.deleteAccountButton,
+          ]}
           disabled={deleting}
           onPress={confirmDeleteAccount}
         >
