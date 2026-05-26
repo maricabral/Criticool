@@ -17,6 +17,7 @@ Date: 2026-05-20
 - Add a profile bootstrap flow that creates the CritiCool `users` row after Supabase signup/login, using Supabase user id as the app user id.
 - Change account settings so display name/username stay API-owned, while email verification/reset/password recovery are handled by Supabase Auth.
 - Update account deletion to hard-delete CritiCool data and delete the Supabase auth user through server-side service-role credentials only.
+- Polish account settings for beta usage: keep the destructive delete-account action bottom-centered, add a visible in-app confirmation dialog before deletion, and document the approved UX in `resources/mockups/preview/phase-5-auth-beta.html`.
 - Add Render deployment config/scripts: build API, generate Prisma client, run `prisma migrate deploy`, start `apps/api/dist/main.js`, and expose a DB-backed readiness check.
 - Configure Supabase fresh beta DB with existing Prisma migrations, Resend custom SMTP, redirect URLs for `criticool://`, and no committed secrets.
 - Add EAS config for Android+iOS internal distribution with `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.

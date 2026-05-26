@@ -26,6 +26,7 @@ import {
   FlatList,
   Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -506,13 +507,7 @@ export default function App() {
       );
     }
     if (tokens?.provider === 'supabase') {
-      return (
-        <ProfileBootstrapScreen
-          tokens={tokens}
-          onUserChange={setUser}
-          onSignOut={signOut}
-        />
-      );
+      return <ProfileBootstrapScreen tokens={tokens} onUserChange={setUser} onSignOut={signOut} />;
     }
     return <AuthScreen onLegacyAuth={onLegacyAuth} onSupabaseSession={onSupabaseSession} />;
   }
@@ -3595,6 +3590,7 @@ function AccountSettingsScreen({
   const [message, setMessage] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState('');
   const [devVerificationToken, setDevVerificationToken] = useState<string | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const usingSupabaseAuth = tokens.provider === 'supabase' && Boolean(supabase);
@@ -3685,6 +3681,7 @@ function AccountSettingsScreen({
   };
 
   const deleteAccount = async () => {
+    setDeleteConfirmVisible(false);
     setDeleting(true);
     setMessage(null);
     try {
@@ -3697,10 +3694,10 @@ function AccountSettingsScreen({
   };
 
   const confirmDeleteAccount = () => {
-    Alert.alert('Delete account permanently?', 'This removes your account and cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => void deleteAccount() },
-    ]);
+    if (deleting) {
+      return;
+    }
+    setDeleteConfirmVisible(true);
   };
 
   const saveDisabled =
@@ -3712,110 +3709,156 @@ function AccountSettingsScreen({
       : 'Unverified';
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[styles.stack, styles.accountSettingsStack]}
-    >
-      <Header title="Account settings" right={<BackButton onPress={onBack} />} />
-      <Panel tint="cyan">
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Profile</Text>
-          <Text style={styles.bubble}>{emailStatus}</Text>
-        </View>
-        <View style={styles.form}>
-          <Field value={displayName} onChangeText={setDisplayName} placeholder="Display name" />
-          <Field
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Username"
-            autoCapitalize="none"
-          />
-          {!usingSupabaseAuth ? (
-            <Field value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" />
-          ) : null}
-          <PrimaryButton
-            label={saving ? 'Saving...' : usingSupabaseAuth ? 'Save profile' : 'Save account'}
-            onPress={saveProfile}
-            disabled={saveDisabled}
-            compact
-          />
-        </View>
-      </Panel>
-      {usingSupabaseAuth ? (
-        <Panel>
-          <View style={styles.form}>
-            <Text style={styles.label}>Login email</Text>
-            <Text style={styles.mutedText}>{user.email}</Text>
-            <Pressable
-              style={[styles.secondaryButton, styles.centeredButton]}
-              disabled={verifying}
-              onPress={sendPasswordReset}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {verifying ? 'Sending...' : 'Send pwd reset'}
-              </Text>
-            </Pressable>
+    <>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[styles.stack, styles.accountSettingsStack]}
+      >
+        <Header title="Account settings" right={<BackButton onPress={onBack} />} />
+        <Panel tint="cyan">
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Profile</Text>
+            <Text style={styles.bubble}>{emailStatus}</Text>
           </View>
-        </Panel>
-      ) : (
-        <Panel>
           <View style={styles.form}>
-            <Text style={styles.label}>Email verification</Text>
-            <Text style={styles.mutedText}>Current login email: {user.email}</Text>
-            {user.pendingEmail ? (
-              <Text style={styles.mutedText}>Pending email: {user.pendingEmail}</Text>
-            ) : null}
-            <Pressable
-              style={styles.secondaryButton}
-              disabled={verifying}
-              onPress={requestVerificationToken}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {user.pendingEmail ? 'Get email-change token' : 'Get verification token'}
-              </Text>
-            </Pressable>
-            {devVerificationToken ? (
-              <Text selectable style={styles.devTokenText}>
-                {devVerificationToken}
-              </Text>
-            ) : null}
+            <Field value={displayName} onChangeText={setDisplayName} placeholder="Display name" />
             <Field
-              value={verificationToken}
-              onChangeText={setVerificationToken}
-              placeholder="Verification token"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Username"
               autoCapitalize="none"
             />
+            {!usingSupabaseAuth ? (
+              <Field
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                autoCapitalize="none"
+              />
+            ) : null}
             <PrimaryButton
-              label="Verify email"
-              onPress={verifyEmail}
-              disabled={verifying || !verificationToken.trim()}
+              label={saving ? 'Saving...' : usingSupabaseAuth ? 'Save profile' : 'Save account'}
+              onPress={saveProfile}
+              disabled={saveDisabled}
               compact
             />
           </View>
         </Panel>
-      )}
-      {message ? (
-        <Text style={message.includes('Could not') ? styles.error : styles.mutedText}>
-          {message}
-        </Text>
-      ) : null}
-      <View style={styles.deleteAccountRow}>
-        <Pressable
-          style={[
-            styles.secondaryButton,
-            styles.centeredButton,
-            styles.dangerButton,
-            styles.deleteAccountButton,
-          ]}
-          disabled={deleting}
-          onPress={confirmDeleteAccount}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {deleting ? 'Deleting...' : 'Delete account permanently'}
+        {usingSupabaseAuth ? (
+          <Panel>
+            <View style={styles.form}>
+              <Text style={styles.label}>Login email</Text>
+              <Text style={styles.mutedText}>{user.email}</Text>
+              <Pressable
+                style={[styles.secondaryButton, styles.centeredButton]}
+                disabled={verifying}
+                onPress={sendPasswordReset}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {verifying ? 'Sending...' : 'Send pwd reset'}
+                </Text>
+              </Pressable>
+            </View>
+          </Panel>
+        ) : (
+          <Panel>
+            <View style={styles.form}>
+              <Text style={styles.label}>Email verification</Text>
+              <Text style={styles.mutedText}>Current login email: {user.email}</Text>
+              {user.pendingEmail ? (
+                <Text style={styles.mutedText}>Pending email: {user.pendingEmail}</Text>
+              ) : null}
+              <Pressable
+                style={styles.secondaryButton}
+                disabled={verifying}
+                onPress={requestVerificationToken}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {user.pendingEmail ? 'Get email-change token' : 'Get verification token'}
+                </Text>
+              </Pressable>
+              {devVerificationToken ? (
+                <Text selectable style={styles.devTokenText}>
+                  {devVerificationToken}
+                </Text>
+              ) : null}
+              <Field
+                value={verificationToken}
+                onChangeText={setVerificationToken}
+                placeholder="Verification token"
+                autoCapitalize="none"
+              />
+              <PrimaryButton
+                label="Verify email"
+                onPress={verifyEmail}
+                disabled={verifying || !verificationToken.trim()}
+                compact
+              />
+            </View>
+          </Panel>
+        )}
+        {message ? (
+          <Text style={message.includes('Could not') ? styles.error : styles.mutedText}>
+            {message}
           </Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+        ) : null}
+        <View style={styles.deleteAccountRow}>
+          <Pressable
+            style={[
+              styles.secondaryButton,
+              styles.centeredButton,
+              styles.dangerButton,
+              styles.deleteAccountButton,
+            ]}
+            disabled={deleting}
+            hitSlop={10}
+            onPress={confirmDeleteAccount}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {deleting ? 'Deleting...' : 'Delete account permanently'}
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={deleteConfirmVisible}
+        onRequestClose={() => setDeleteConfirmVisible(false)}
+      >
+        <View style={styles.deleteConfirmOverlay}>
+          <View style={styles.deleteConfirmCard}>
+            <Text style={styles.deleteConfirmTitle}>Delete account?</Text>
+            <Text style={styles.deleteConfirmCopy}>
+              This permanently removes your CritiCool account, reviews, comments, friendships, and
+              settings. This cannot be undone.
+            </Text>
+            <View style={styles.deleteConfirmActions}>
+              <Pressable
+                style={[styles.primaryButton, styles.deleteConfirmCancelButton]}
+                disabled={deleting}
+                onPress={() => setDeleteConfirmVisible(false)}
+              >
+                <Text style={styles.deleteConfirmButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.primaryButton,
+                  styles.deleteConfirmDangerButton,
+                  deleting && styles.primaryButtonDisabled,
+                ]}
+                disabled={deleting}
+                onPress={() => void deleteAccount()}
+              >
+                <Text style={styles.deleteConfirmButtonText}>
+                  {deleting ? 'Deleting...' : 'Yes, delete my account'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -5290,6 +5333,52 @@ const styles = StyleSheet.create({
   },
   deleteAccountButton: {
     backgroundColor: '#ffe0cf',
+  },
+  deleteConfirmOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    backgroundColor: 'rgba(23, 18, 23, 0.42)',
+  },
+  deleteConfirmCard: {
+    width: '100%',
+    borderWidth: 3,
+    borderColor: colors.ink,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    padding: 16,
+    gap: 12,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.18,
+    shadowRadius: 0,
+    shadowOffset: { width: 5, height: 6 },
+    elevation: 8,
+  },
+  deleteConfirmTitle: {
+    color: colors.ink,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '900',
+  },
+  deleteConfirmCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  deleteConfirmActions: {
+    gap: 10,
+  },
+  deleteConfirmCancelButton: {
+    backgroundColor: colors.surface,
+  },
+  deleteConfirmDangerButton: {
+    backgroundColor: '#ffd8bd',
+  },
+  deleteConfirmButtonText: {
+    color: colors.ink,
+    fontWeight: '900',
   },
   devTokenText: {
     color: colors.ink,

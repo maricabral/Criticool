@@ -18,7 +18,7 @@
         --muted: #736b73;
         --danger: #ffe0cf;
         --shadow: 3px 4px 0 rgba(23, 18, 23, 0.12);
-        font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
+        font-family: 'Arial Rounded MT Bold', 'Trebuchet MS', Arial, sans-serif;
       }
 
       * {
@@ -361,6 +361,48 @@
         background: var(--pink);
         color: var(--surface);
       }
+
+      .modal-scrim {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        background: rgba(23, 18, 23, 0.42);
+      }
+
+      .confirm-card {
+        width: 100%;
+        border: 3px solid var(--ink);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: 5px 6px 0 rgba(23, 18, 23, 0.18);
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .confirm-card h3 {
+        font-size: 24px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .confirm-actions {
+        display: grid;
+        gap: 10px;
+      }
+
+      .button.cancel {
+        background: var(--surface);
+        color: var(--ink);
+      }
+
+      .button.confirm-danger {
+        background: #ffd8bd;
+        color: var(--ink);
+      }
     </style>
   </head>
   <body>
@@ -485,6 +527,53 @@
                 <div class="button secondary centered">Send pwd reset</div>
               </section>
               <div class="button danger delete-bottom">Delete account permanently</div>
+              <nav class="tabbar" aria-label="Main tabs">
+                <div class="tab"><span class="tab-icon">F</span><span>Feed</span></div>
+                <div class="tab"><span class="tab-icon">Q</span><span>Search</span></div>
+                <div class="tab"><span class="tab-icon">+</span><span>Post</span></div>
+                <div class="tab"><span class="tab-icon">2</span><span>Friends</span></div>
+                <div class="tab active"><span class="tab-icon">M</span><span>Me</span></div>
+              </nav>
+            </div>
+          </div>
+        </article>
+
+        <article class="mock">
+          <h2 class="mock-title">Delete account confirmation</h2>
+          <div class="phone">
+            <div class="screen">
+              <header class="header">
+                <h2>Account settings</h2>
+                <div class="back-pill">Back</div>
+              </header>
+              <section class="panel cyan">
+                <div class="section-head">
+                  <h3>Profile</h3>
+                  <span class="pill green">Verified</span>
+                </div>
+                <div class="field">Guba</div>
+                <div class="field">guba</div>
+                <div class="button">Save profile</div>
+              </section>
+              <section class="panel">
+                <h3>Login email</h3>
+                <p class="muted">g@g.com</p>
+                <div class="button secondary centered">Send pwd reset</div>
+              </section>
+              <div class="button danger delete-bottom">Delete account permanently</div>
+              <div class="modal-scrim" role="dialog" aria-modal="true">
+                <section class="confirm-card" aria-label="Delete account confirmation">
+                  <h3>Delete account?</h3>
+                  <p class="muted">
+                    This permanently removes your CritiCool account, reviews, comments, friendships,
+                    and settings. This cannot be undone.
+                  </p>
+                  <div class="confirm-actions">
+                    <div class="button cancel">Cancel</div>
+                    <div class="button confirm-danger">Yes, delete my account</div>
+                  </div>
+                </section>
+              </div>
               <nav class="tabbar" aria-label="Main tabs">
                 <div class="tab"><span class="tab-icon">F</span><span>Feed</span></div>
                 <div class="tab"><span class="tab-icon">Q</span><span>Search</span></div>
