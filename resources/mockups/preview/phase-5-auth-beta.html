@@ -251,6 +251,13 @@
         padding: 0 14px;
       }
 
+      .delete-bottom {
+        position: absolute;
+        left: 50%;
+        bottom: 84px;
+        transform: translateX(-50%);
+      }
+
       .back-pill {
         min-height: 38px;
         border: 3px solid var(--ink);
@@ -477,7 +484,7 @@
                 <p class="muted">g@g.com</p>
                 <div class="button secondary centered">Send pwd reset</div>
               </section>
-              <div class="button danger">Delete account permanently</div>
+              <div class="button danger delete-bottom">Delete account permanently</div>
               <nav class="tabbar" aria-label="Main tabs">
                 <div class="tab"><span class="tab-icon">F</span><span>Feed</span></div>
                 <div class="tab"><span class="tab-icon">Q</span><span>Search</span></div>

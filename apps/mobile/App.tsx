@@ -3712,7 +3712,10 @@ function AccountSettingsScreen({
       : 'Unverified';
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.stack}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.stack, styles.accountSettingsStack]}
+    >
       <Header title="Account settings" right={<BackButton onPress={onBack} />} />
       <Panel tint="cyan">
         <View style={styles.sectionHeader}>
@@ -5222,6 +5225,9 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 22,
   },
+  accountSettingsStack: {
+    flexGrow: 1,
+  },
   afterSearchFieldStack: {
     paddingTop: 12,
   },
@@ -5273,7 +5279,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   deleteAccountRow: {
-    alignItems: 'flex-start',
+    marginTop: 'auto',
+    alignItems: 'center',
     paddingBottom: 12,
   },
   deleteAccountButton: {
