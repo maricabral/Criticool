@@ -9,7 +9,7 @@ Phase 5 is the current readiness track: move the local MVP to a production-backe
 - Phase 1 core loop: register, find/import a movie, post a review, become friends, and see friend reviews in the feed.
 - Phase 2 social layer: review detail comments, replies, comment voting, notifications, report/block entry points, and mobile review-detail controls.
 - Phase 4 account lifecycle: local profile settings, verification/reset token flows, hard delete, and friend-review navigation provenance.
-- Phase 5 beta readiness: plan and deployment scaffolding are in progress; mobile UX changes require approval of `resources/mockups/preview/phase-5-auth-beta.html`.
+- Phase 5 beta readiness: Supabase auth, hosted deploy scaffolding, beta account settings, and hardened delete-account cleanup are implemented locally; live Supabase/Render/EAS credentials and hosted smoke QA remain manual setup steps.
 - Verified locally with `npm test` and `npm run build --workspaces --if-present`.
 - Known Phase 2 follow-up: blocked-user comments are hidden from review detail rows, but feed/review comment counts and feed participant avatars should also exclude blocked comment authors.
 
@@ -65,6 +65,7 @@ Expo reads `EXPO_PUBLIC_API_URL` from `apps/mobile/.env`. For a physical phone, 
 - `npm run qa:smoke` runs the API smoke flow against `http://localhost:3000` by default.
 - `npm run prisma:generate` generates the Prisma client.
 - `npm run prisma:migrate` applies local migrations.
+- `npm run prisma:migrate:deploy` applies production migrations during hosted deploy.
 
 Smoke QA requires the API and database to be running. To target a different API URL:
 
@@ -90,6 +91,7 @@ Important environment choices:
 - Set `ACCOUNT_DEV_TOKENS=false` anywhere real testers can reach the API.
 - Store `SUPABASE_SERVICE_ROLE_KEY` only on the API host; never expose it to Expo.
 - Configure EAS `preview` environment variables for `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Verify `GET /health/ready` after Render deploy; it checks that the API can query the hosted database.
 
 ## UX And Visual Standards
 

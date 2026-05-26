@@ -17,6 +17,7 @@ Date: 2026-05-20
 - Add a profile bootstrap flow that creates the CritiCool `users` row after Supabase signup/login, using Supabase user id as the app user id.
 - Change account settings so display name/username stay API-owned, while email verification/reset/password recovery are handled by Supabase Auth.
 - Update account deletion to hard-delete CritiCool data and delete the Supabase auth user through server-side service-role credentials only.
+- Harden account deletion cleanup so reports/notifications tied to the deleted user, their reviews, and their comments are removed before the user cascade, preventing orphaned moderation/notification rows in the shared beta database.
 - Polish account settings for beta usage: keep the destructive delete-account action bottom-centered, add a visible in-app confirmation dialog before deletion, and document the approved UX in `resources/mockups/preview/phase-5-auth-beta.html`.
 - Add Render deployment config/scripts: build API, generate Prisma client, run `prisma migrate deploy`, start `apps/api/dist/main.js`, and expose a DB-backed readiness check.
 - Configure Supabase fresh beta DB with existing Prisma migrations, Resend custom SMTP, redirect URLs for `criticool://`, and no committed secrets.
@@ -32,7 +33,7 @@ Date: 2026-05-20
 
 ## Test Plan
 
-- Unit tests: Supabase JWT guard, profile bootstrap conflicts, username/display name update, account deletion, and disabled legacy auth behavior in production.
+- Unit tests: Supabase JWT guard, profile bootstrap conflicts, username/display name update, account deletion cleanup including moderation/notification rows, Supabase auth-user deletion handoff, and disabled legacy auth behavior in production.
 - Mobile tests: auth state restoration, signed-out reset flow state, profile bootstrap fallback, and existing navigation regression coverage.
 - Smoke QA: update `scripts/qa-smoke.mjs` or add hosted smoke support using Supabase test-user setup, then run against the Render API.
 - Verification commands: `npm run build --workspaces --if-present`, `npm test`, hosted smoke QA, Render health/readiness checks, and EAS preview build validation.

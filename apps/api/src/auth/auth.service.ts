@@ -358,6 +358,27 @@ export class AuthService {
     const commentIds = comments.map((comment) => comment.id);
 
     const cleanup: Prisma.PrismaPromise<unknown>[] = [];
+    const reportCleanupWhere: Prisma.ReportWhereInput = {
+      OR: [
+        { reporterId: userId },
+        { targetType: 'user', targetId: userId },
+        ...(reviewIds.length
+          ? [{ targetType: 'review' as const, targetId: { in: reviewIds } }]
+          : []),
+        ...(commentIds.length
+          ? [{ targetType: 'comment' as const, targetId: { in: commentIds } }]
+          : []),
+      ],
+    };
+    const notificationCleanupWhere: Prisma.NotificationWhereInput = {
+      OR: [
+        { recipientId: userId },
+        { actorId: userId },
+        ...(reviewIds.length ? [{ reviewId: { in: reviewIds } }] : []),
+        ...(commentIds.length ? [{ commentId: { in: commentIds } }] : []),
+      ],
+    };
+
     if (reviewIds.length || commentIds.length) {
       cleanup.push(
         this.prisma.translationCache.deleteMany({
@@ -375,12 +396,8 @@ export class AuthService {
 
     await this.prisma.$transaction([
       ...cleanup,
-      this.prisma.report.deleteMany({
-        where: { targetType: 'user', targetId: userId },
-      }),
-      this.prisma.notification.deleteMany({
-        where: { actorId: userId },
-      }),
+      this.prisma.report.deleteMany({ where: reportCleanupWhere }),
+      this.prisma.notification.deleteMany({ where: notificationCleanupWhere }),
       this.prisma.user.delete({ where: { id: userId } }),
     ]);
 
@@ -560,7 +577,9 @@ export class AuthService {
   }
 
   private managedAuthEnabled() {
-    return (this.config.get<string>('AUTH_PROVIDER') ?? 'legacy').trim().toLowerCase() === 'supabase';
+    return (
+      (this.config.get<string>('AUTH_PROVIDER') ?? 'legacy').trim().toLowerCase() === 'supabase'
+    );
   }
 
   private assertLegacyAuthEnabled() {

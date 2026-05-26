@@ -377,7 +377,47 @@ describe('AuthService', () => {
       const result = await service.deleteMe('user-1');
 
       expect(result).toEqual({ ok: true });
+      expect(prisma.report.deleteMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { reporterId: 'user-1' },
+            { targetType: 'user', targetId: 'user-1' },
+            { targetType: 'review', targetId: { in: ['review-1'] } },
+            { targetType: 'comment', targetId: { in: ['comment-1'] } },
+          ],
+        },
+      });
+      expect(prisma.notification.deleteMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { recipientId: 'user-1' },
+            { actorId: 'user-1' },
+            { reviewId: { in: ['review-1'] } },
+            { commentId: { in: ['comment-1'] } },
+          ],
+        },
+      });
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } });
+    });
+
+    it('deletes the managed Supabase auth user after local cleanup', async () => {
+      const supabaseAuth = { deleteAuthUser: vi.fn().mockResolvedValue(undefined) };
+      service = new AuthService(
+        prisma as never,
+        jwt as never,
+        config as never,
+        supabaseAuth as never,
+      );
+      prisma.user.findFirstOrThrow.mockResolvedValue(user);
+      prisma.review.findMany.mockResolvedValue([]);
+      prisma.comment.findMany.mockResolvedValue([]);
+      prisma.report.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.notification.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.user.delete.mockResolvedValue(user);
+
+      await expect(service.deleteMe('user-1')).resolves.toEqual({ ok: true });
+
+      expect(supabaseAuth.deleteAuthUser).toHaveBeenCalledWith('user-1');
     });
   });
 
@@ -480,9 +520,9 @@ describe('AuthService', () => {
         deletedAt: null,
       });
 
-      await expect(
-        service.updateMe('user-1', { email: 'new@example.com' }),
-      ).rejects.toThrow('Email changes are managed by Supabase Auth');
+      await expect(service.updateMe('user-1', { email: 'new@example.com' })).rejects.toThrow(
+        'Email changes are managed by Supabase Auth',
+      );
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
   });
